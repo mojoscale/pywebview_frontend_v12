@@ -1,0 +1,51 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+*.pyi
+*.egg-info/
+.env
+.venv/
+venv/
+env/
+.env/
+.internal_env/
+*.log
+
+# If using pipenv or poetry
+Pipfile.lock
+poetry.lock
+
+# Byte-compiled / cache
+*.py[cod]
+*.so
+*.dll
+
+# === Node / React frontend ===
+frontend/node_modules/
+frontend/.env
+frontend/.env.*.local
+frontend/dist/      # Vite build output
+frontend/build/     # CRA build output
+
+# === OS-specific ===
+.DS_Store
+Thumbs.db
+
+# === Editor/IDE ===
+.vscode/
+.idea/
+*.swp
+
+# === PyInstaller or Build Artifacts (if packaging Python) ===
+build/
+dist/
+installer_output/
+*.spec
+
+# === Webview Dev Cache (optional) ===
+webview.log
+.firebase/
