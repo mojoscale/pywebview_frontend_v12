@@ -7,7 +7,7 @@ from pathlib import Path
 
 # core imports
 from core.utils import APP_WINDOW_NAME
-from core.updater import start_update_checker, run_updater
+from core.updater import start_update_checker, run_updater, APP_VERSION
 
 
 class Api:
@@ -16,6 +16,30 @@ class Api:
         print("⚡ Triggering update from frontend")
         run_updater(download_url)
         return {"status": "started"}
+
+    def get_version(self):
+        return APP_VERSION
+
+    def get_projects(self):
+        return [
+            {
+                "id": "1",
+                "name": "Arduino Sensor Logger",
+                "description": "Logs temperature + humidity data every 5 seconds.",
+                "lastUpdated": "2025-09-24",
+                "status": "Active",
+            },
+            {
+                "id": "2",
+                "name": "3D Printer Controller",
+                "description": "Controls printer speed, motors, and temp sensors.",
+                "lastUpdated": "2025-09-20",
+                "status": "Inactive",
+            },
+        ]
+
+    def create_project(self, project_details):
+        print(f"receieved -- {project_details}")
 
 
 if __name__ == "__main__":
