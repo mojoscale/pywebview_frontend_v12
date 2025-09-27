@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { usePywebviewApi } from '../hooks/usePywebviewApi';
 
 interface SerialContextType {
   serialConnected: boolean;
@@ -40,42 +41,19 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
   const [monitoring, setMonitoring] = useState(false);
   const [serialOutput, setSerialOutput] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [apiReady, setApiReady] = useState(false);
-
-  const waitForApi = async (maxRetries = 5, interval = 500): Promise<boolean> => {
-    let retries = 0;
-    
-    const checkApi = () => {
-      return typeof window.pywebview?.api?.serial_port_available === 'function';
-    };
-
-    if (checkApi()) return true;
-
-    return new Promise((resolve) => {
-      const timer = setInterval(() => {
-        retries++;
-        if (checkApi()) {
-          clearInterval(timer);
-          resolve(true);
-        } else if (retries >= maxRetries) {
-          clearInterval(timer);
-          console.warn(`API not available after ${maxRetries} retries`);
-          resolve(false);
-        }
-      }, interval);
-    });
-  };
+  
+  // Use the hook for all pywebview API interactions
+  const pywebviewApi = usePywebviewApi();
 
   const checkConnection = async (): Promise<void> => {
     try {
       setError(null);
-      const isApiReady = await waitForApi();
       
-      if (!isApiReady) {
+      if (!pywebviewApi) {
         throw new Error('Python backend API is not available');
       }
 
-      const result = await window.pywebview.api.serial_port_available();
+      const result = await pywebviewApi.serial_port_available();
       setSerialConnected(result?.available === true);
       console.log('Serial connection status:', result);
     } catch (err) {
@@ -86,7 +64,7 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const toggleMonitoring = async (): Promise<void> => {
-    if (!apiReady) {
+    if (!pywebviewApi) {
       setError('Backend API is not ready');
       return;
     }
@@ -96,9 +74,9 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       if (newState) {
-        await window.pywebview.api.start_serial_monitor();
+        await pywebviewApi.start_serial_monitor();
       } else {
-        await window.pywebview.api.stop_serial_monitor();
+        await pywebviewApi.stop_serial_monitor();
       }
       console.log(`Serial monitoring ${newState ? 'started' : 'stopped'}`);
     } catch (err) {
@@ -114,56 +92,39 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
 
   // 🔁 Initialize and register handlers
   useEffect(() => {
-    const initialize = async () => {
-      try {
-        if (!window.pywebview) {
-          await new Promise<void>((resolve) => {
-            const handler = () => {
-              window.removeEventListener('pywebviewready', handler);
-              resolve();
-            };
-            window.addEventListener('pywebviewready', handler);
-          });
-        }
+    if (!pywebviewApi) return;
 
-        const isReady = await waitForApi();
-        setApiReady(isReady);
-
-        if (isReady) {
-          // 🔁 Overwrite handlers after React mount
-          window.onSerialLine = (line: string) => {
-            if (monitoring) {
-              setSerialOutput(prev => [...prev, line]);
-            }
-          };
-
-          window.onSerialStatusUpdate = (connected: boolean) => {
-            setSerialConnected(connected);
-            if (!connected && monitoring) {
-              setMonitoring(false);
-            }
-          };
-
-          await checkConnection();
-        }
-      } catch (err) {
-        console.error('Initialization error:', err);
-        setError(err instanceof Error ? err.message : String(err));
+    // 🔁 Overwrite handlers when API is ready
+    window.onSerialLine = (line: string) => {
+      if (monitoring) {
+        setSerialOutput(prev => [...prev, line]);
       }
     };
 
-    initialize();
+    window.onSerialStatusUpdate = (connected: boolean) => {
+      setSerialConnected(connected);
+      if (!connected && monitoring) {
+        setMonitoring(false);
+      }
+    };
 
+    // Check initial connection status
+    checkConnection();
+  }, [pywebviewApi, monitoring]);
+
+  // Cleanup effect
+  useEffect(() => {
     return () => {
-      if (window.pywebview?.api?.stop_serial_monitor && monitoring) {
-        window.pywebview.api.stop_serial_monitor().catch(console.error);
+      // Stop monitoring on unmount if active
+      if (pywebviewApi && monitoring) {
+        pywebviewApi.stop_serial_monitor().catch(console.error);
       }
 
       // ✅ Cleanup global handlers to prevent stale closures
       window.onSerialLine = undefined;
       window.onSerialStatusUpdate = undefined;
     };
-  }, []);
+  }, [pywebviewApi, monitoring]);
 
   return (
     <SerialContext.Provider

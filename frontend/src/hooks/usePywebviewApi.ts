@@ -1,17 +1,15 @@
 // src/hooks/usePywebviewApi.ts
 import { useEffect, useState } from "react";
 
-export function usePywebviewApi<T extends keyof typeof window.pywebview.api>(
-  method?: T,
-  intervalMs: number = 500
-) {
+export function usePywebviewApi(method?: string) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: number | undefined;
 
     const checkReady = () => {
       if (window.pywebview?.api) {
+        // If a specific method is requested, check if it exists
         if (method && !(method in window.pywebview.api)) {
           return false;
         }
@@ -22,15 +20,20 @@ export function usePywebviewApi<T extends keyof typeof window.pywebview.api>(
     };
 
     if (!checkReady()) {
-      interval = setInterval(() => {
-        if (checkReady()) clearInterval(interval);
-      }, intervalMs);
+      interval = window.setInterval(() => {
+        if (checkReady() && interval) {
+          window.clearInterval(interval);
+        }
+      }, 500);
     }
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (interval) {
+        window.clearInterval(interval);
+      }
     };
-  }, [method, intervalMs]);
+  }, [method]);
 
-  return ready ? window.pywebview.api : null;
+  // Add null safety check
+  return ready && window.pywebview ? window.pywebview.api : null;
 }

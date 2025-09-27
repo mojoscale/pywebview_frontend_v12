@@ -1,6 +1,6 @@
 // src/pages/IDEPage.tsx
 import React, { useState } from "react";
-import { Layout, Typography, Card, Divider, Button, Space } from "antd";
+import { Layout, Typography, Card, Button, Space } from "antd";
 import {
   PlayCircleOutlined,
   CodeOutlined,
@@ -192,11 +192,17 @@ def loop():
                     glyphMargin: true,
                     renderLineHighlight: "all",
                     suggestOnTriggerCharacters: true,
-                    wordBasedSuggestions: true,
+                    wordBasedSuggestions: "matchingDocuments",
                     scrollbar: {
                       vertical: "visible",
                       horizontal: "visible",
                       useShadows: false,
+                    },
+                    quickSuggestions: true,
+                    parameterHints: { enabled: true },
+                    suggest: {
+                      showFiles: false,
+                      showStatusBar: false,
                     },
                   }}
                 />

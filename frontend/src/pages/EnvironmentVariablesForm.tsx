@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Form,
   Input,
@@ -73,13 +73,13 @@ const EnvironmentVariablesForm = () => {
     }
   };
 
-  const handleEdit = (record) => {
+  const handleEdit = (record:any) => {
     setEditingKey(record.key);
     form.setFieldsValue(record);
     setIsModalVisible(true);
   };
 
-  const handleDelete = (key) => {
+  const handleDelete = (key:any) => {
     setVariables(variables.filter(v => v.key !== key));
     message.success('Variable deleted successfully');
   };
@@ -87,7 +87,7 @@ const EnvironmentVariablesForm = () => {
   const handleBulkSave = () => {
     try {
       const lines = bulkText.split('\n').filter(line => line.trim());
-      const newVariables = [];
+      const newVariables:any = [];
       
       lines.forEach(line => {
         const [key, ...valueParts] = line.split('=');
@@ -115,7 +115,7 @@ const EnvironmentVariablesForm = () => {
     message.success('Environment variables copied to clipboard!');
   };
 
-  const maskSecret = (value, isSecret) => {
+  const maskSecret = (value:any, isSecret:any) => {
     if (isSecret && !showSecrets) {
       return '•'.repeat(8);
     }
@@ -128,7 +128,7 @@ const EnvironmentVariablesForm = () => {
       dataIndex: 'key',
       key: 'key',
       width: '30%',
-      render: (text, record) => (
+      render: (text:any, record:any) => (
         <Space>
           <Tag color="blue">{text}</Tag>
           {record.isSecret && <EyeInvisibleOutlined style={{ color: '#ff4d4f' }} />}
@@ -139,7 +139,7 @@ const EnvironmentVariablesForm = () => {
       title: 'Value',
       dataIndex: 'value',
       key: 'value',
-      render: (value, record) => (
+      render: (value:any, record:any) => (
         <Text code style={{ fontSize: '12px' }}>
           {maskSecret(value, record.isSecret)}
         </Text>
@@ -150,7 +150,7 @@ const EnvironmentVariablesForm = () => {
       dataIndex: 'isSecret',
       key: 'isSecret',
       width: '100px',
-      render: (isSecret) => (
+      render: (isSecret:any) => (
         <Tag color={isSecret ? 'red' : 'green'}>
           {isSecret ? 'Secret' : 'Plain'}
         </Tag>
@@ -160,7 +160,7 @@ const EnvironmentVariablesForm = () => {
       title: 'Actions',
       key: 'actions',
       width: '120px',
-      render: (_, record) => (
+      render: (_:any, record:any) => (
         <Space size="small">
           <Tooltip title="Edit">
             <Button 

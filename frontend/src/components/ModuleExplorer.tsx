@@ -39,6 +39,13 @@ type ModuleEntry = {
   doc?: string;
 };
 
+// Explorer item type
+type ExplorerItem =
+  | (FunctionEntry & { type: "function"; module: string })
+  | (ClassEntry & { type: "class"; module: string })
+  | (FunctionEntry & { type: "method"; module: string; parentClass: string })
+  | (VariableEntry & { type: "variable"; module: string });
+
 const { Title, Text, Paragraph } = Typography;
 const { Panel } = Collapse;
 
@@ -76,25 +83,21 @@ const ModuleExplorer = () => {
   }, [favorites]);
 
   // Flatten for search
-  const flattened = useMemo(() => {
-    const list: any[] = [];
+  const flattened: ExplorerItem[] = useMemo(() => {
+    const list: ExplorerItem[] = [];
     Object.entries(rawModules).forEach(([modName, mod]) => {
       mod.functions?.forEach((fn) =>
-        list.push({ 
-          module: modName, 
-          type: "function", 
+        list.push({
+          module: modName,
+          type: "function",
           ...fn,
-          fullName: `${modName}.${fn.name}`,
-          searchableText: `${modName} ${fn.name} ${fn.signature} ${fn.doc || ''}`.toLowerCase()
         })
       );
       mod.classes?.forEach((cls) => {
-        list.push({ 
-          module: modName, 
-          type: "class", 
+        list.push({
+          module: modName,
+          type: "class",
           ...cls,
-          fullName: `${modName}.${cls.name}`,
-          searchableText: `${modName} ${cls.name} ${cls.doc || ''}`.toLowerCase()
         });
         cls.methods?.forEach((m) =>
           list.push({
@@ -102,36 +105,32 @@ const ModuleExplorer = () => {
             type: "method",
             parentClass: cls.name,
             ...m,
-            fullName: `${modName}.${cls.name}.${m.name}`,
-            searchableText: `${modName} ${cls.name} ${m.name} ${m.signature} ${m.doc || ''}`.toLowerCase()
           })
         );
       });
       mod.variables?.forEach((v) =>
-        list.push({ 
-          module: modName, 
-          type: "variable", 
+        list.push({
+          module: modName,
+          type: "variable",
           ...v,
-          fullName: `${modName}.${v.name}`,
-          searchableText: `${modName} ${v.name} ${v.value} ${v.doc || ''}`.toLowerCase()
         })
       );
     });
     return list;
   }, [rawModules]);
 
-  // Search with fuse - FIXED
+  // Search with fuse
   const searchResults = useMemo(() => {
     if (!search.trim()) {
       return {
         modules: rawModules,
         flattened: flattened,
-        hasSearch: false
+        hasSearch: false,
       };
     }
 
     const fuse = new Fuse(flattened, {
-      keys: ['name', 'module', 'signature', 'doc', 'parentClass', 'value'],
+      keys: ["name", "module", "signature", "doc", "parentClass", "value"],
       threshold: 0.3,
       includeScore: true,
       ignoreLocation: true,
@@ -140,10 +139,10 @@ const ModuleExplorer = () => {
 
     const searchResults = fuse.search(search);
     const resultItems = searchResults.map((r) => r.item);
-    
+
     // Group results by module for display
-    const groupedResults: Record<string, any[]> = {};
-    resultItems.forEach(item => {
+    const groupedResults: Record<string, ExplorerItem[]> = {};
+    resultItems.forEach((item) => {
       if (!groupedResults[item.module]) {
         groupedResults[item.module] = [];
       }
@@ -153,7 +152,7 @@ const ModuleExplorer = () => {
     return {
       modules: groupedResults,
       flattened: resultItems,
-      hasSearch: true
+      hasSearch: true,
     };
   }, [search, flattened, rawModules]);
 
@@ -165,7 +164,11 @@ const ModuleExplorer = () => {
   const getTypeConfig = (type: string) => {
     switch (type) {
       case "function":
-        return { icon: <FunctionOutlined />, color: "#1890ff", label: "Function" };
+        return {
+          icon: <FunctionOutlined />,
+          color: "#1890ff",
+          label: "Function",
+        };
       case "class":
         return { icon: <CrownOutlined />, color: "#52c41a", label: "Class" };
       case "method":
@@ -178,40 +181,45 @@ const ModuleExplorer = () => {
   };
 
   // Render entry card
-  const renderEntry = (item: any) => {
-    const key = `${item.module}.${item.type}.${item.parentClass || ""}.${item.name}`;
+  const renderEntry = (item: ExplorerItem) => {
+    const key = `${item.module}.${item.type}.${
+      "parentClass" in item ? item.parentClass : ""
+    }.${item.name}`;
     const typeConfig = getTypeConfig(item.type);
-    
+
     return (
       <Card
         size="small"
         hoverable
-        style={{ 
-          marginBottom: 8, 
-          border: `1px solid ${darkMode ? '#434343' : '#f0f0f0'}`,
+        style={{
+          marginBottom: 8,
+          border: `1px solid ${darkMode ? "#434343" : "#f0f0f0"}`,
           borderRadius: 6,
-          background: darkMode ? 'rgba(255,255,255,0.02)' : '#fff',
+          background: darkMode ? "rgba(255,255,255,0.02)" : "#fff",
         }}
         bodyStyle={{ padding: 12 }}
         title={
-          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space style={{ width: "100%", justifyContent: "space-between" }}>
             <Space>
-              <Avatar 
-                size="small" 
+              <Avatar
+                size="small"
                 icon={typeConfig.icon}
-                style={{ 
+                style={{
                   backgroundColor: typeConfig.color,
-                  fontSize: 12 
-                }} 
+                  fontSize: 12,
+                }}
               />
-              <Text strong style={{ color: darkMode ? '#fff' : '#000', fontSize: 13 }}>
+              <Text
+                strong
+                style={{ color: darkMode ? "#fff" : "#000", fontSize: 13 }}
+              >
                 {item.type === "method"
-                  ? `${item.parentClass}.${item.name}`
+                  ? `${(item as any).parentClass}.${item.name}`
                   : item.name}
               </Text>
-              {item.signature && (
-                <Tag 
-                  color={darkMode ? 'blue' : 'geekblue'} 
+              {"signature" in item && item.signature && (
+                <Tag
+                  color={darkMode ? "blue" : "geekblue"}
                   style={{ margin: 0, fontSize: 10 }}
                 >
                   {item.signature}
@@ -225,7 +233,9 @@ const ModuleExplorer = () => {
                 favorites[key] ? (
                   <StarFilled style={{ color: "#faad14" }} />
                 ) : (
-                  <StarOutlined style={{ color: darkMode ? '#8c8c8c' : '#d9d9d9' }} />
+                  <StarOutlined
+                    style={{ color: darkMode ? "#8c8c8c" : "#d9d9d9" }}
+                  />
                 )
               }
               onClick={(e) => {
@@ -236,45 +246,48 @@ const ModuleExplorer = () => {
           </Space>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {item.doc && (
-            <Paragraph 
-              type="secondary" 
-              style={{ 
-                margin: 0, 
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {"doc" in item && item.doc && (
+            <Paragraph
+              type="secondary"
+              style={{
+                margin: 0,
                 fontSize: 12,
                 lineHeight: 1.4,
-                color: darkMode ? '#8c8c8c' : '#666'
+                color: darkMode ? "#8c8c8c" : "#666",
               }}
               ellipsis={{ rows: 2, expandable: true }}
             >
               {item.doc}
             </Paragraph>
           )}
-          {item.value && (
-            <Tag 
-              color={darkMode ? 'blue' : 'cyan'} 
-              style={{ margin: 0, alignSelf: 'flex-start', fontSize: 10 }}
+          {"value" in item && item.value && (
+            <Tag
+              color={darkMode ? "blue" : "cyan"}
+              style={{ margin: 0, alignSelf: "flex-start", fontSize: 10 }}
             >
               {item.value}
             </Tag>
           )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Tag 
-              style={{ 
-                fontSize: 9, 
-                padding: '1px 6px',
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Tag
+              style={{
+                fontSize: 9,
+                padding: "1px 6px",
                 border: `1px solid ${typeConfig.color}20`,
                 color: typeConfig.color,
-                background: `${typeConfig.color}10`
+                background: `${typeConfig.color}10`,
               }}
             >
               {typeConfig.label}
             </Tag>
-            <Text 
-              type="secondary" 
-              style={{ fontSize: 10 }}
-            >
+            <Text type="secondary" style={{ fontSize: 10 }}>
               {item.module}
             </Text>
           </div>
@@ -284,7 +297,9 @@ const ModuleExplorer = () => {
   };
 
   const favoriteCount = Object.values(favorites).filter(Boolean).length;
-  const displayModules = searchResults.hasSearch ? searchResults.modules : rawModules;
+  const displayModules = searchResults.hasSearch
+    ? searchResults.modules
+    : rawModules;
 
   return (
     <div
@@ -295,35 +310,42 @@ const ModuleExplorer = () => {
         background: darkMode ? "#141414" : "#fafafa",
         borderRadius: 8,
         overflow: "hidden",
-        border: `1px solid ${darkMode ? '#303030' : '#e8e8e8'}`,
+        border: `1px solid ${darkMode ? "#303030" : "#e8e8e8"}`,
       }}
     >
-      {/* Header - Fixed */}
+      {/* Header */}
       <div
         style={{
           padding: "16px 20px",
-          borderBottom: `1px solid ${darkMode ? '#303030' : '#f0f0f0'}`,
+          borderBottom: `1px solid ${darkMode ? "#303030" : "#f0f0f0"}`,
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          background: darkMode ? '#1f1f1f' : '#fff',
+          background: darkMode ? "#1f1f1f" : "#fff",
           flexShrink: 0,
         }}
       >
         <Space>
-          <FileSearchOutlined style={{ color: darkMode ? '#177ddc' : '#1890ff', fontSize: 18 }} />
-          <Title level={5} style={{ margin: 0, color: darkMode ? '#fff' : '#000' }}>
+          <FileSearchOutlined
+            style={{ color: darkMode ? "#177ddc" : "#1890ff", fontSize: 18 }}
+          />
+          <Title
+            level={5}
+            style={{ margin: 0, color: darkMode ? "#fff" : "#000" }}
+          >
             Module Explorer
           </Title>
-          <Badge 
-            count={Object.keys(rawModules).length} 
-            size="small" 
-            color={darkMode ? '#177ddc' : '#1890ff'}
+          <Badge
+            count={Object.keys(rawModules).length}
+            size="small"
+            color={darkMode ? "#177ddc" : "#1890ff"}
           />
         </Space>
         <Space>
-          <Text style={{ fontSize: 12, color: darkMode ? '#8c8c8c' : '#666' }}>
-            {darkMode ? 'Dark' : 'Light'}
+          <Text
+            style={{ fontSize: 12, color: darkMode ? "#8c8c8c" : "#666" }}
+          >
+            {darkMode ? "Dark" : "Light"}
           </Text>
           <Switch
             checkedChildren={<MoonOutlined />}
@@ -335,50 +357,52 @@ const ModuleExplorer = () => {
         </Space>
       </div>
 
-      {/* Search Bar - Fixed */}
-      <div style={{ 
-        padding: 16, 
-        background: darkMode ? '#141414' : '#fafafa',
-        flexShrink: 0,
-        borderBottom: `1px solid ${darkMode ? '#303030' : '#f0f0f0'}`,
-      }}>
+      {/* Search */}
+      <div
+        style={{
+          padding: 16,
+          background: darkMode ? "#141414" : "#fafafa",
+          flexShrink: 0,
+          borderBottom: `1px solid ${darkMode ? "#303030" : "#f0f0f0"}`,
+        }}
+      >
         <Input
           placeholder="Search functions, classes, variables..."
           allowClear
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           prefix={<SearchOutlined />}
-          style={{ 
-            background: darkMode ? '#1f1f1f' : '#fff',
+          style={{
+            background: darkMode ? "#1f1f1f" : "#fff",
           }}
           size="middle"
         />
         {searchResults.hasSearch && (
-          <Text style={{ 
-            fontSize: 12, 
-            color: darkMode ? '#8c8c8c' : '#666',
-            marginTop: 8,
-            display: 'block'
-          }}>
+          <Text
+            style={{
+              fontSize: 12,
+              color: darkMode ? "#8c8c8c" : "#666",
+              marginTop: 8,
+              display: "block",
+            }}
+          >
             Found {searchResults.flattened.length} results
           </Text>
         )}
       </div>
 
-      {/* Main Content - Scrollable */}
+      {/* Main Content */}
       <div
         style={{
           flex: 1,
           overflow: "auto",
-          minHeight: 0, // Important for flex scrolling
+          minHeight: 0,
         }}
       >
         <Tabs
           defaultActiveKey="all"
           size="small"
-          style={{ 
-            height: '100%',
-          }}
+          style={{ height: "100%" }}
           items={[
             {
               key: "all",
@@ -387,65 +411,95 @@ const ModuleExplorer = () => {
                   <CodeOutlined />
                   All Modules
                   {searchResults.hasSearch && (
-                    <Badge count={Object.keys(displayModules).length} size="small" />
+                    <Badge
+                      count={Object.keys(displayModules).length}
+                      size="small"
+                    />
                   )}
                 </Space>
               ),
               children: (
-                <div style={{ padding: '0 16px 16px 16px' }}>
+                <div style={{ padding: "0 16px 16px 16px" }}>
                   {Object.keys(displayModules).length === 0 ? (
                     <Empty
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
                       description={
                         search ? "No results found" : "No modules available"
                       }
-                      style={{ 
-                        margin: '40px 0',
-                        color: darkMode ? '#666' : '#999'
+                      style={{
+                        margin: "40px 0",
+                        color: darkMode ? "#666" : "#999",
                       }}
                     />
                   ) : (
-                    <Collapse 
-                      accordion 
+                    <Collapse
+                      accordion
                       ghost
                       activeKey={activePanels}
-                      onChange={(keys) => setActivePanels(Array.isArray(keys) ? keys : [keys])}
-                      style={{ background: 'transparent' }}
+                      onChange={(keys) =>
+                        setActivePanels(Array.isArray(keys) ? keys : [keys])
+                      }
+                      style={{ background: "transparent" }}
                     >
                       {Object.entries(displayModules).map(([modName, mod]) => {
-                        const items = searchResults.hasSearch ? mod : [
-                          ...(mod.functions || []).map(f => ({ ...f, type: 'function' })),
-                          ...(mod.classes || []).map(c => ({ ...c, type: 'class' })),
-                          ...(mod.variables || []).map(v => ({ ...v, type: 'variable' }))
-                        ];
-                        
+                        const items = searchResults.hasSearch
+                          ? (mod as ExplorerItem[])
+                          : [
+                              ...(mod.functions || []).map(
+                                (f: FunctionEntry) => ({
+                                  ...f,
+                                  type: "function" as const,
+                                  module: modName,
+                                })
+                              ),
+                              ...(mod.classes || []).map((c: ClassEntry) => ({
+                                ...c,
+                                type: "class" as const,
+                                module: modName,
+                              })),
+                              ...(mod.variables || []).map(
+                                (v: VariableEntry) => ({
+                                  ...v,
+                                  type: "variable" as const,
+                                  module: modName,
+                                })
+                              ),
+                            ];
+
                         return (
-                          <Panel 
+                          <Panel
                             header={
                               <Space>
-                                <Text strong style={{ color: darkMode ? '#fff' : '#000' }}>
+                                <Text
+                                  strong
+                                  style={{
+                                    color: darkMode ? "#fff" : "#000",
+                                  }}
+                                >
                                   {modName}
                                 </Text>
-                                <Badge 
-                                  count={items.length} 
-                                  size="small" 
-                                  color={darkMode ? 'blue' : 'geekblue'}
+                                <Badge
+                                  count={items.length}
+                                  size="small"
+                                  color={darkMode ? "blue" : "geekblue"}
                                 />
                               </Space>
-                            } 
+                            }
                             key={modName}
                             style={{
-                              border: `1px solid ${darkMode ? '#303030' : '#f0f0f0'}`,
+                              border: `1px solid ${
+                                darkMode ? "#303030" : "#f0f0f0"
+                              }`,
                               borderRadius: 6,
                               marginBottom: 8,
-                              background: darkMode ? '#1f1f1f' : '#fff',
+                              background: darkMode ? "#1f1f1f" : "#fff",
                             }}
                           >
                             <List
                               dataSource={items}
-                              renderItem={(item) => (
-                                <List.Item style={{ padding: '4px 0' }}>
-                                  {renderEntry({ ...item, module: modName })}
+                              renderItem={(item: ExplorerItem) => (
+                                <List.Item style={{ padding: "4px 0" }}>
+                                  {renderEntry(item)}
                                 </List.Item>
                               )}
                               locale={{ emptyText: "No items found" }}
@@ -468,30 +522,34 @@ const ModuleExplorer = () => {
                 </Space>
               ),
               children: (
-                <div style={{ padding: '0 16px 16px 16px' }}>
+                <div style={{ padding: "0 16px 16px 16px" }}>
                   <List
-                    dataSource={flattened.filter((f) =>
-                      favorites[
-                        `${f.module}.${f.type}.${f.parentClass || ""}.${f.name}`
-                      ]
+                    dataSource={flattened.filter(
+                      (f) =>
+                        favorites[
+                          `${f.module}.${f.type}.${
+                            "parentClass" in f ? f.parentClass : ""
+                          }.${f.name}`
+                        ]
                     )}
-                    renderItem={(item) => (
-                      <List.Item style={{ padding: '4px 0' }}>
+                    renderItem={(item: ExplorerItem) => (
+                      <List.Item style={{ padding: "4px 0" }}>
                         {renderEntry(item)}
                       </List.Item>
                     )}
-                    locale={{ 
+                    locale={{
                       emptyText: (
                         <Empty
                           image={Empty.PRESENTED_IMAGE_SIMPLE}
                           description="No favorites yet"
-                          style={{ margin: '40px 0' }}
+                          style={{ margin: "40px 0" }}
                         >
                           <Text type="secondary" style={{ fontSize: 12 }}>
-                            Click the star icon on any item to add it to favorites
+                            Click the star icon on any item to add it to
+                            favorites
                           </Text>
                         </Empty>
-                      ) 
+                      ),
                     }}
                   />
                 </div>
@@ -499,8 +557,8 @@ const ModuleExplorer = () => {
             },
           ]}
           tabBarStyle={{
-            background: darkMode ? '#141414' : '#fafafa',
-            padding: '0 16px',
+            background: darkMode ? "#141414" : "#fafafa",
+            padding: "0 16px",
             marginBottom: 0,
           }}
         />
