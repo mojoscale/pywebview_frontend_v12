@@ -1,23 +1,23 @@
-// src/App.tsx
 import { useEffect, useState } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { Layout, Typography, Button, Space, Tag } from "antd";
-import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
+import { HomeOutlined, PlusOutlined, CodeOutlined } from "@ant-design/icons";
 import UpdateBanner from "./components/UpdateBanner";
 import Home from "./pages/Home";
 import CreateProject from "./pages/CreateProject";
 import IDEPage from "./pages/IDEPage";
 import { usePywebviewApi } from "./hooks/usePywebviewApi";
+import TerminalView from "./components/TerminalView";
 
 const { Header, Footer, Content } = Layout;
 const { Text } = Typography;
 
 function App() {
   const [version, setVersion] = useState<string>("");
-  const [serialStatus, setSerialStatus] = useState<{
-    available: boolean;
-    ip?: string;
-  }>({ available: false });
+  const [serialStatus, setSerialStatus] = useState<{ available: boolean; ip?: string }>({
+    available: false,
+  });
+  const [showTerminal, setShowTerminal] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,111 +53,120 @@ function App() {
     };
 
     fetchSerial();
-    const interval = setInterval(fetchSerial, 5000); // poll every 5s
+    const interval = setInterval(fetchSerial, 5000);
     return () => clearInterval(interval);
   }, [apiSerial]);
 
-  // Determine which button should be highlighted
   const getButtonType = (path: string) => {
     return location.pathname === path ? "primary" : "default";
   };
 
   return (
-    <Layout
-      style={{
-        minHeight: "100vh",
+    <>
+      {/* Main App Layout */}
+      <Layout style={{ 
+        minHeight: "100vh", 
         width: "100vw",
-        margin: 0,
-        padding: 0,
-      }}
-    >
-      {/* Top Navigation Bar */}
-      <Header
-        style={{
-          background: "#fff",
-          borderBottom: "1px solid #f0f0f0",
-          padding: "0 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          margin: 0,
-          boxSizing: "border-box",
-        }}
-      >
-        {/* Left side: Branding + Navigation */}
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <Text strong style={{ fontSize: "18px", marginRight: "32px" }}>
-            PyWebView IDE
-          </Text>
+        paddingBottom: showTerminal ? "40vh" : "0px", // Add padding when terminal is open
+        transition: "padding-bottom 0.2s ease-in-out" // Smooth transition
+      }}>
+        {/* Top Navigation Bar */}
+        <Header
+          style={{
+            background: "#fff",
+            borderBottom: "1px solid #f0f0f0",
+            padding: "0 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          {/* Left side */}
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <Text strong style={{ fontSize: "18px", marginRight: "32px" }}>
+              PyWebView IDE
+            </Text>
+            <Space>
+              <Button
+                type={getButtonType("/")}
+                icon={<HomeOutlined />}
+                onClick={() => navigate("/")}
+              >
+                Home
+              </Button>
+              <Button
+                type={getButtonType("/create_project")}
+                icon={<PlusOutlined />}
+                onClick={() => navigate("/create_project")}
+              >
+                Create Project
+              </Button>
+            </Space>
+          </div>
 
+          {/* Right side */}
           <Space>
             <Button
-              type={getButtonType("/")}
-              icon={<HomeOutlined />}
-              onClick={() => navigate("/")}
+              type={showTerminal ? "primary" : "default"}
+              icon={<CodeOutlined />}
+              onClick={() => setShowTerminal((prev) => !prev)}
             >
-              Home
+              {showTerminal ? "Hide Terminal" : "Show Terminal"}
             </Button>
-            <Button
-              type={getButtonType("/create_project")}
-              icon={<PlusOutlined />}
-              onClick={() => navigate("/create_project")}
-            >
-              Create Project
-            </Button>
+
+            {serialStatus.available ? (
+              <Tag color="green">
+                Connected {serialStatus.ip ? `(${serialStatus.ip})` : ""}
+              </Tag>
+            ) : (
+              <Tag color="red">Disconnected</Tag>
+            )}
+
+            <Text type="secondary" style={{ fontSize: "0.85rem" }}>
+              {version ? `v${version}` : "Loading..."}
+            </Text>
           </Space>
-        </div>
+        </Header>
 
-        {/* Right side: Serial Status + Version */}
-        <Space>
-          {serialStatus.available ? (
-            <Tag color="green">
-              Connected {serialStatus.ip ? `(${serialStatus.ip})` : ""}
-            </Tag>
-          ) : (
-            <Tag color="red">Disconnected</Tag>
-          )}
-          <Text type="secondary" style={{ fontSize: "0.85rem" }}>
-            {version ? `v${version}` : "Loading..."}
-          </Text>
-        </Space>
-      </Header>
-
-      {/* Main content */}
-      <Content
-        style={{
-          flex: 1,
-          padding: "24px",
+        {/* Main content */}
+        <Content style={{ 
+          flex: 1, 
+          padding: "24px", 
           background: "#f0f2f5",
-          width: "100%",
-          margin: 0,
-          boxSizing: "border-box",
-        }}
-      >
-        <UpdateBanner />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/create_project" element={<CreateProject />} />
-          <Route path="/project/:projectId" element={<IDEPage />} />
-        </Routes>
-      </Content>
+          // Remove any bottom padding here since we're handling it at Layout level
+        }}>
+          <UpdateBanner />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/create_project" element={<CreateProject />} />
+            <Route path="/project/:projectId" element={<IDEPage />} />
+          </Routes>
+        </Content>
 
-      {/* Footer */}
-      <Footer
-        style={{
-          textAlign: "center",
-          background: "#fff",
-          width: "100%",
-          margin: 0,
-          boxSizing: "border-box",
-        }}
-      >
-        <Text type="secondary" style={{ fontSize: "0.85rem" }}>
-          {version ? `Version ${version}` : "Version unknown"}
-        </Text>
-      </Footer>
-    </Layout>
+        {/* Footer */}
+        <Footer style={{ textAlign: "center", background: "#fff" }}>
+          <Text type="secondary" style={{ fontSize: "0.85rem" }}>
+            {version ? `Version ${version}` : "Version unknown"}
+          </Text>
+        </Footer>
+      </Layout>
+
+      {/* Terminal - Rendered outside the main layout */}
+      {showTerminal && (
+        <div style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+          height: "40vh",
+          backgroundColor: "#1e1e1e",
+          boxShadow: "0 -2px 10px rgba(0,0,0,0.3)" // Optional: add shadow for better visual separation
+        }}>
+          <TerminalView onClose={() => setShowTerminal(false)} />
+        </div>
+      )}
+    </>
   );
 }
 
