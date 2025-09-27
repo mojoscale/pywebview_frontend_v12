@@ -3,6 +3,7 @@ import asyncio
 import threading
 import sys
 from pathlib import Path
+import json
 
 
 # core imports
@@ -44,6 +45,25 @@ class Api:
 
     def serial_port_available(self):
         return is_serial_port_connected()
+
+    def get_module_index(self):
+        try:
+            index_path = Path(__file__).parent / "core" / "core_modules_index.json"
+            if not index_path.exists():
+                return {
+                    "success": False,
+                    "error": f"Index file not found at {index_path}",
+                }
+
+            with open(index_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            return data
+
+        except Exception as e:
+            # Optional: log the error
+            print(f"[get_module_index ERROR] {e}")
+            return e
 
 
 if __name__ == "__main__":

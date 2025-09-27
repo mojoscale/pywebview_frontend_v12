@@ -71,7 +71,7 @@ const Home: React.FC = () => {
           <Button
             type="default"
             icon={<DatabaseOutlined />}
-            onClick={() => navigate("/env")}
+            onClick={() => navigate("/env_vars")}
           >
             Environment Variables
           </Button>

@@ -1,0 +1,2433 @@
+{
+  "arduino": {
+    "functions": [
+      {
+        "name": "pinMode",
+        "signature": "(pin: int, mode: int) -> None",
+        "doc": "Configures the specified pin to behave either as an input or an output.\n\nArgs:\n    pin (int): The number of the pin whose mode you want to set.\n    mode (int): The mode to set for the pin. Common values are:\n        - INPUT (0x0): Configures the pin as an input.\n        - OUTPUT (0x1): Configures the pin as an output.\n        - INPUT_PULLUP (0x2): Configures the pin as an input with an internal pull-up resistor.\n\nReturns:\n    None"
+      },
+      {
+        "name": "digitalWrite",
+        "signature": "(pin: int, val: int) -> None",
+        "doc": "Write a HIGH or LOW value to a digital pin.\n\nArgs:\n    pin (int): The number of the digital pin to write to.\n    val (int): The value to write. Use HIGH (1) or LOW (0).\n\nReturns:\n    None"
+      },
+      {
+        "name": "digitalRead",
+        "signature": "(pin: int) -> int",
+        "doc": "Reads the value from a specified digital pin, either HIGH or LOW.\n\nArgs:\n    pin (int): The number of the digital pin to read from.\n\nReturns:\n    int: The value read from the pin \u2014 HIGH (1) or LOW (0)."
+      },
+      {
+        "name": "analogRead",
+        "signature": "(pin: int) -> int",
+        "doc": "Reads the value from the specified analog pin.\n\nArgs:\n    pin (int): The number of the analog pin to read from.\n\nReturns:\n    int: The analog value read from the pin, typically ranging from 0 to 1023 (10-bit ADC),\n         or up to 4095 (12-bit) on some boards like ESP32."
+      },
+      {
+        "name": "analogWrite",
+        "signature": "(pin: int, val: int) -> None",
+        "doc": "Writes an analog value (PWM wave) to a pin.\n\nArgs:\n    pin (int): The number of the digital pin to write to (supports PWM).\n    val (int): The duty cycle: a value between 0 (always off) and 255 (always on) for 8-bit resolution.\n\nReturns:\n    None"
+      },
+      {
+        "name": "delay",
+        "signature": "(ms: int) -> None",
+        "doc": "Pauses the program for the amount of time (in milliseconds) specified.\n\nArgs:\n    ms (int): The number of milliseconds to pause.\n\nReturns:\n    None"
+      },
+      {
+        "name": "delayMicroseconds",
+        "signature": "(us: int) -> None",
+        "doc": "Pauses the program for the specified time in microseconds.\n\nArgs:\n    us (int): The number of microseconds to pause.\n\nReturns:\n    None"
+      },
+      {
+        "name": "millis",
+        "signature": "() -> int",
+        "doc": "Returns the number of milliseconds since the program started running.\n\nReturns:\n    int: Elapsed time in milliseconds."
+      },
+      {
+        "name": "micros",
+        "signature": "() -> int",
+        "doc": "Returns the number of microseconds since the program started running.\n\nReturns:\n    int: Elapsed time in microseconds."
+      },
+      {
+        "name": "shiftOut",
+        "signature": "(dataPin: int, clockPin: int, bitOrder: int, val: int) -> None",
+        "doc": "Shifts out a byte of data one bit at a time.\n\nArgs:\n    dataPin (int): The pin on which to output each bit.\n    clockPin (int): The pin to toggle to signal each bit.\n    bitOrder (int): The order to shift bits out (e.g., MSBFIRST or LSBFIRST).\n    val (int): The byte of data to shift out.\n\nReturns:\n    None"
+      },
+      {
+        "name": "shiftIn",
+        "signature": "(dataPin: int, clockPin: int, bitOrder: int) -> int",
+        "doc": "Shifts in a byte of data one bit at a time.\n\nArgs:\n    dataPin (int): The pin from which to read each bit.\n    clockPin (int): The pin to toggle to signal each bit.\n    bitOrder (int): The order to shift bits in (e.g., MSBFIRST or LSBFIRST).\n\nReturns:\n    int: The byte of data read."
+      },
+      {
+        "name": "pulseIn",
+        "signature": "(pin: int, state: int, timeout: int = 1000000) -> int",
+        "doc": "Reads a pulse (either HIGH or LOW) on a pin.\n\nArgs:\n    pin (int): The pin to read the pulse from.\n    state (int): The type of pulse to read: HIGH or LOW.\n    timeout (int, optional): Timeout in microseconds (default is 1 second).\n\nReturns:\n    int: The length of the pulse in microseconds (or 0 if timeout)."
+      },
+      {
+        "name": "tone",
+        "signature": "(pin: int, frequency: int, duration: int = 0) -> None",
+        "doc": "Generates a square wave of the specified frequency on a pin.\n\nArgs:\n    pin (int): The pin on which to generate the tone.\n    frequency (int): The frequency of the tone in Hz.\n    duration (int, optional): Duration of the tone in milliseconds (0 for continuous).\n\nReturns:\n    None"
+      },
+      {
+        "name": "noTone",
+        "signature": "(pin: int) -> None",
+        "doc": "Stops the generation of a tone on a pin.\n\nArgs:\n    pin (int): The pin to stop the tone on.\n\nReturns:\n    None"
+      },
+      {
+        "name": "noInterrupts",
+        "signature": "() -> None",
+        "doc": "Disables all interrupts on the microcontroller.\n\nThis function is typically used to ensure atomic access to shared resources\nor to prevent interruptions during critical timing-sensitive operations.\n\nReturns:\n    None"
+      },
+      {
+        "name": "interrupts",
+        "signature": "() -> None",
+        "doc": "Re-enables interrupts on the microcontroller.\n\nThis should be called after `noInterrupts()` to restore normal interrupt behavior.\n\nReturns:\n    None"
+      },
+      {
+        "name": "attachInterrupt",
+        "signature": "(pin: int, ISR: Callable[[], None], mode: int) -> None",
+        "doc": "Attaches an interrupt to a pin, triggered on a particular mode.\n\nArgs:\n    pin (int): The pin to attach the interrupt to.\n    ISR (Callable): A function to call when the interrupt is triggered.\n    mode (int): The condition to trigger the interrupt (RISING, FALLING, or CHANGE).\n\nReturns:\n    None"
+      },
+      {
+        "name": "detachInterrupt",
+        "signature": "(pin: int) -> None",
+        "doc": "Disables the interrupt for a given pin.\n\nArgs:\n    pin (int): The pin to detach the interrupt from.\n\nReturns:\n    None"
+      },
+      {
+        "name": "math_min",
+        "signature": "(a: float, b: float) -> float",
+        "doc": "Returns the smaller of two values.\n\nArgs:\n    a (Any): First value.\n    b (Any): Second value.\n\nReturns:\n    Any: Smaller of the two values."
+      },
+      {
+        "name": "math_max",
+        "signature": "(a: float, b: float) -> float",
+        "doc": "Returns the larger of two values.\n\nArgs:\n    a (Any): First value.\n    b (Any): Second value.\n\nReturns:\n    Any: Larger of the two values."
+      },
+      {
+        "name": "math_abs",
+        "signature": "(x: float) -> float",
+        "doc": "Returns the absolute value.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: Absolute value of x."
+      },
+      {
+        "name": "math_constrain",
+        "signature": "(x: float, a: float, b: float) -> float",
+        "doc": "Constrains a number to be within a range.\n\nArgs:\n    x (float): Value to constrain.\n    a (float): Minimum limit.\n    b (float): Maximum limit.\n\nReturns:\n    float: Constrained value."
+      },
+      {
+        "name": "math_map",
+        "signature": "(x: float, in_min: float, in_max: float, out_min: float, out_max: float) -> float",
+        "doc": "Re-maps a number from one range to another.\n\nArgs:\n    x (float): Value to map.\n    in_min (float): Input range min.\n    in_max (float): Input range max.\n    out_min (float): Output range min.\n    out_max (float): Output range max.\n\nReturns:\n    float: Mapped output."
+      },
+      {
+        "name": "math_pow",
+        "signature": "(base: float, exponent: float) -> float",
+        "doc": "Returns base raised to the power of exponent.\n\nArgs:\n    base (float): The base value.\n    exponent (float): The exponent.\n\nReturns:\n    float: base ** exponent."
+      },
+      {
+        "name": "math_sqrt",
+        "signature": "(x: float) -> float",
+        "doc": "Returns the square root of x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: Square root of x."
+      },
+      {
+        "name": "math_sq",
+        "signature": "(x: float) -> float",
+        "doc": "Returns the square of x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: x * x"
+      },
+      {
+        "name": "math_sin",
+        "signature": "(radians: float) -> float",
+        "doc": "Computes sine of an angle in radians.\n\nArgs:\n    radians (float): Angle in radians.\n\nReturns:\n    float: sin(radians)"
+      },
+      {
+        "name": "math_cos",
+        "signature": "(radians: float) -> float",
+        "doc": "Computes cosine of an angle in radians.\n\nArgs:\n    radians (float): Angle in radians.\n\nReturns:\n    float: cos(radians)"
+      },
+      {
+        "name": "math_tan",
+        "signature": "(radians: float) -> float",
+        "doc": "Computes tangent of an angle in radians.\n\nArgs:\n    radians (float): Angle in radians.\n\nReturns:\n    float: tan(radians)"
+      },
+      {
+        "name": "math_radians",
+        "signature": "(degrees: float) -> float",
+        "doc": "Converts degrees to radians.\n\nArgs:\n    degrees (float): Angle in degrees.\n\nReturns:\n    float: Angle in radians."
+      },
+      {
+        "name": "math_degrees",
+        "signature": "(radians: float) -> float",
+        "doc": "Converts radians to degrees.\n\nArgs:\n    radians (float): Angle in radians.\n\nReturns:\n    float: Angle in degrees."
+      },
+      {
+        "name": "math_round",
+        "signature": "(x: float) -> int",
+        "doc": "Rounds to the nearest integer.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    int: Rounded value."
+      },
+      {
+        "name": "math_ceil",
+        "signature": "(x: float) -> int",
+        "doc": "Returns the smallest integer not less than x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    int: Ceil value."
+      },
+      {
+        "name": "math_floor",
+        "signature": "(x: float) -> int",
+        "doc": "Returns the largest integer not greater than x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    int: Floor value."
+      },
+      {
+        "name": "math_fmod",
+        "signature": "(x: float, y: float) -> float",
+        "doc": "Returns the floating-point remainder of x / y.\n\nArgs:\n    x (float): Dividend.\n    y (float): Divisor.\n\nReturns:\n    float: Remainder."
+      },
+      {
+        "name": "math_log",
+        "signature": "(x: float) -> float",
+        "doc": "Returns natural logarithm (base e).\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: ln(x)"
+      },
+      {
+        "name": "math_log10",
+        "signature": "(x: float) -> float",
+        "doc": "Returns base-10 logarithm.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: log\u2081\u2080(x)"
+      },
+      {
+        "name": "math_exp",
+        "signature": "(x: float) -> float",
+        "doc": "Returns e raised to the power of x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: e^x"
+      },
+      {
+        "name": "serial_begin",
+        "signature": "(baudrate: int) -> None",
+        "doc": "Sets the data rate in bits per second (baud) for serial data transmission.\n\nArgs:\n    baudrate (int): The baud rate (e.g., 9600, 115200)\n\nReturns:\n    None"
+      },
+      {
+        "name": "serial_end",
+        "signature": "() -> None",
+        "doc": "Disables serial communication and releases the TX/RX pins.\n\nReturns:\n    None"
+      },
+      {
+        "name": "serial_available",
+        "signature": "() -> int",
+        "doc": "Returns the number of bytes available for reading from the serial buffer.\n\nReturns:\n    int: Number of bytes available to read."
+      },
+      {
+        "name": "serial_read",
+        "signature": "() -> int",
+        "doc": "Reads incoming serial data.\n\nReturns:\n    int: The first byte of incoming serial data, or -1 if no data is available."
+      },
+      {
+        "name": "serial_peek",
+        "signature": "() -> int",
+        "doc": "Returns the next byte of incoming serial data without removing it from the internal buffer.\n\nReturns:\n    int: Next byte of incoming serial data, or -1 if no data is available."
+      },
+      {
+        "name": "serial_flush",
+        "signature": "() -> None",
+        "doc": "Waits for the transmission of outgoing serial data to complete.\n\nReturns:\n    None"
+      },
+      {
+        "name": "serial_print",
+        "signature": "(data: str) -> None",
+        "doc": "Prints data to the serial port as human-readable ASCII text.\n\nArgs:\n    data (str): The data to send.\n\nReturns:\n    None"
+      },
+      {
+        "name": "serial_println",
+        "signature": "(data: str) -> None",
+        "doc": "Prints data to the serial port followed by a newline character.\n\nArgs:\n    data (str): The data to send.\n\nReturns:\n    None"
+      },
+      {
+        "name": "arduino_bit",
+        "signature": "(n: int) -> int",
+        "doc": "Returns a value with a single bit set.\n\nArgs:\n    n (int): Bit position (0 = least significant bit).\n\nReturns:\n    int: A value with the nth bit set (1 << n)."
+      },
+      {
+        "name": "arduino_bitRead",
+        "signature": "(value: int, bit: int) -> int",
+        "doc": "Reads a specific bit from a value.\n\nArgs:\n    value (int): The input integer.\n    bit (int): Bit position to read.\n\nReturns:\n    int: 0 or 1, the value of the bit at the given position."
+      },
+      {
+        "name": "arduino_bitSet",
+        "signature": "(value: int, bit: int) -> int",
+        "doc": "Sets a specific bit in a value.\n\nArgs:\n    value (int): The input integer.\n    bit (int): Bit position to set.\n\nReturns:\n    int: Modified value with bit set."
+      },
+      {
+        "name": "arduino_bitClear",
+        "signature": "(value: int, bit: int) -> int",
+        "doc": "Clears a specific bit in a value.\n\nArgs:\n    value (int): The input integer.\n    bit (int): Bit position to clear.\n\nReturns:\n    int: Modified value with bit cleared."
+      },
+      {
+        "name": "arduino_bitWrite",
+        "signature": "(value: int, bit: int, bitvalue: int) -> int",
+        "doc": "Writes a 0 or 1 to a specific bit position in a value.\n\nArgs:\n    value (int): The input integer.\n    bit (int): Bit position to write to.\n    bitvalue (int): Either 0 (clear bit) or 1 (set bit).\n\nReturns:\n    int: Modified value."
+      },
+      {
+        "name": "arduino_lowByte",
+        "signature": "(val: int) -> int",
+        "doc": "Returns the low byte (least significant 8 bits) of a 16-bit value.\n\nArgs:\n    val (int): A 16-bit integer.\n\nReturns:\n    int: The lower 8 bits of the input value."
+      },
+      {
+        "name": "arduino_highByte",
+        "signature": "(val: int) -> int",
+        "doc": "Returns the high byte (most significant 8 bits) of a 16-bit value.\n\nArgs:\n    val (int): A 16-bit integer.\n\nReturns:\n    int: The upper 8 bits of the input value."
+      },
+      {
+        "name": "arduino_random",
+        "signature": "(min_val: int, max_val: int) -> int",
+        "doc": "Generates a random integer between min_val (inclusive) and max_val (exclusive).\n\nArgs:\n    min_val (int): Minimum value (inclusive).\n    max_val (int): Maximum value (exclusive).\n\nReturns:\n    int: A random integer in the given range."
+      },
+      {
+        "name": "arduino_randomSeed",
+        "signature": "(seed: int) -> None",
+        "doc": "Seeds the random number generator with a given seed.\n\nArgs:\n    seed (int): The seed value.\n\nReturns:\n    None"
+      }
+    ],
+    "classes": [
+      {
+        "name": "HardwareSerial",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, uart_number: int)",
+            "doc": "Reference a hardware serial interface by UART number.\n\nOn most microcontrollers like the ESP32, multiple hardware serial ports are available.\nThis class allows selecting one of them using its UART number.\n\nArgs:\n    uart_number (int): The UART interface number to use:\n        - 0 \u2192 Serial\n        - 1 \u2192 Serial1 (recommended for custom serial devices)\n        - 2 \u2192 Serial2 (optional, depending on board)\n\nNotes:\n    - UART0 (Serial) is often used for USB or debug logging.\n    - UART1 and UART2 are free to use for communicating with sensors like MH-Z19.\n    - This stub maps `HardwareSerial(1)` to `Serial1`, and so on.\n    - No new object is created \u2014 the stub just tells the transpiler to use the named instance.\n\nExample:\n    serial = HardwareSerial(1)      # Refers to Serial1\n    sensor = MHZ19Sensor(serial)    # Becomes: create_mhz19(Serial1)"
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "async_webserver": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "AsyncWebServerRequest",
+        "doc": "Dummy for AsyncWebServerRequest* in ESPAsyncWebServer.\n\nThis class simulates methods available in an HTTP request object\nfor async handling on ESP32/ESP8266.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "send",
+            "signature": "(self, status_code: int, content_type: str, body: str) -> None",
+            "doc": "Sends a response to the HTTP client.\n\nArgs:\n    status_code (int): HTTP status code (e.g., 200, 404).\n    content_type (str): MIME type of the response (e.g., \"text/html\").\n    body (str): Response body content.\n\nReturns:\n    None"
+          },
+          {
+            "name": "arg",
+            "signature": "(self, name: str) -> str",
+            "doc": "Gets the value of a URL parameter or POST argument by name.\n\nArgs:\n    name (str): Name of the argument to retrieve.\n\nReturns:\n    str: Value of the argument or empty string if not found."
+          },
+          {
+            "name": "has_param",
+            "signature": "(self, name: str) -> bool",
+            "doc": "Checks if a given parameter exists in the request.\n\nArgs:\n    name (str): Name of the parameter.\n\nReturns:\n    bool: True if parameter exists, False otherwise."
+          }
+        ]
+      },
+      {
+        "name": "AsyncWebServer",
+        "doc": "Dummy for AsyncWebServer.\n\nRepresents the HTTP server for asynchronous request handling.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, port: int)",
+            "doc": "Initializes the server on a given port.\n\nArgs:\n    port (int): Port number for the HTTP server (e.g., 80)."
+          },
+          {
+            "name": "on",
+            "signature": "(self, path: str, method: str, handler) -> None",
+            "doc": "Registers a request handler for a specific path and method.\n\nArgs:\n    path (str): The URL path to handle.\n    method (str): HTTP method as string (e.g., \"GET\", \"POST\").\n    handler (function): Function to call when the request is received.\n\nReturns:\n    None"
+          },
+          {
+            "name": "begin",
+            "signature": "(self) -> None",
+            "doc": "Starts the server. Must be called after all routes are registered.\n\nReturns:\n    None"
+          },
+          {
+            "name": "serve_static",
+            "signature": "(self, uri: str, fs, path: str, cache_control: str) -> None",
+            "doc": "Serves static files from the filesystem at a given URI.\n\nArgs:\n    uri (str): The URL path prefix (e.g., \"/static\").\n    fs: Filesystem reference (e.g., LittleFS).\n    path (str): The root directory in the FS.\n    cache_control (str): Cache control header value.\n\nReturns:\n    None"
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "ble_simple": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "BLESimple",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, name: str, mode: str)",
+            "doc": "Initialize a BLE device in either 'central' or 'peripheral' mode.\n\nArgs:\n    name (str): The name of the BLE device.\n    mode (str): 'peripheral' or 'central'."
+          },
+          {
+            "name": "init_ble",
+            "signature": "(self) -> None",
+            "doc": "Custom Initializer, call this inside setup."
+          },
+          {
+            "name": "start",
+            "signature": "(self) -> None",
+            "doc": "Start BLE advertising or scanning based on the mode."
+          },
+          {
+            "name": "stop",
+            "signature": "(self) -> None",
+            "doc": "Stop BLE services or connections."
+          },
+          {
+            "name": "scan",
+            "signature": "(self, timeout: int) -> list[str]",
+            "doc": "Scan for nearby BLE devices (central mode only).\n\nArgs:\n    timeout (int): Scan duration in seconds.\n\nReturns:\n    list[str]: List of device names or IDs."
+          },
+          {
+            "name": "get_device_info",
+            "signature": "(self) -> dict[str, str]",
+            "doc": "Get metadata about this device. All values are strings.\n\nReturns:\n    dict[str, str]: A dictionary containing:\n        - 'name': Device name\n        - 'mode': 'central' or 'peripheral'\n        - 'connected': 'True' or 'False' (as string)"
+          },
+          {
+            "name": "connect_to",
+            "signature": "(self, name_or_uuid: str) -> bool",
+            "doc": "Connect to a BLE device by name or UUID.\n\nArgs:\n    name_or_uuid (str): Target device ID.\n\nReturns:\n    bool: True if successful."
+          },
+          {
+            "name": "disconnect",
+            "signature": "(self) -> None",
+            "doc": "Disconnect from any connected BLE device."
+          },
+          {
+            "name": "is_connected",
+            "signature": "(self) -> bool",
+            "doc": "Check if device is currently connected.\n\nReturns:\n    bool: Connection status."
+          },
+          {
+            "name": "add_service",
+            "signature": "(self, uuid: str) -> None",
+            "doc": "Define a BLE service (peripheral mode only).\n\nArgs:\n    uuid (str): UUID of the service."
+          },
+          {
+            "name": "add_characteristic",
+            "signature": "(self, service_uuid: str, uuid: str, value: str, readable: bool, writable: bool, notify: bool) -> None",
+            "doc": "Add a characteristic to the last-defined service.\n\nArgs:\n    service_uuid: UUID of service to be added in.\n    uuid (str): UUID of the characteristic.\n    value (str): Default value.\n    readable (bool): Whether central can read.\n    writable (bool): Whether central can write.\n    notify (bool): Whether peripheral can send notify updates."
+          },
+          {
+            "name": "read",
+            "signature": "(self, uuid: str) -> str",
+            "doc": "Read a characteristic value.\n\nArgs:\n    uuid (str): Characteristic UUID.\n\nReturns:\n    str: Value."
+          },
+          {
+            "name": "write",
+            "signature": "(self, uuid: str, value: str) -> None",
+            "doc": "Write a value to a characteristic.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    value (str): Value to write."
+          },
+          {
+            "name": "notify",
+            "signature": "(self, uuid: str, value: str) -> None",
+            "doc": "Send a notification to subscribers.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    value (str): Value to send."
+          },
+          {
+            "name": "on_connect",
+            "signature": "(self, callback) -> None",
+            "doc": "Register a function to call on connection.\n\nArgs:\n    callback (callable): Function with **no arguments**.\n        Example:\n            def handler(): ..."
+          },
+          {
+            "name": "on_disconnect",
+            "signature": "(self, callback) -> None",
+            "doc": "Register a function to call on disconnect.\n\nArgs:\n    callback (callable): Function with **no arguments**.\n        Example:\n            def handler(): ..."
+          },
+          {
+            "name": "on_write",
+            "signature": "(self, uuid: str, callback) -> None",
+            "doc": "Set a callback for write events.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    callback (callable): Function that takes **one argument (str)** \u2013 the value written by central.\n        Example:\n            def handler(value: str): ..."
+          },
+          {
+            "name": "on_notify",
+            "signature": "(self, uuid: str, callback) -> None",
+            "doc": "Set a callback for notify events.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    callback (callable): Function that takes **one argument (str)** \u2013 the notified value received.\n        Example:\n            def handler(value: str): ..."
+          },
+          {
+            "name": "get_services",
+            "signature": "(self) -> list[str]",
+            "doc": "Return all known service UUIDs.\n\nReturns:\n    list[str]: UUIDs"
+          },
+          {
+            "name": "get_characteristics",
+            "signature": "(self, service_uuid: str) -> list[str]",
+            "doc": "Return characteristics under a given service.\n\nArgs:\n    service_uuid (str): Service UUID.\n\nReturns:\n    list[str]: Characteristic UUIDs."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "env_vars": {
+    "functions": [
+      {
+        "name": "get_env_var",
+        "signature": "(var_name: str) -> str",
+        "doc": "No docstring available"
+      }
+    ],
+    "classes": [],
+    "variables": []
+  },
+  "littlefs": {
+    "functions": [
+      {
+        "name": "littlefs_begin",
+        "signature": "(format_on_fail: bool) -> bool",
+        "doc": "Mounts the LittleFS filesystem.\n\nArgs:\n    format_on_fail (bool): Whether to format the FS if mounting fails.\n\nReturns:\n    bool: True if successful. (works only on ESP32)"
+      },
+      {
+        "name": "littlefs_end",
+        "signature": "() -> None",
+        "doc": "Unmounts the filesystem and releases resources."
+      },
+      {
+        "name": "littlefs_format",
+        "signature": "() -> bool",
+        "doc": "Formats the filesystem.\n\nReturns:\n    bool: True if successful."
+      },
+      {
+        "name": "littlefs_open",
+        "signature": "(path: str, mode: str) -> File",
+        "doc": "Opens a file.\n\nArgs:\n    path (str): Path to file.\n    mode (str): Access mode (e.g., 'r', 'w').\n\nReturns:\n    File or None"
+      },
+      {
+        "name": "littlefs_exists",
+        "signature": "(path: str) -> bool",
+        "doc": "Checks whether a path exists.\n\nReturns:\n    bool"
+      },
+      {
+        "name": "littlefs_remove",
+        "signature": "(path: str) -> bool",
+        "doc": "Deletes a file.\n\nReturns:\n    bool"
+      },
+      {
+        "name": "littlefs_rename",
+        "signature": "(src: str, dest: str) -> bool",
+        "doc": "Renames or moves a file.\n\nReturns:\n    bool"
+      },
+      {
+        "name": "littlefs_mkdir",
+        "signature": "(path: str) -> bool",
+        "doc": "Creates a directory.\n\nReturns:\n    bool"
+      },
+      {
+        "name": "littlefs_rmdir",
+        "signature": "(path: str) -> bool",
+        "doc": "Removes a directory.\n\nReturns:\n    bool"
+      },
+      {
+        "name": "littlefs_total_bytes",
+        "signature": "() -> int",
+        "doc": "Returns total FS size in bytes.\n\nReturns:\n    int"
+      },
+      {
+        "name": "littlefs_used_bytes",
+        "signature": "() -> int",
+        "doc": "Returns used FS size in bytes.\n\nReturns:\n    int"
+      },
+      {
+        "name": "littlefs_free_bytes",
+        "signature": "() -> int",
+        "doc": "Returns free space in bytes.\n\nReturns:\n    int"
+      },
+      {
+        "name": "littlefs_info",
+        "signature": "() -> dict[str, str]",
+        "doc": "Returns filesystem info.\n\nReturns:\n    dict with status, used, total, free"
+      }
+    ],
+    "classes": [
+      {
+        "name": "File",
+        "doc": "A file object used for reading from and writing to a filesystem.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "__print__",
+            "signature": "(self)",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "write",
+            "signature": "(self, data: str) -> int",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "print",
+            "signature": "(self, data: str) -> int",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "println",
+            "signature": "(self, data: str) -> int",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "read",
+            "signature": "(self) -> str",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "readString",
+            "signature": "(self) -> str",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "readBytes",
+            "signature": "(self, length: int) -> str",
+            "doc": "Read a fixed number of bytes from the file.\n\nReturns:\n    str: Data read."
+          },
+          {
+            "name": "readBytesUntil",
+            "signature": "(self, terminator: str, length: int) -> str",
+            "doc": "Read bytes until a terminator or length is reached.\n\nReturns:\n    str: Data read."
+          },
+          {
+            "name": "peek",
+            "signature": "(self) -> str",
+            "doc": "Peek at the next byte without moving the file pointer."
+          },
+          {
+            "name": "available",
+            "signature": "(self) -> int",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "seek",
+            "signature": "(self, pos: int) -> bool",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "position",
+            "signature": "(self) -> int",
+            "doc": "Get the current position of the file pointer."
+          },
+          {
+            "name": "flush",
+            "signature": "(self) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "close",
+            "signature": "(self) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "isDirectory",
+            "signature": "(self) -> bool",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "name",
+            "signature": "(self) -> str",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "size",
+            "signature": "(self) -> int",
+            "doc": "Get the size of the file in bytes."
+          },
+          {
+            "name": "getWriteError",
+            "signature": "(self) -> bool",
+            "doc": "Return True if a write error occurred."
+          },
+          {
+            "name": "clearWriteError",
+            "signature": "(self) -> None",
+            "doc": "Clear any write error flags."
+          },
+          {
+            "name": "openNextFile",
+            "signature": "(self) -> File",
+            "doc": "Return the next file in a directory (if this is a directory)."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "mqtt": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "PubSubClient",
+        "doc": "A lightweight MQTT client for Arduino (ESP32/ESP8266) supporting publish/subscribe.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, wifi_client) -> None",
+            "doc": "Initialize with a WiFiClient instance.\n\nArgs:\n    wifi_client: A WiFiClient instance (TCP transport layer)"
+          },
+          {
+            "name": "setServer",
+            "signature": "(self, host: str, port: int) -> None",
+            "doc": "Set the MQTT broker address and port."
+          },
+          {
+            "name": "setCallback",
+            "signature": "(self, callback_func: str) -> None",
+            "doc": "Set the callback function for received MQTT messages."
+          },
+          {
+            "name": "connect_simple",
+            "signature": "(self, client_id: str) -> bool",
+            "doc": "Connect to the MQTT broker with just a client ID."
+          },
+          {
+            "name": "connect_with_auth",
+            "signature": "(self, client_id: str, username: str, password: str) -> bool",
+            "doc": "Connect to the MQTT broker with authentication."
+          },
+          {
+            "name": "connect_with_last_will",
+            "signature": "(self, client_id: str, will_topic: str, will_qos: int, will_retain: bool, will_message: str) -> bool",
+            "doc": "Connect with a last will message, no authentication."
+          },
+          {
+            "name": "connect_full",
+            "signature": "(self, client_id: str, username: str, password: str, will_topic: str, will_qos: int, will_retain: bool, will_message: str) -> bool",
+            "doc": "Connect with auth and last will message."
+          },
+          {
+            "name": "publish_simple",
+            "signature": "(self, topic: str, payload: str) -> bool",
+            "doc": "Publish a plain string payload to a topic."
+          },
+          {
+            "name": "publish_retained",
+            "signature": "(self, topic: str, payload: str, retained: bool) -> bool",
+            "doc": "Publish with retained flag."
+          },
+          {
+            "name": "subscribe",
+            "signature": "(self, topic: str) -> bool",
+            "doc": "Subscribe to a topic (QoS 0)."
+          },
+          {
+            "name": "subscribe_with_qos",
+            "signature": "(self, topic: str, qos: int) -> bool",
+            "doc": "Subscribe with a specific QoS."
+          },
+          {
+            "name": "unsubscribe",
+            "signature": "(self, topic: str) -> bool",
+            "doc": "Unsubscribe from a topic."
+          },
+          {
+            "name": "connected",
+            "signature": "(self) -> bool",
+            "doc": "Check if still connected to the MQTT broker."
+          },
+          {
+            "name": "disconnect",
+            "signature": "(self) -> None",
+            "doc": "Disconnect from the broker."
+          },
+          {
+            "name": "loop",
+            "signature": "(self) -> None",
+            "doc": "Handle incoming messages and maintain connection.\nMust be called regularly in `loop()`."
+          },
+          {
+            "name": "setKeepAlive",
+            "signature": "(self, keepalive_secs: int) -> None",
+            "doc": "Set MQTT keep-alive interval (seconds)."
+          },
+          {
+            "name": "setSocketTimeout",
+            "signature": "(self, timeout_secs: int) -> None",
+            "doc": "Set socket timeout in seconds."
+          },
+          {
+            "name": "setBufferSize",
+            "signature": "(self, size: int) -> None",
+            "doc": "Set internal MQTT buffer size (bytes)."
+          },
+          {
+            "name": "setCleanSession",
+            "signature": "(self, clean: bool) -> None",
+            "doc": "Set clean session flag (true = no persistent session)."
+          },
+          {
+            "name": "getServerIP",
+            "signature": "(self) -> str",
+            "doc": "Return IP of connected MQTT server."
+          },
+          {
+            "name": "getServerPort",
+            "signature": "(self) -> int",
+            "doc": "Return port of connected MQTT server."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "onewire": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "OneWire",
+        "doc": "A Python-like abstraction for the OneWire communication protocol.\nSupports devices like DS18B20 and other 1-wire sensors.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, pin: int) -> None",
+            "doc": "Initialize the OneWire bus on a specific GPIO pin.\n\nArgs:\n    pin (int): GPIO pin number."
+          },
+          {
+            "name": "reset",
+            "signature": "(self) -> bool",
+            "doc": "Reset all devices on the OneWire bus.\n\nReturns:\n    bool: True if devices respond, False otherwise."
+          },
+          {
+            "name": "write",
+            "signature": "(self, value: int, power: bool = False) -> None",
+            "doc": "Write a single byte to the OneWire bus.\n\nArgs:\n    value (int): Byte to write.\n    power (bool): If True, enables strong pull-up for power."
+          },
+          {
+            "name": "write_bytes",
+            "signature": "(self, data: list[int], power: bool = False) -> None",
+            "doc": "Write multiple bytes to the OneWire bus.\n\nArgs:\n    data (list[int]): List of bytes to write.\n    power (bool): If True, enables strong pull-up for power."
+          },
+          {
+            "name": "read",
+            "signature": "(self) -> int",
+            "doc": "Read a single byte from the OneWire bus.\n\nReturns:\n    int: Byte read."
+          },
+          {
+            "name": "read_bytes",
+            "signature": "(self, count: int) -> list[int]",
+            "doc": "Read multiple bytes from the OneWire bus.\n\nArgs:\n    count (int): Number of bytes to read.\n\nReturns:\n    list[int]: Bytes read."
+          },
+          {
+            "name": "select",
+            "signature": "(self, rom_code: list[int]) -> None",
+            "doc": "Select a specific device on the bus using its ROM address.\n\nArgs:\n    rom_code (list[int]): 8-byte unique ROM address."
+          },
+          {
+            "name": "skip",
+            "signature": "(self) -> None",
+            "doc": "Skip ROM selection and address all devices."
+          },
+          {
+            "name": "reset_search",
+            "signature": "(self) -> None",
+            "doc": "Reset the internal state used by search()."
+          },
+          {
+            "name": "search",
+            "signature": "(self) -> list[int]",
+            "doc": "Search for the next device on the OneWire bus.\n\nReturns:\n    list[int] or None: ROM address (8-byte) or None if no more devices."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "software_serial": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "SoftwareSerial",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, rx: int, tx: int)",
+            "doc": "Create a software serial interface on given GPIO pins.\n\nArgs:\n    rx (int): GPIO pin for RX\n    tx (int): GPIO pin for TX"
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "spiffs": {
+    "functions": [
+      {
+        "name": "spiffs_begin",
+        "signature": "(format_on_fail: bool, base_path: str, max_files: int) -> bool",
+        "doc": "Mounts the SPIFFS filesystem.\n\nArgs:\n    format_on_fail (bool): If True, formats the SPIFFS partition if mounting fails.\n    base_path (str): Mount path for the filesystem.\n    max_files (int): Maximum number of open files allowed.\n\nReturns:\n    bool: True if the filesystem is successfully mounted, False otherwise."
+      },
+      {
+        "name": "spiffs_end",
+        "signature": "() -> None",
+        "doc": "Unmounts the SPIFFS filesystem and releases resources."
+      },
+      {
+        "name": "spiffs_format",
+        "signature": "() -> bool",
+        "doc": "Formats the SPIFFS filesystem.\n\nReturns:\n    bool: True if formatting succeeds, False otherwise."
+      },
+      {
+        "name": "spiffs_open",
+        "signature": "(path: str, mode: str)",
+        "doc": "Opens a file in the SPIFFS filesystem.\n\nArgs:\n    path (str): Path to the file.\n    mode (str): File mode (e.g., 'r', 'w', 'a').\n\nReturns:\n    File object or None: File handle if successful, None otherwise."
+      },
+      {
+        "name": "spiffs_exists",
+        "signature": "(path: str) -> bool",
+        "doc": "Checks if a file or directory exists at the specified path.\n\nArgs:\n    path (str): Path to check.\n\nReturns:\n    bool: True if the path exists, False otherwise."
+      },
+      {
+        "name": "spiffs_remove",
+        "signature": "(path: str) -> bool",
+        "doc": "Deletes a file from the SPIFFS filesystem.\n\nArgs:\n    path (str): Path of the file to delete.\n\nReturns:\n    bool: True if file is successfully removed, False otherwise."
+      },
+      {
+        "name": "spiffs_rename",
+        "signature": "(src: str, dest: str) -> bool",
+        "doc": "Renames or moves a file.\n\nArgs:\n    src (str): Source file path.\n    dest (str): Destination file path.\n\nReturns:\n    bool: True if successful, False otherwise."
+      },
+      {
+        "name": "spiffs_mkdir",
+        "signature": "(path: str) -> bool",
+        "doc": "Creates a directory in the SPIFFS filesystem.\n\nArgs:\n    path (str): Directory path.\n\nReturns:\n    bool: True if successful, False otherwise."
+      },
+      {
+        "name": "spiffs_rmdir",
+        "signature": "(path: str) -> bool",
+        "doc": "Removes a directory from the SPIFFS filesystem.\n\nArgs:\n    path (str): Directory path.\n\nReturns:\n    bool: True if successful, False otherwise."
+      },
+      {
+        "name": "spiffs_used_bytes",
+        "signature": "() -> int",
+        "doc": "Returns the number of bytes currently used in the SPIFFS filesystem.\n\nReturns:\n    int: Number of used bytes."
+      },
+      {
+        "name": "spiffs_total_bytes",
+        "signature": "() -> int",
+        "doc": "Returns the total size of the SPIFFS filesystem.\n\nReturns:\n    int: Total number of bytes available."
+      },
+      {
+        "name": "spiffs_free_bytes",
+        "signature": "() -> int",
+        "doc": "Returns the number of free bytes in the SPIFFS filesystem.\n\nReturns:\n    int: Number of free bytes available."
+      },
+      {
+        "name": "spiffs_info",
+        "signature": "() -> dict[str, str]",
+        "doc": "Prints or returns general information about the SPIFFS filesystem.\n(Custom implementation required)"
+      },
+      {
+        "name": "spiffs_gc",
+        "signature": "()",
+        "doc": "Performs garbage collection or internal cleanup on the SPIFFS filesystem.\n(Custom implementation required)"
+      }
+    ],
+    "classes": [],
+    "variables": []
+  },
+  "tests": {
+    "functions": [
+      {
+        "name": "test_function",
+        "signature": "(a: int, c: str) -> str",
+        "doc": "No docstring available"
+      },
+      {
+        "name": "return_list_func",
+        "signature": "() -> list[str]",
+        "doc": "No docstring available"
+      }
+    ],
+    "classes": [
+      {
+        "name": "TestClass",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, arg1: int, arg2: str)",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "method1",
+            "signature": "(self, some_arg: str)",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "method2",
+            "signature": "(self, some_arg: str, some_other_arg: int)",
+            "doc": "No docstring available"
+          }
+        ]
+      }
+    ],
+    "variables": [
+      {
+        "name": "testvar_4",
+        "value": "10"
+      }
+    ]
+  },
+  "webserver": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "WebServer",
+        "doc": "Dummy class for ESP32/ESP8266 synchronous WebServer.\n\nThis class provides a simple HTTP server with support for GET/POST routes.\nIt is blocking and should be used for lightweight traffic only.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, port: int)",
+            "doc": "Initializes the WebServer on a specified port.\n\nArgs:\n    port (int): Port number to listen on (usually 80)."
+          },
+          {
+            "name": "on",
+            "signature": "(self, path: str, method, handler) -> WebServer",
+            "doc": "Registers a handler function for the given URL path.\n\nArgs:\n    path (str): The URL endpoint (e.g., \"/status\").\n    handler (function): A function with no parameters that handles the request.\n\nExample:\n    server.on(\"/hello\", handle_hello)"
+          },
+          {
+            "name": "begin",
+            "signature": "(self) -> WebServer",
+            "doc": "Starts the web server. Must be called after all routes are registered."
+          },
+          {
+            "name": "handleClient",
+            "signature": "(self) -> WebServer",
+            "doc": "Processes incoming client requests. Should be called repeatedly in loop()."
+          },
+          {
+            "name": "send",
+            "signature": "(self, status_code: int, content_type: str, body: str) -> None",
+            "doc": "Sends an HTTP response to the client.\n\nArgs:\n    status_code (int): HTTP status code (e.g., 200, 404).\n    content_type (str): MIME type (e.g., \"text/plain\").\n    body (str): The response body."
+          },
+          {
+            "name": "has_arg",
+            "signature": "(self, name: str) -> bool",
+            "doc": "Checks if a parameter was passed in the HTTP request.\n\nArgs:\n    name (str): The name of the parameter.\n\nReturns:\n    bool: True if parameter exists, False otherwise."
+          },
+          {
+            "name": "arg",
+            "signature": "(self, name: str) -> str",
+            "doc": "Retrieves the value of a parameter from the HTTP request.\n\nArgs:\n    name (str): The name of the parameter.\n\nReturns:\n    str: The value of the parameter."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "wifi": {
+    "functions": [
+      {
+        "name": "wifi_connect",
+        "signature": "(ssid: str, password: str, timeout: int) -> None",
+        "doc": "Connects to a Wi-Fi network.\n\nArgs:\n    ssid (str): The SSID of the Wi-Fi network.\n    password (str): The password for the network.\n    timeout (int): Timeout in milliseconds.\n\nReturns:\n    bool: True if connected successfully, else False."
+      },
+      {
+        "name": "wifi_begin",
+        "signature": "(ssid: str, password: str) -> None",
+        "doc": "No docstring available"
+      },
+      {
+        "name": "wifi_is_connected",
+        "signature": "() -> bool",
+        "doc": "Checks Wi-Fi connection status.\n\nReturns:\n    bool: True if connected to Wi-Fi."
+      },
+      {
+        "name": "wifi_localIP",
+        "signature": "() -> str",
+        "doc": "No docstring available"
+      },
+      {
+        "name": "wifi_get_ip",
+        "signature": "() -> str",
+        "doc": "Retrieves the IP address assigned to the board.\n\nReturns:\n    str: The local IP address as a string."
+      },
+      {
+        "name": "wifi_disconnect",
+        "signature": "() -> None",
+        "doc": "Disconnects from the Wi-Fi network.\n\nReturns:\n    None"
+      },
+      {
+        "name": "scan_network",
+        "signature": "() -> list[str]",
+        "doc": "Scan for available WiFi networks.\n\nReturns:\n    list[str]: A list of SSIDs (network names) of nearby WiFi networks.\n\nNotes:\n    - This method will call a native function: custom_wifi_helper_scan_wifi_networks().\n    - It may block briefly while scanning completes."
+      }
+    ],
+    "classes": [
+      {
+        "name": "WiFiClient",
+        "doc": "A TCP client used for making WiFi-based socket connections (e.g., to MQTT/HTTP servers).",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self) -> None",
+            "doc": "Initialize the client instance."
+          },
+          {
+            "name": "connect",
+            "signature": "(self, host: str, port: int) -> bool",
+            "doc": "Connect to a TCP server.\n\nArgs:\n    host (str): Hostname or IP address.\n    port (int): Port number.\n\nReturns:\n    bool: True if connection succeeds."
+          },
+          {
+            "name": "write",
+            "signature": "(self, data: str) -> int",
+            "doc": "Send raw data to the server.\n\nArgs:\n    data (str): Data to send.\n\nReturns:\n    int: Bytes written."
+          },
+          {
+            "name": "print",
+            "signature": "(self, data: str) -> int",
+            "doc": "Print data to the stream (human-readable).\n\nArgs:\n    data (str): Data to print.\n\nReturns:\n    int: Bytes written."
+          },
+          {
+            "name": "println",
+            "signature": "(self, data: str) -> int",
+            "doc": "Print data followed by newline.\n\nArgs:\n    data (str): Data to print.\n\nReturns:\n    int: Bytes written."
+          },
+          {
+            "name": "available",
+            "signature": "(self) -> int",
+            "doc": "Number of bytes available to read.\n\nReturns:\n    int: Available byte count."
+          },
+          {
+            "name": "read",
+            "signature": "(self) -> str",
+            "doc": "Read a single byte/char.\n\nReturns:\n    str: One byte as string."
+          },
+          {
+            "name": "readBytes",
+            "signature": "(self, buffer: str, length: int) -> int",
+            "doc": "Read a fixed number of bytes into the provided buffer.\n\nArgs:\n    buffer (str): A string variable name that acts as the target buffer in generated code.\n    length (int): Number of bytes to read.\n\nReturns:\n    int: Number of bytes read."
+          },
+          {
+            "name": "readString",
+            "signature": "(self) -> str",
+            "doc": "Read all available bytes as a string.\n\nReturns:\n    str: Entire stream as string."
+          },
+          {
+            "name": "peek",
+            "signature": "(self) -> str",
+            "doc": "Peek at next byte without removing.\n\nReturns:\n    str: Next byte as string."
+          },
+          {
+            "name": "flush",
+            "signature": "(self) -> None",
+            "doc": "Wait for outgoing data to be sent."
+          },
+          {
+            "name": "stop",
+            "signature": "(self) -> None",
+            "doc": "Close the TCP connection."
+          },
+          {
+            "name": "connected",
+            "signature": "(self) -> bool",
+            "doc": "Check if still connected to server.\n\nReturns:\n    bool: True if connected."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "wifi_manager": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "WiFiManager",
+        "doc": "A WiFi manager that auto-connects to known networks or opens a config portal for ESP32/ESP8266.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "setDebugOutput",
+            "signature": "(self, enable: bool) -> None",
+            "doc": "Enable or disable debug logging on Serial."
+          },
+          {
+            "name": "resetSettings",
+            "signature": "(self) -> None",
+            "doc": "Clear stored WiFi credentials from flash."
+          },
+          {
+            "name": "autoConnect",
+            "signature": "(self, ap_name: str, ap_password: str) -> bool",
+            "doc": "Connect to saved WiFi or start a config portal.\n\nArgs:\n    ap_name (str): The SSID for the access point in config mode.\n    ap_password (str): Password for the access point.\n\nReturns:\n    bool: True if WiFi connection was successful."
+          },
+          {
+            "name": "startConfigPortal",
+            "signature": "(self, ap_name: str, ap_password: str) -> bool",
+            "doc": "Force start the configuration portal regardless of existing WiFi credentials.\n\nArgs:\n    ap_name (str): The SSID for the access point.\n    ap_password (str): Password for the access point.\n\nReturns:\n    bool: True if WiFi connected successfully."
+          },
+          {
+            "name": "setTimeout",
+            "signature": "(self, seconds: int) -> None",
+            "doc": "Set timeout for config portal to auto-exit if no connection is made."
+          },
+          {
+            "name": "setConnectTimeout",
+            "signature": "(self, seconds: int) -> None",
+            "doc": "Set timeout for how long to wait for WiFi connection before failing."
+          },
+          {
+            "name": "setMinimumSignalQuality",
+            "signature": "(self, quality: int) -> None",
+            "doc": "Only show WiFi networks above this signal quality (in percent)."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "wire": {
+    "functions": [
+      {
+        "name": "begin",
+        "signature": "(address: int) -> None",
+        "doc": "Initiates the Wire library and joins the I2C bus.\n\nArgs:\n    address (int, optional): If provided, sets the device as a slave with this address.\n\nReturns:\n    None"
+      },
+      {
+        "name": "requestFrom",
+        "signature": "(address: int, quantity: int, stop: bool) -> int",
+        "doc": "Requests bytes from a slave device.\n\nArgs:\n    address (int): The 7-bit address of the device to request bytes from.\n    quantity (int): The number of bytes to request.\n    stop (bool, optional): Whether to send a stop condition after the request (default is True).\n\nReturns:\n    int: The number of bytes returned from the slave device."
+      },
+      {
+        "name": "beginTransmission",
+        "signature": "(address: int) -> None",
+        "doc": "Begins a transmission to the I2C slave device with the given address.\n\nArgs:\n    address (int): The 7-bit address of the device to transmit to.\n\nReturns:\n    None"
+      },
+      {
+        "name": "endTransmission",
+        "signature": "(stop: bool) -> int",
+        "doc": "Ends a transmission to a slave device and transmits the bytes that were queued.\n\nArgs:\n    stop (bool, optional): Whether to send a stop condition after the transmission (default is True).\n\nReturns:\n    int: 0 if successful, or an error code."
+      },
+      {
+        "name": "write",
+        "signature": "(data: int) -> int",
+        "doc": "Sends data to a slave device.\n\nArgs:\n    data (int): The byte to send (0-255).\n\nReturns:\n    int: The number of bytes written (should be 1 if successful)."
+      },
+      {
+        "name": "read",
+        "signature": "() -> int",
+        "doc": "Reads a byte that was transmitted from a slave device to a master after a call to requestFrom().\n\nReturns:\n    int: The next byte received."
+      },
+      {
+        "name": "available",
+        "signature": "() -> int",
+        "doc": "Returns the number of bytes available for retrieval with read().\n\nReturns:\n    int: Number of bytes available to read."
+      },
+      {
+        "name": "onReceive",
+        "signature": "(callback: callable) -> None",
+        "doc": "Registers a function to be called when a slave device receives data from the master.\n\nArgs:\n    callback (Callable): A function that takes exactly **one integer argument** \u2014 the number of bytes received.\n        Signature:\n            def callback(num_bytes: int) -> None\n\n        Example:\n            def receive_handler(num_bytes):\n                # Read 'num_bytes' from Wire.read()\n                pass\n\nReturns:\n    None"
+      },
+      {
+        "name": "onRequest",
+        "signature": "(callback: callable) -> None",
+        "doc": "Registers a function to be called when a master requests data from this slave device.\n\nArgs:\n    callback (Callable): A function that takes **no arguments** and returns nothing.\n        Signature:\n            def callback() -> None\n\n        Example:\n            def request_handler():\n                # Use Wire.write(...) to send data\n                pass\n\nReturns:\n    None"
+      }
+    ],
+    "classes": [],
+    "variables": []
+  },
+  "__init__": {
+    "functions": [],
+    "classes": [],
+    "variables": []
+  },
+  "sensors.adxl345": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "ADXL345Sensor",
+        "doc": "ADXL345 accelerometer sensor stub using the Adafruit_ADXL345 library.\n\nThis class supports 3-axis acceleration sensing with configurable range and data rate.\n\nI2C default address: 0x53",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, id: int) -> None",
+            "doc": "Create an instance of the ADXL345 sensor."
+          },
+          {
+            "name": "begin",
+            "signature": "(self, address: int) -> bool",
+            "doc": "Initializes the sensor.\n\nArgs:\n    address (int): I2C address (default is 0x53)\n\nReturns:\n    bool: True if successful, False if not"
+          },
+          {
+            "name": "set_range",
+            "signature": "(self, range_val: int) -> None",
+            "doc": "Set measurement range.\n\nArgs:\n    range_val (int): 0=\u00b12g, 1=\u00b14g, 2=\u00b18g, 3=\u00b116g"
+          },
+          {
+            "name": "get_range",
+            "signature": "(self) -> int",
+            "doc": "Get current measurement range.\n\nReturns:\n    int: Current range value"
+          },
+          {
+            "name": "set_data_rate",
+            "signature": "(self, rate: int) -> None",
+            "doc": "Set data output rate.\n\nArgs:\n    rate (int): Use predefined constants (e.g., 0\u201315 for ~0.1Hz to 3200Hz)"
+          },
+          {
+            "name": "get_data_rate",
+            "signature": "(self) -> int",
+            "doc": "Get current data output rate.\n\nReturns:\n    int: Data rate value"
+          },
+          {
+            "name": "read_acceleration",
+            "signature": "(self) -> list[float]",
+            "doc": "Reads current acceleration on all three axes.\n\nReturns:\n    list[float]: [x, y, z] in g"
+          },
+          {
+            "name": "get_device_id",
+            "signature": "(self) -> int",
+            "doc": "Read the device ID (should be 0xE5).\n\nReturns:\n    int: Device ID"
+          },
+          {
+            "name": "write_register",
+            "signature": "(self, reg: int, value: int) -> None",
+            "doc": "Write value to specified register.\n\nArgs:\n    reg (int): Register address\n    value (int): Value to write"
+          },
+          {
+            "name": "read_register",
+            "signature": "(self, reg: int) -> int",
+            "doc": "Read value from specified register.\n\nArgs:\n    reg (int): Register address\n\nReturns:\n    int: Register value"
+          },
+          {
+            "name": "read16",
+            "signature": "(self, reg: int) -> int",
+            "doc": "Read 16-bit value from specified register.\n\nArgs:\n    reg (int): Register address\n\nReturns:\n    int: 16-bit value"
+          },
+          {
+            "name": "get_x",
+            "signature": "(self) -> int",
+            "doc": "Returns raw acceleration in X-axis.\n\nReturns:\n    int: Raw X value"
+          },
+          {
+            "name": "get_y",
+            "signature": "(self) -> int",
+            "doc": "Returns raw acceleration in Y-axis.\n\nReturns:\n    int: Raw Y value"
+          },
+          {
+            "name": "get_z",
+            "signature": "(self) -> int",
+            "doc": "Returns raw acceleration in Z-axis.\n\nReturns:\n    int: Raw Z value"
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.apds9960": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "APDS9960Sensor",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "Create an instance of the APDS9960 sensor.\nProvides access to color, proximity, and gesture sensing."
+          },
+          {
+            "name": "begin",
+            "signature": "(self, iTimeMS: int, gain: int, address: int) -> bool",
+            "doc": "Initialize the APDS9960 sensor.\n\nArgs:\n    iTimeMS (int): Integration time in milliseconds. Typical range is 10\u2013700 ms.\n    gain (int): Analog gain value:\n        - 0 \u2192 1x gain\n        - 1 \u2192 4x gain\n        - 2 \u2192 16x gain\n        - 3 \u2192 64x gain\n    address (int): I2C address of the sensor (default is 0x39).\n\nReturns:\n    bool: True if initialization succeeded, False otherwise.\n\nTranslation:\n    custom_apds9960_helper_begin(sensor_instance, iTimeMS, gain, address)"
+          },
+          {
+            "name": "set_adc_integration_time",
+            "signature": "(self, time_ms: int) -> None",
+            "doc": "Set color sensing integration time.\n\nArgs:\n    time_ms (int): Integration time in milliseconds."
+          },
+          {
+            "name": "get_adc_integration_time",
+            "signature": "(self) -> float",
+            "doc": "Get the currently set integration time for color sensing.\n\nReturns:\n    float: Integration time in milliseconds."
+          },
+          {
+            "name": "set_adc_gain",
+            "signature": "(self, gain: int) -> None",
+            "doc": "Set gain for the ADC during color measurement.\n\nArgs:\n    gain (int): Gain value (0=1x, 1=4x, 2=16x, 3=64x)."
+          },
+          {
+            "name": "get_adc_gain",
+            "signature": "(self) -> int",
+            "doc": "Get the currently set ADC gain.\n\nReturns:\n    int: Gain value."
+          },
+          {
+            "name": "set_led",
+            "signature": "(self, drive: int, boost: int) -> None",
+            "doc": "Set LED drive strength and boost.\n\nArgs:\n    drive (int): Drive strength (e.g., 0\u20133).\n    boost (int): LED boost percentage (e.g., 0=100%, 1=150%, 2=200%, 3=300%)."
+          },
+          {
+            "name": "enable_proximity",
+            "signature": "(self, enable: bool = True) -> None",
+            "doc": "Enable or disable the proximity sensor.\n\nArgs:\n    enable (bool): Set to True to enable."
+          },
+          {
+            "name": "set_prox_gain",
+            "signature": "(self, gain: int) -> None",
+            "doc": "Set proximity sensor gain.\n\nArgs:\n    gain (int): Gain (0=1x, 1=2x, 2=4x, 3=8x)."
+          },
+          {
+            "name": "get_prox_gain",
+            "signature": "(self) -> int",
+            "doc": "Get current proximity gain setting.\n\nReturns:\n    int: Proximity gain."
+          },
+          {
+            "name": "set_prox_pulse",
+            "signature": "(self, pulse_len: int, pulses: int) -> None",
+            "doc": "Set length and count of proximity pulses.\n\nArgs:\n    pulse_len (int): Pulse length (e.g., 0=4\u00b5s ... 3=32\u00b5s).\n    pulses (int): Number of pulses."
+          },
+          {
+            "name": "enable_proximity_interrupt",
+            "signature": "(self) -> None",
+            "doc": "Enable interrupt when proximity crosses threshold."
+          },
+          {
+            "name": "disable_proximity_interrupt",
+            "signature": "(self) -> None",
+            "doc": "Disable proximity threshold interrupt."
+          },
+          {
+            "name": "read_proximity",
+            "signature": "(self) -> int",
+            "doc": "Read proximity value from sensor.\n\nReturns:\n    int: Raw proximity measurement."
+          },
+          {
+            "name": "set_proximity_interrupt_threshold",
+            "signature": "(self, low: int, high: int, persistence: int = 4) -> None",
+            "doc": "Set thresholds and persistence for proximity interrupts.\n\nArgs:\n    low (int): Minimum threshold.\n    high (int): Maximum threshold.\n    persistence (int): How many consecutive crossings to trigger interrupt."
+          },
+          {
+            "name": "get_proximity_interrupt",
+            "signature": "(self) -> bool",
+            "doc": "Check if a proximity interrupt was triggered.\n\nReturns:\n    bool: True if triggered."
+          },
+          {
+            "name": "enable_gesture",
+            "signature": "(self, enable: bool = True) -> None",
+            "doc": "Enable gesture detection.\n\nArgs:\n    enable (bool): True to enable gesture sensing."
+          },
+          {
+            "name": "gesture_valid",
+            "signature": "(self) -> bool",
+            "doc": "Check if a gesture event is available to read.\n\nReturns:\n    bool: True if a gesture is available."
+          },
+          {
+            "name": "set_gesture_dimensions",
+            "signature": "(self, dims: int) -> None",
+            "doc": "Set dimensions used for gesture detection (e.g., up/down, left/right).\n\nArgs:\n    dims (int): Bitmask of axes to use."
+          },
+          {
+            "name": "set_gesture_fifo_threshold",
+            "signature": "(self, threshold: int) -> None",
+            "doc": "Set FIFO level threshold for gesture recognition.\n\nArgs:\n    threshold (int): Threshold level."
+          },
+          {
+            "name": "set_gesture_gain",
+            "signature": "(self, gain: int) -> None",
+            "doc": "Set gesture detection gain.\n\nArgs:\n    gain (int): Gain level."
+          },
+          {
+            "name": "set_gesture_proximity_threshold",
+            "signature": "(self, threshold: int) -> None",
+            "doc": "Set gesture proximity threshold to start detecting gestures.\n\nArgs:\n    threshold (int): Proximity threshold."
+          },
+          {
+            "name": "set_gesture_offset",
+            "signature": "(self, up: int, down: int, left: int, right: int) -> None",
+            "doc": "Set directional offset compensation for gesture detection.\n\nArgs:\n    up (int): Up offset.\n    down (int): Down offset.\n    left (int): Left offset.\n    right (int): Right offset."
+          },
+          {
+            "name": "read_gesture",
+            "signature": "(self) -> int",
+            "doc": "Read detected gesture code.\n\nReturns:\n    int: Gesture code (e.g., up, down, left, right)."
+          },
+          {
+            "name": "reset_counts",
+            "signature": "(self) -> None",
+            "doc": "Reset gesture detection internal counters."
+          },
+          {
+            "name": "enable_color",
+            "signature": "(self, enable: bool = True) -> None",
+            "doc": "Enable color sensing features.\n\nArgs:\n    enable (bool): True to enable."
+          },
+          {
+            "name": "color_data_ready",
+            "signature": "(self) -> bool",
+            "doc": "Check if color data is ready to read.\n\nReturns:\n    bool: True if data is ready."
+          },
+          {
+            "name": "get_color_data",
+            "signature": "(self) -> list[int]",
+            "doc": "Read raw color channel values.\n\nReturns:\n    list[int]: [r, g, b, c] (red, green, blue, clear)."
+          },
+          {
+            "name": "calculate_color_temperature",
+            "signature": "(self, r: int, g: int, b: int) -> int",
+            "doc": "Calculate color temperature from RGB values.\n\nArgs:\n    r (int): Red.\n    g (int): Green.\n    b (int): Blue.\n\nReturns:\n    int: Color temperature in Kelvin."
+          },
+          {
+            "name": "calculate_lux",
+            "signature": "(self, r: int, g: int, b: int) -> int",
+            "doc": "Calculate lux from RGB values.\n\nArgs:\n    r (int): Red.\n    g (int): Green.\n    b (int): Blue.\n\nReturns:\n    int: Lux value."
+          },
+          {
+            "name": "enable_color_interrupt",
+            "signature": "(self) -> None",
+            "doc": "Enable interrupt on color thresholds."
+          },
+          {
+            "name": "disable_color_interrupt",
+            "signature": "(self) -> None",
+            "doc": "Disable color interrupt."
+          },
+          {
+            "name": "clear_interrupt",
+            "signature": "(self) -> None",
+            "doc": "Clear all interrupt flags."
+          },
+          {
+            "name": "set_int_limits",
+            "signature": "(self, low: int, high: int) -> None",
+            "doc": "Set lower and upper limits for interrupt triggering.\n\nArgs:\n    low (int): Lower threshold.\n    high (int): Upper threshold."
+          },
+          {
+            "name": "enable",
+            "signature": "(self, enable: bool = True) -> None",
+            "doc": "Master enable or disable for the sensor.\n\nArgs:\n    enable (bool): True to turn on all functions."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.bh1750": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "BH1750Sensor",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, address: int)",
+            "doc": "Create a BH1750 light sensor object.\n\nArgs:\n    address (int): I2C address of the sensor. Default is 0x23."
+          },
+          {
+            "name": "begin",
+            "signature": "(self, mode_index: int = 1, address: int = 35) -> bool",
+            "doc": "Initialize the BH1750 sensor instance with selected measurement mode and I2C address.\n\nArgs:\n    mode_index (int): Measurement mode:\n        1 = CONTINUOUS_HIGH_RES_MODE\n        2 = CONTINUOUS_HIGH_RES_MODE_2\n        3 = CONTINUOUS_LOW_RES_MODE\n        4 = ONE_TIME_HIGH_RES_MODE\n        5 = ONE_TIME_HIGH_RES_MODE_2\n        6 = ONE_TIME_LOW_RES_MODE\n    address (int): I2C address (0x23 = 35 by default)\n\nReturns:\n    bool: True if initialization succeeded.\n\nNote:\n    Uses internal helper `bh1750_map_mode(mode_index)` to convert to BH1750::Mode."
+          },
+          {
+            "name": "configure",
+            "signature": "(self, mode: int) -> bool",
+            "doc": "Change measurement mode of the sensor.\n\nArgs:\n    mode (int): One of the defined measurement mode constants.\n\nReturns:\n    bool: True if configuration succeeded."
+          },
+          {
+            "name": "set_mtreg",
+            "signature": "(self, mtreg: int) -> bool",
+            "doc": "Set MTreg register value for sensitivity control (31\u2013254).\n\nArgs:\n    mtreg (int): Value between 31 and 254.\n\nReturns:\n    bool: True if register was set successfully."
+          },
+          {
+            "name": "measurement_ready",
+            "signature": "(self, max_wait: bool) -> bool",
+            "doc": "Check whether a measurement is ready.\n\nArgs:\n    max_wait (bool): If True, waits up to max measurement time.\n\nReturns:\n    bool: True if data is ready to read."
+          },
+          {
+            "name": "read_light_level",
+            "signature": "(self) -> float",
+            "doc": "Read the measured light level in lux.\n\nReturns:\n    float: Light level in lux."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.bme280": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "BME280Sensor",
+        "doc": "Dummy class for the BME280 sensor.\n\nThis mimics the Adafruit_BME280 Arduino library for transpilation use.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self) -> None",
+            "doc": "Initializes the BME280 sensor. Requires `begin()` to be called later."
+          },
+          {
+            "name": "begin",
+            "signature": "(self, address: int) -> bool",
+            "doc": "Initializes communication with the BME280 sensor.\n\nArgs:\n    address (int): I2C address of the sensor (usually 0x76 or 0x77).\n\nReturns:\n    bool: True if sensor initialized correctly, False otherwise."
+          },
+          {
+            "name": "read_temperature",
+            "signature": "(self) -> float",
+            "doc": "Reads temperature in Celsius.\n\nReturns:\n    float: Temperature in \u00b0C."
+          },
+          {
+            "name": "read_humidity",
+            "signature": "(self) -> float",
+            "doc": "Reads relative humidity in %.\n\nReturns:\n    float: Humidity percentage."
+          },
+          {
+            "name": "read_pressure",
+            "signature": "(self) -> float",
+            "doc": "Reads pressure in Pascals.\n\nReturns:\n    float: Atmospheric pressure in Pa."
+          },
+          {
+            "name": "read_altitude",
+            "signature": "(self, sea_level_hpa: float) -> float",
+            "doc": "Calculates altitude based on current pressure and known sea level pressure.\n\nArgs:\n    sea_level_hpa (float): Known sea level pressure in hPa.\n\nReturns:\n    float: Estimated altitude in meters."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.bmp085": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "BMP085Sensor",
+        "doc": "BMP085 pressure and temperature sensor stub using the Adafruit_BMP085_Unified library.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self) -> None",
+            "doc": "Create an instance of the BMP085 sensor."
+          },
+          {
+            "name": "begin",
+            "signature": "(self, mode: int = 3) -> bool",
+            "doc": "Initialize the sensor with a specific mode.\n\nArgs:\n    mode (int): Operating mode:\n        - 0 = ULTRALOWPOWER\n        - 1 = STANDARD\n        - 2 = HIGHRES\n        - 3 = ULTRAHIGHRES (default)\n\nReturns:\n    bool: True if initialized successfully"
+          },
+          {
+            "name": "get_temperature",
+            "signature": "(self) -> float",
+            "doc": "Reads temperature from the sensor.\n\nReturns:\n    float: Temperature in Celsius"
+          },
+          {
+            "name": "get_pressure",
+            "signature": "(self) -> float",
+            "doc": "Reads pressure from the sensor.\n\nReturns:\n    float: Pressure in Pa"
+          },
+          {
+            "name": "pressure_to_altitude",
+            "signature": "(self, sea_level: float, atmospheric: float) -> float",
+            "doc": "Converts pressure to altitude.\n\nArgs:\n    sea_level (float): Sea level pressure\n    atmospheric (float): Measured pressure\n\nReturns:\n    float: Altitude in meters"
+          },
+          {
+            "name": "pressure_to_altitude_with_temp",
+            "signature": "(self, sea_level: float, atmospheric: float, temp: float) -> float",
+            "doc": "Converts pressure to altitude with temperature adjustment.\n\nArgs:\n    sea_level (float): Sea level pressure\n    atmospheric (float): Measured pressure\n    temp (float): Measured temperature\n\nReturns:\n    float: Altitude in meters"
+          },
+          {
+            "name": "sea_level_for_altitude",
+            "signature": "(self, altitude: float, atmospheric: float) -> float",
+            "doc": "Calculates pressure at sea level from altitude.\n\nArgs:\n    altitude (float): Altitude in meters\n    atmospheric (float): Measured pressure\n\nReturns:\n    float: Sea level pressure"
+          },
+          {
+            "name": "sea_level_for_altitude_with_temp",
+            "signature": "(self, altitude: float, atmospheric: float, temp: float) -> float",
+            "doc": "Calculates sea level pressure with temperature adjustment.\n\nArgs:\n    altitude (float): Altitude in meters\n    atmospheric (float): Measured pressure\n    temp (float): Temperature\n\nReturns:\n    float: Sea level pressure"
+          },
+          {
+            "name": "get_event",
+            "signature": "(self) -> dict[str, float]",
+            "doc": "Reads a unified sensor event.\n\nReturns:\n    dict: {'pressure': float, 'temperature': float}"
+          },
+          {
+            "name": "get_sensor_info",
+            "signature": "(self) -> dict[str, str]",
+            "doc": "Gets sensor metadata.\n\nReturns:\n    dict: Metadata dictionary"
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.ccd811": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "CCS811Sensor",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "Initialize the CCS811 sensor. Use begin() after this to start communication."
+          },
+          {
+            "name": "begin",
+            "signature": "(self) -> bool",
+            "doc": "Start the sensor with default I2C address."
+          },
+          {
+            "name": "available",
+            "signature": "(self) -> bool",
+            "doc": "Check if new data is available."
+          },
+          {
+            "name": "read_data",
+            "signature": "(self) -> bool",
+            "doc": "Read latest sensor data."
+          },
+          {
+            "name": "get_eco2",
+            "signature": "(self) -> int",
+            "doc": "Return eCO2 in ppm."
+          },
+          {
+            "name": "get_tvoc",
+            "signature": "(self) -> int",
+            "doc": "Return TVOC in ppb."
+          },
+          {
+            "name": "set_environmental_data",
+            "signature": "(self, humidity: float, temperature: float) -> None",
+            "doc": "Provide humidity (%) and temperature (\u00b0C) for compensation."
+          },
+          {
+            "name": "get_error_id",
+            "signature": "(self) -> int",
+            "doc": "Get the error ID from the sensor."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.dht": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "DHTSensor",
+        "doc": "A Python-like abstraction for DHT11 and DHT22 sensors.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, pin: int, type) -> None",
+            "doc": "Initialize the DHT sensor on a specific GPIO pin.\n\nArgs:\n    pin (int): GPIO pin connected to the sensor.\n    type (special): Type of the sensor: DHT11 or DHT22."
+          },
+          {
+            "name": "begin",
+            "signature": "(self) -> None",
+            "doc": "Begin communication with the sensor."
+          },
+          {
+            "name": "read_temperature",
+            "signature": "(self, is_fahrenheit: bool) -> float",
+            "doc": "Read the temperature.\n\nArgs:\n    is_fahrenheit (bool): Whether to read in Fahrenheit.\n\nReturns:\n    float: Temperature value."
+          },
+          {
+            "name": "read_humidity",
+            "signature": "(self) -> float",
+            "doc": "Read the humidity percentage.\n\nReturns:\n    float: Humidity value."
+          },
+          {
+            "name": "read",
+            "signature": "(self) -> dict[str, float]",
+            "doc": "Read both temperature and humidity.\n\nReturns:\n    dict: {\"temperature\": float, \"humidity\": float}"
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.ds18b20": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "DS18B20Sensor",
+        "doc": "A Python-like abstraction for DS18B20 temperature sensors using OneWire protocol.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, onewire_instance: OneWire) -> None",
+            "doc": "Initialize the DS18B20 sensor on a specific GPIO pin.\n\nArgs:\n    pin (int): GPIO pin connected to the OneWire data line."
+          },
+          {
+            "name": "begin",
+            "signature": "(self) -> None",
+            "doc": "Begin communication with the DS18B20 sensor."
+          },
+          {
+            "name": "request_temperature",
+            "signature": "(self) -> None",
+            "doc": "Request temperature reading from the sensor. Must be called before read."
+          },
+          {
+            "name": "read_temperature",
+            "signature": "(self, index: int) -> float",
+            "doc": "Read the temperature in Celsius from a specific sensor (index-based).\n\nArgs:\n    index (int): Sensor index (useful if multiple sensors on the same bus).\n\nReturns:\n    float: Temperature in Celsius."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.gp2y0a21yk": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "GP2Y0A21YKSensor",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, analog_pin: int)",
+            "doc": "Infrared analog distance sensor (Sharp GP2Y0A21YK).\n\nArgs:\n    analog_pin (int): Analog pin used for reading the voltage (default A3, i.e., 17)."
+          },
+          {
+            "name": "distance",
+            "signature": "(self) -> float",
+            "doc": "Read and convert analog voltage to approximate distance.\n\nReturns:\n    float: Distance in centimeters."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.mhz19": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "MHZ19Sensor",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, stream: HardwareSerial)",
+            "doc": "Initialize the MHZ19 CO\u2082 sensor.\n\nArgs:\n    stream: A serial stream object (e.g., Serial1 or SoftwareSerial)."
+          },
+          {
+            "name": "retrieve_data",
+            "signature": "(self) -> int",
+            "doc": "Request sensor to update internal values.\n\nReturns:\n    int: Result code from MHZ19_RESULT enum (e.g., 0 for OK, 5 for TIMEOUT)."
+          },
+          {
+            "name": "get_co2",
+            "signature": "(self) -> int",
+            "doc": "Get the measured CO\u2082 concentration.\n\nReturns:\n    int: CO\u2082 value in ppm."
+          },
+          {
+            "name": "get_min_co2",
+            "signature": "(self) -> int",
+            "doc": "Get the minimum possible CO\u2082 value (requires further processing).\n\nReturns:\n    int: Minimum CO\u2082 value."
+          },
+          {
+            "name": "get_temperature",
+            "signature": "(self) -> int",
+            "doc": "Get the temperature reported by the sensor.\n\nReturns:\n    int: Temperature in Celsius."
+          },
+          {
+            "name": "get_accuracy",
+            "signature": "(self) -> int",
+            "doc": "Get the measurement accuracy level.\n\nReturns:\n    int: Accuracy (unit depends on sensor calibration)."
+          },
+          {
+            "name": "set_range",
+            "signature": "(self, range_val: int) -> int",
+            "doc": "Set the CO2 sensing range.\n\nArgs:\n    range_val (int): One of:\n        - 0: MHZ19_RANGE_1000\n        - 1: MHZ19_RANGE_2000\n        - 2: MHZ19_RANGE_3000\n        - 3: MHZ19_RANGE_5000\n        - 4: MHZ19_RANGE_10000\nReturns:\n    int: Result code from MHZ19_RESULT enum."
+          },
+          {
+            "name": "calibrate_zero",
+            "signature": "(self) -> None",
+            "doc": "Calibrate sensor assuming current ambient air has 400 ppm CO\u2082."
+          },
+          {
+            "name": "calibrate_span",
+            "signature": "(self, span: int) -> None",
+            "doc": "Calibrate span (high-end point) using known CO\u2082 concentration.\n\nArgs:\n    span (int): Known CO\u2082 concentration in ppm (e.g., 2000)."
+          },
+          {
+            "name": "set_auto_calibration",
+            "signature": "(self, mode: bool) -> None",
+            "doc": "Enable or disable automatic baseline calibration.\n\nArgs:\n    mode (bool): True to enable, False to disable."
+          },
+          {
+            "name": "send_command",
+            "signature": "(self, command: int) -> None",
+            "doc": "Send a custom command to the sensor.\n\nArgs:\n    command (int): Command byte."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.mpu6050": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "MPU6050Sensor",
+        "doc": "MPU6050 Light Sensor stub using the rfetick/MPU6050_light library.\n\nThis class supports basic 6-axis motion sensing:\n- Accelerometer (\u00b12G to \u00b116G)\n- Gyroscope (\u00b1250\u00b0/s to \u00b12000\u00b0/s)\n- Optional temperature readout\n- Complementary filter for angle estimation\n\nDefault I2C address is 0x68.\nSet to 0x69 if AD0 pin is pulled high.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self) -> None",
+            "doc": "Create an instance of the MPU6050 sensor with default I2C address (0x68).\nCall `begin()` before reading data."
+          },
+          {
+            "name": "begin",
+            "signature": "(self, gyro_config_num: int, acc_config_num: int) -> int",
+            "doc": "Initialize the sensor.\n\nArgs:\n    gyro_config_num (int): 0=\u00b1250, 1=\u00b1500, 2=\u00b11000, 3=\u00b12000 deg/s\n    acc_config_num (int):  0=\u00b12G, 1=\u00b14G, 2=\u00b18G, 3=\u00b116G\n\nReturns:\n    int: 0 on success, 1 on failure"
+          },
+          {
+            "name": "update",
+            "signature": "(self) -> None",
+            "doc": "Reads all new data from the sensor.\nCall before using any `get*()` method."
+          },
+          {
+            "name": "read_acceleration",
+            "signature": "(self) -> list[float]",
+            "doc": "Returns current acceleration readings in g (gravity units).\n\nReturns:\n    list[float]: [accX, accY, accZ] in g"
+          },
+          {
+            "name": "read_gyro",
+            "signature": "(self) -> list[float]",
+            "doc": "Returns current gyroscope angular velocity in degrees/sec.\n\nReturns:\n    list[float]: [gyroX, gyroY, gyroZ] in \u00b0/s"
+          },
+          {
+            "name": "read_angles",
+            "signature": "(self) -> list[float]",
+            "doc": "Returns estimated orientation angles using a complementary filter.\n\nReturns:\n    list[float]: [angleX, angleY, angleZ] in degrees"
+          },
+          {
+            "name": "read_temperature",
+            "signature": "(self) -> float",
+            "doc": "Returns:\n    float: Temperature in \u00b0C"
+          },
+          {
+            "name": "set_gyro_offsets",
+            "signature": "(self, x: float, y: float, z: float) -> None",
+            "doc": "Manually calibrate gyroscope offsets.\n\nArgs:\n    x (float): X-axis offset in \u00b0/s\n    y (float): Y-axis offset in \u00b0/s\n    z (float): Z-axis offset in \u00b0/s"
+          },
+          {
+            "name": "set_acc_offsets",
+            "signature": "(self, x: float, y: float, z: float) -> None",
+            "doc": "Manually calibrate accelerometer offsets.\n\nArgs:\n    x (float): X-axis offset in g\n    y (float): Y-axis offset in g\n    z (float): Z-axis offset in g"
+          },
+          {
+            "name": "calc_offsets",
+            "signature": "(self, calc_gyro: bool, calc_acc: bool) -> None",
+            "doc": "Automatically calculate gyro and/or accelerometer offsets.\nSensor must be stable during this process.\n\nArgs:\n    calc_gyro (bool): Calibrate gyroscope\n    calc_acc (bool): Calibrate accelerometer"
+          },
+          {
+            "name": "set_address",
+            "signature": "(self, addr: int) -> None",
+            "doc": "Change I2C address for the sensor (0x68 or 0x69).\n\nArgs:\n    addr (int): New I2C address"
+          },
+          {
+            "name": "get_address",
+            "signature": "(self) -> int",
+            "doc": "Returns:\n    int: Current I2C address (typically 0x68 or 0x69)"
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.mq135": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "MQ135Sensor",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, pin: int)",
+            "doc": "Initialize the MQ135 sensor.\n\nArgs:\n    pin (int): The analog pin the MQ135 is connected to (e.g., A0 \u2192 0)"
+          },
+          {
+            "name": "get_correction_factor",
+            "signature": "(self, temperature: float, humidity: float) -> float",
+            "doc": "Return correction factor based on temperature and humidity."
+          },
+          {
+            "name": "get_resistance",
+            "signature": "(self) -> float",
+            "doc": "Read the raw sensor resistance."
+          },
+          {
+            "name": "get_corrected_resistance",
+            "signature": "(self, temperature: float, humidity: float) -> float",
+            "doc": "Read corrected sensor resistance."
+          },
+          {
+            "name": "get_ppm",
+            "signature": "(self) -> float",
+            "doc": "Return uncorrected PPM reading."
+          },
+          {
+            "name": "get_corrected_ppm",
+            "signature": "(self, temperature: float, humidity: float) -> float",
+            "doc": "Return PPM reading corrected for temperature and humidity."
+          },
+          {
+            "name": "get_rzero",
+            "signature": "(self) -> float",
+            "doc": "Return RZero from current reading."
+          },
+          {
+            "name": "get_corrected_rzero",
+            "signature": "(self, temperature: float, humidity: float) -> float",
+            "doc": "Return corrected RZero based on temperature and humidity."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.mq2": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "MQ2Sensor",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, pin: int)",
+            "doc": "Initialize the MQ2 sensor.\n\nArgs:\n    pin (int): The analog pin the MQ2 is connected to (e.g., A0 \u2192 0)"
+          },
+          {
+            "name": "calibrate_r0",
+            "signature": "(self, samples: int, delay_ms: int) -> None",
+            "doc": "Calibrate R0 using clean air.\n\nArgs:\n    samples (int): Number of samples to average.\n    delay_ms (int): Delay between samples."
+          },
+          {
+            "name": "set_r0",
+            "signature": "(self, r0: float) -> None",
+            "doc": "Manually set the R0 (clean air resistance)."
+          },
+          {
+            "name": "get_r0",
+            "signature": "(self) -> float",
+            "doc": "Get the current R0 value."
+          },
+          {
+            "name": "read_rs",
+            "signature": "(self) -> float",
+            "doc": "Read current Rs (sensor resistance in current gas)."
+          },
+          {
+            "name": "read_ratio",
+            "signature": "(self) -> float",
+            "doc": "Return Rs/R0."
+          },
+          {
+            "name": "get_ppm",
+            "signature": "(self, a: float, b: float) -> float",
+            "doc": "Compute PPM using the formula: ppm = a * (Rs/R0)^b"
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.sgp30": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "SGP30Sensor",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "Create an instance of the SGP30 gas sensor class.\n\nYou must call `.begin()` after instantiation to initialize I2C communication."
+          },
+          {
+            "name": "begin",
+            "signature": "(self) -> bool",
+            "doc": "Initialize the sensor and begin I2C communication.\n\nReturns:\n    bool: True if initialization succeeded, False otherwise."
+          },
+          {
+            "name": "is_connected",
+            "signature": "(self) -> bool",
+            "doc": "Check if the sensor is connected and responding over I2C.\n\nReturns:\n    bool: True if the device is found on the I2C bus."
+          },
+          {
+            "name": "generic_reset",
+            "signature": "(self) -> None",
+            "doc": "Send a generic I2C reset command.\n\n\u26a0\ufe0f WARNING: This may reset *all* I2C devices that respond to general reset!\nUse with caution in multi-device setups."
+          },
+          {
+            "name": "get_id",
+            "signature": "(self) -> bool",
+            "doc": "Retrieve the sensor's internal ID into the _id[6] buffer.\n\nReturns:\n    bool: True if ID was successfully read."
+          },
+          {
+            "name": "get_feature_set",
+            "signature": "(self) -> int",
+            "doc": "Get the firmware feature set version.\n\nReturns:\n    int: Feature set code (e.g., 0x0020)."
+          },
+          {
+            "name": "measure_test",
+            "signature": "(self) -> bool",
+            "doc": "Run a sensor self-test (may be destructive depending on firmware).\n\nReturns:\n    bool: True if test passed, False if failed."
+          },
+          {
+            "name": "last_measurement",
+            "signature": "(self) -> int",
+            "doc": "Get the timestamp (in ms) of the last successful measurement.\n\nReturns:\n    int: Milliseconds since boot of last measurement."
+          },
+          {
+            "name": "measure",
+            "signature": "(self, all: bool = False) -> bool",
+            "doc": "Perform a blocking measurement.\n\nArgs:\n    all (bool): If True, retrieves raw H2 and ethanol in addition to eCO2 and TVOC.\n\nReturns:\n    bool: True if measurement succeeded."
+          },
+          {
+            "name": "request",
+            "signature": "(self) -> None",
+            "doc": "Request async measurement (non-blocking). Use `.read()` to get the result later."
+          },
+          {
+            "name": "read",
+            "signature": "(self) -> bool",
+            "doc": "Read results from a previous async `.request()` call.\n\nReturns:\n    bool: True if data was available and read successfully."
+          },
+          {
+            "name": "request_raw",
+            "signature": "(self) -> None",
+            "doc": "Request a raw gas resistance measurement. Use `.read_raw()` to collect results."
+          },
+          {
+            "name": "read_raw",
+            "signature": "(self) -> bool",
+            "doc": "Read raw values (H2 and ethanol) from the sensor after `.request_raw()`.\n\nReturns:\n    bool: True if raw data was read successfully."
+          },
+          {
+            "name": "get_tvoc",
+            "signature": "(self) -> int",
+            "doc": "Get the Total Volatile Organic Compounds (TVOC) reading.\n\nReturns:\n    int: TVOC value in parts per billion (ppb)."
+          },
+          {
+            "name": "get_co2",
+            "signature": "(self) -> int",
+            "doc": "Get the equivalent CO2 (eCO\u2082) concentration.\n\nReturns:\n    int: CO2 concentration in parts per million (ppm)."
+          },
+          {
+            "name": "get_h2_raw",
+            "signature": "(self) -> int",
+            "doc": "Get raw resistance signal related to hydrogen gas (H\u2082).\n\nReturns:\n    int: Raw ADC units (hardware specific, not in ppm)."
+          },
+          {
+            "name": "get_ethanol_raw",
+            "signature": "(self) -> int",
+            "doc": "Get raw resistance signal related to ethanol.\n\nReturns:\n    int: Raw ADC units."
+          },
+          {
+            "name": "get_h2",
+            "signature": "(self) -> float",
+            "doc": "Estimate H\u2082 concentration from raw values using internal calibration.\n\nReturns:\n    float: Hydrogen gas in PPM (experimental)."
+          },
+          {
+            "name": "get_ethanol",
+            "signature": "(self) -> float",
+            "doc": "Estimate ethanol concentration from raw values using internal calibration.\n\nReturns:\n    float: Ethanol concentration in PPM (experimental)."
+          },
+          {
+            "name": "set_rel_humidity",
+            "signature": "(self, temperature: float, rh: float) -> float",
+            "doc": "Provide environmental compensation using temperature and relative humidity.\n\nArgs:\n    temperature (float): Temperature in \u00b0C.\n    rh (float): Relative humidity (0\u2013100%).\n\nReturns:\n    float: Converted absolute humidity (g/m\u00b3)."
+          },
+          {
+            "name": "set_abs_humidity",
+            "signature": "(self, abs_humidity: float) -> None",
+            "doc": "Set absolute humidity directly to improve sensor accuracy.\n\nArgs:\n    abs_humidity (float): Absolute humidity in grams per cubic meter (g/m\u00b3).\n                          Set to 0 to disable humidity compensation."
+          },
+          {
+            "name": "set_baseline",
+            "signature": "(self, co2: int, tvoc: int) -> None",
+            "doc": "Set the known baseline values for eCO2 and TVOC.\n\nArgs:\n    co2 (int): Baseline CO2 in ppm.\n    tvoc (int): Baseline TVOC in ppb."
+          },
+          {
+            "name": "get_baseline",
+            "signature": "(self, co2_ptr, tvoc_ptr) -> bool",
+            "doc": "Retrieve the current baseline for eCO2 and TVOC.\n\nArgs:\n    co2_ptr: Pointer or container to receive CO2 baseline.\n    tvoc_ptr: Pointer or container to receive TVOC baseline.\n\nReturns:\n    bool: True if successful."
+          },
+          {
+            "name": "set_tvoc_baseline",
+            "signature": "(self, tvoc: int) -> None",
+            "doc": "Set only the TVOC baseline value.\n\nArgs:\n    tvoc (int): TVOC baseline in ppb."
+          },
+          {
+            "name": "get_tvoc_baseline",
+            "signature": "(self, tvoc_ptr) -> bool",
+            "doc": "Retrieve only the TVOC baseline.\n\nArgs:\n    tvoc_ptr: Pointer or container to receive baseline.\n\nReturns:\n    bool: True if successful."
+          },
+          {
+            "name": "set_sref_h2",
+            "signature": "(self, s: int) -> None",
+            "doc": "Set sensor reference value for H2 calibration (advanced use).\n\nArgs:\n    s (int): Raw average value from clean H\u2082 environment (e.g., 13119)."
+          },
+          {
+            "name": "get_sref_h2",
+            "signature": "(self) -> int",
+            "doc": "Get current sensor reference value for H2 calibration.\n\nReturns:\n    int: Raw reference value."
+          },
+          {
+            "name": "set_sref_ethanol",
+            "signature": "(self, s: int) -> None",
+            "doc": "Set sensor reference value for ethanol calibration (advanced use).\n\nArgs:\n    s (int): Raw average ethanol baseline value."
+          },
+          {
+            "name": "get_sref_ethanol",
+            "signature": "(self) -> int",
+            "doc": "Get current reference value used for ethanol baseline calibration.\n\nReturns:\n    int: Raw baseline value."
+          },
+          {
+            "name": "last_error",
+            "signature": "(self) -> int",
+            "doc": "Return last I2C or CRC error code from any operation.\n\nReturns:\n    int: 0 = OK, 0xFE = I2C error, 0xFF = CRC error."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.sht31": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "SHT31Sensor",
+        "doc": "Dummy wrapper for the Adafruit SHT31 temperature and humidity sensor.\n\nThis class is used for Python-to-Arduino transpilation.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self) -> None",
+            "doc": "Initializes the I2C sensor with the given address.\n\nArgs:\n    address (int): I2C address of the sensor (default is 0x44)."
+          },
+          {
+            "name": "begin",
+            "signature": "(self, address: int) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "read_temperature",
+            "signature": "(self) -> float",
+            "doc": "Reads the temperature in Celsius.\n\nReturns:\n    float: Temperature in \u00b0C."
+          },
+          {
+            "name": "read_humidity",
+            "signature": "(self) -> float",
+            "doc": "Reads the relative humidity.\n\nReturns:\n    float: Humidity in percentage."
+          },
+          {
+            "name": "heater_enabled",
+            "signature": "(self) -> bool",
+            "doc": "Returns whether the heater is enabled.\n\nReturns:\n    bool: True if enabled."
+          },
+          {
+            "name": "toggle_heater",
+            "signature": "(self, on: bool) -> None",
+            "doc": "Enables or disables the sensor's internal heater.\n\nArgs:\n    on (bool): True to enable, False to disable."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.tsl2561": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "TSL2561Sensor",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, address: int)",
+            "doc": "Create a TSL2561 light sensor object.\n\nArgs:\n    address (int): I2C address of the sensor (0x29, 0x39, or 0x49)."
+          },
+          {
+            "name": "begin",
+            "signature": "(self, address: int) -> bool",
+            "doc": "Initialize the sensor with optional I2C address.\n\nArgs:\n    address (int): I2C address (default 0x39).\n\nReturns:\n    bool: True if initialization succeeded."
+          },
+          {
+            "name": "enable_auto_range",
+            "signature": "(self, enable: bool) -> None",
+            "doc": "Enable or disable automatic gain range adjustment.\n\nArgs:\n    enable (bool): True to enable, False to disable."
+          },
+          {
+            "name": "set_integration_time",
+            "signature": "(self, integration_mode: int) -> None",
+            "doc": "Set the integration time (exposure) for the light sensor.\n\nArgs:\n    integration_mode (int): One of:\n        0 = 13ms,\n        1 = 101ms,\n        2 = 402ms"
+          },
+          {
+            "name": "set_gain",
+            "signature": "(self, gain_mode: int) -> None",
+            "doc": "Set the gain mode of the light sensor.\n\nArgs:\n    gain_mode (int): 0 = 1x gain, 1 = 16x gain."
+          },
+          {
+            "name": "get_luminosity",
+            "signature": "(self) -> list[int]",
+            "doc": "Read broadband and IR luminosity.\n\nReturns:\n    list[int, int]: (broadband, ir) values."
+          },
+          {
+            "name": "calculate_lux",
+            "signature": "(self, broadband: int, ir: int) -> int",
+            "doc": "Calculate lux value from given channel readings.\n\nArgs:\n    broadband (int): Channel 0 (visible + IR).\n    ir (int): Channel 1 (IR only).\n\nReturns:\n    int: Calculated lux value."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.ultrasonic": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "UltrasonicSensor",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, trigger_pin: int, echo_pin: int, max_cm_distance: int)",
+            "doc": "Represents an ultrasonic distance sensor using the NewPing library.\n\nThis class supports low-level ultrasonic sensors that work via\ndigital pulse duration, specifically those with a trigger pin and\necho pin.\n\n\u2705 Supported sensor models:\n- HC-SR04\n- SRF05\n- DYP-ME007\n- Parallax PING)))\u2122 (single-pin supported)\n- SRF06 (with capacitor or dual-pin mode only)\n\n\u274c Not supported:\n- Analog sensors (e.g., Sharp GP2Y series)\n- I2C/SPI ToF sensors (e.g., VL53L0X, VL6180X)\n\nArgs:\n    trigger_pin (int): GPIO pin used to send trigger pulse.\n    echo_pin (int): GPIO pin used to receive echo pulse.\n    max_cm_distance (int, optional): Maximum measurable distance in cm. Default is 500."
+          },
+          {
+            "name": "ping",
+            "signature": "(self) -> int",
+            "doc": "Send a ping and return the echo time in microseconds.\n\nReturns:\n    int: Echo duration in microseconds."
+          },
+          {
+            "name": "ping_in",
+            "signature": "(self) -> int",
+            "doc": "Send a ping and return the distance in whole inches.\n\nReturns:\n    int: Distance in inches."
+          },
+          {
+            "name": "ping_cm",
+            "signature": "(self) -> int",
+            "doc": "Send a ping and return the distance in whole centimeters.\n\nReturns:\n    int: Distance in centimeters."
+          },
+          {
+            "name": "ping_median",
+            "signature": "(self, iterations: int) -> int",
+            "doc": "Perform multiple pings and return the median echo time (in microseconds).\nHelps filter out invalid readings.\n\nArgs:\n    iterations (int): Number of pings to average. Default is 5.\n\nReturns:\n    int: Median echo time in microseconds."
+          },
+          {
+            "name": "convert_in",
+            "signature": "(self, echo_time: int) -> int",
+            "doc": "Convert echo time to distance in inches.\n\nArgs:\n    echo_time (int): Echo duration in microseconds.\n\nReturns:\n    int: Distance in inches."
+          },
+          {
+            "name": "convert_cm",
+            "signature": "(self, echo_time: int) -> int",
+            "doc": "Convert echo time to distance in centimeters.\n\nArgs:\n    echo_time (int): Echo duration in microseconds.\n\nReturns:\n    int: Distance in centimeters."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "sensors.vl53l0x": {
+    "functions": [],
+    "classes": [
+      {
+        "name": "VL53L0XSensor",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "VL53L0X time-of-flight distance sensor.\nUses I2C (default address: 0x29)."
+          },
+          {
+            "name": "begin",
+            "signature": "(self, i2c_addr: int, debug: bool) -> bool",
+            "doc": "Initialize the sensor.\n\nArgs:\n    i2c_addr (int): I2C address (default 0x29).\n    debug (bool): Enable debug logging.\n\nReturns:\n    bool: True if initialization succeeded."
+          },
+          {
+            "name": "set_address",
+            "signature": "(self, new_addr: int) -> bool",
+            "doc": "Set a new I2C address for the sensor.\n\nArgs:\n    new_addr (int): New address to assign.\n\nReturns:\n    bool: True if successful."
+          },
+          {
+            "name": "read_range",
+            "signature": "(self) -> int",
+            "doc": "Perform a single range read.\n\nReturns:\n    int: Distance in millimeters."
+          },
+          {
+            "name": "read_range_status",
+            "signature": "(self) -> int",
+            "doc": "Get status of the last range reading.\n\nReturns:\n    int: Status code (0 = OK)."
+          },
+          {
+            "name": "start_range",
+            "signature": "(self) -> bool",
+            "doc": "Start a range measurement.\n\nReturns:\n    bool: True if started."
+          },
+          {
+            "name": "is_range_complete",
+            "signature": "(self) -> bool",
+            "doc": "Check if the range measurement is complete.\n\nReturns:\n    bool: True if complete."
+          },
+          {
+            "name": "wait_range_complete",
+            "signature": "(self) -> bool",
+            "doc": "Wait for the range to complete.\n\nReturns:\n    bool: True if completed."
+          },
+          {
+            "name": "read_range_result",
+            "signature": "(self) -> int",
+            "doc": "Read the result of the last range.\n\nReturns:\n    int: Distance in millimeters."
+          },
+          {
+            "name": "start_range_continuous",
+            "signature": "(self, period_ms: int) -> bool",
+            "doc": "Start continuous ranging mode.\n\nArgs:\n    period_ms (int): Delay between measurements. Default 50.\n\nReturns:\n    bool: True if successful."
+          },
+          {
+            "name": "stop_range_continuous",
+            "signature": "(self) -> None",
+            "doc": "Stop continuous ranging mode."
+          },
+          {
+            "name": "timeout_occurred",
+            "signature": "(self) -> bool",
+            "doc": "Check if timeout occurred.\n\nReturns:\n    bool: True if timeout occurred."
+          },
+          {
+            "name": "config_sensor",
+            "signature": "(self, mode: int) -> bool",
+            "doc": "Configure predefined sensor mode.\n\nArgs:\n    mode (int): One of:\n        - 0 = default\n        - 1 = long range\n        - 2 = high speed\n        - 3 = high accuracy\n\nReturns:\n    bool: True if configuration successful."
+          },
+          {
+            "name": "set_measurement_timing_budget",
+            "signature": "(self, budget_us: int) -> bool",
+            "doc": "Set measurement timing budget in microseconds.\n\nArgs:\n    budget_us (int): Time budget in \u00b5s.\n\nReturns:\n    bool: True if set."
+          },
+          {
+            "name": "get_measurement_timing_budget",
+            "signature": "(self) -> int",
+            "doc": "Get measurement timing budget.\n\nReturns:\n    int: Time budget in \u00b5s."
+          },
+          {
+            "name": "set_vcsel_pulse_period",
+            "signature": "(self, period_type: int, pulse_period: int) -> bool",
+            "doc": "Set VCSEL pulse period.\n\nArgs:\n    period_type (int): VCSEL period enum.\n    pulse_period (int): Pulse width in units.\n\nReturns:\n    bool: True if set."
+          },
+          {
+            "name": "get_vcsel_pulse_period",
+            "signature": "(self, period_type: int) -> int",
+            "doc": "Get VCSEL pulse period.\n\nArgs:\n    period_type (int): VCSEL period enum.\n\nReturns:\n    int: Pulse period value."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  }
+}

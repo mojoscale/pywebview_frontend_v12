@@ -1,30 +1,17 @@
-// src/pages/IDE.tsx
+// src/pages/IDEPage.tsx
 import React, { useState } from "react";
-import { Layout, Menu, Typography, Card, Divider, List, Button, Space } from "antd";
-import { PlayCircleOutlined, FileSearchOutlined, CodeOutlined } from "@ant-design/icons";
+import { Layout, Typography, Card, Divider, Button, Space } from "antd";
+import {
+  PlayCircleOutlined,
+  CodeOutlined,
+  FileSearchOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import Editor from "@monaco-editor/react";
+import ModuleExplorer from "../components/ModuleExplorer";
 
-const { Header, Content, Sider } = Layout;
+const { Content, Sider } = Layout;
 const { Title, Text } = Typography;
-
-const availableDocs = [
-  {
-    title: "Digital Write",
-    description: "Set a pin HIGH or LOW. Example: digital_write(13, HIGH)",
-  },
-  {
-    title: "Analog Read",
-    description: "Read sensor values. Example: value = analog_read(A0)",
-  },
-  {
-    title: "Delay",
-    description: "Pause execution for X milliseconds. Example: delay(1000)",
-  },
-  {
-    title: "Serial Print",
-    description: "Print messages to Serial Monitor. Example: serial_print('Hello!')",
-  },
-];
 
 const IDEPage: React.FC = () => {
   const [code, setCode] = useState<string>(
@@ -40,95 +27,152 @@ def loop():
   );
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
-      
-
-      <Layout>
-        {/* Documentation Panel */}
+    <Layout style={{ minHeight: "100vh", height: "100vh", overflow: "hidden" }}>
+      <Layout style={{ height: "100%", overflow: "hidden" }}>
+        {/* Module Explorer Sidebar */}
         <Sider
-          width={320}
+          width={400}
           theme="light"
-          style={{ 
-            borderRight: "1px solid #f0f0f0", 
+          style={{
+            borderRight: "1px solid #f0f0f0",
             background: "#fafafa",
-            boxShadow: "inset -1px 0 0 rgba(0,0,0,0.05)",
+            height: "100vh",
+            overflow: "hidden",
           }}
         >
-          <div style={{ padding: "16px 16px 0 16px" }}>
-            <Title level={4} style={{ marginBottom: 8 }}>
+          <div
+            style={{
+              padding: "12px 16px",
+              borderBottom: "1px solid #f0f0f0",
+              background: "#fff",
+              flexShrink: 0,
+            }}
+          >
+            <Title level={5} style={{ margin: 0 }}>
               <FileSearchOutlined style={{ marginRight: 8 }} />
-              Documentation
+              Module Explorer
             </Title>
-            <Text type="secondary">Available functions for your Arduino</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Search available functions, classes & variables
+            </Text>
           </div>
-          <Divider style={{ margin: "12px 0" }} />
-          <List
-            itemLayout="vertical"
-            dataSource={availableDocs}
-            style={{ padding: "0 16px 16px 16px" }}
-            renderItem={(item) => (
-              <List.Item style={{ padding: "8px 0" }}>
-                <Card 
-                  size="small" 
-                  hoverable 
-                  style={{ 
-                    borderRadius: 8,
-                    border: "1px solid #e8e8e8",
-                    width: "100%",
-                  }}
-                  bodyStyle={{ padding: "12px" }}
-                >
-                  <Title level={5} style={{ marginBottom: 4, fontSize: "14px" }}>
-                    {item.title}
-                  </Title>
-                  <Text type="secondary" style={{ fontSize: "12px" }}>
-                    {item.description}
-                  </Text>
-                </Card>
-              </List.Item>
-            )}
-          />
+
+          <div
+            style={{
+              height: "calc(100vh - 80px)",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <ModuleExplorer />
+          </div>
         </Sider>
 
         {/* Main Editor Section */}
-        <Layout style={{ background: "#fff" }}>
-          <Content style={{ padding: "24px" }}>
+        <Layout
+          style={{
+            background: "#fff",
+            height: "100vh",
+            overflow: "hidden",
+          }}
+        >
+          <Content
+            style={{
+              padding: "12px",
+              height: "100%",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Header with Title and Upload Button */}
             <Card
               style={{
-                borderRadius: 12,
-                boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-                height: "calc(100vh - 120px)",
-                display: "flex",
-                flexDirection: "column",
+                borderRadius: 8,
+                boxShadow: "0 1px 8px rgba(0,0,0,0.06)",
                 border: "1px solid #e8e8e8",
-                overflow: "hidden",
+                marginBottom: 12,
+                flexShrink: 0,
               }}
-              bodyStyle={{ 
-                padding: "20px",
+              bodyStyle={{ padding: "12px 16px" }}
+            >
+              <div style={{ 
+                display: "flex", 
+                justifyContent: "space-between", 
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "12px"
+              }}>
+                <div>
+                  <Title level={5} style={{ margin: 0 }}>
+                    <CodeOutlined style={{ marginRight: 8, color: "#1890ff" }} />
+                    Python Code Editor
+                  </Title>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Write your Arduino-compatible Python code below
+                  </Text>
+                </div>
+                
+                <Button
+                  type="primary"
+                  icon={<PlayCircleOutlined />}
+                  size="large"
+                  style={{
+                    borderRadius: 6,
+                    padding: "0 24px",
+                    height: "40px",
+                    fontWeight: 600,
+                    background: "linear-gradient(135deg, #52c41a 0%, #73d13d 100%)",
+                    border: "none",
+                    boxShadow: "0 2px 4px rgba(82, 196, 26, 0.3)",
+                  }}
+                  onClick={() => {
+                    if (window.pywebview?.api?.compile_project) {
+                      window.pywebview.api.compile_project({ code });
+                    } else {
+                      console.log("Running code:", code);
+                      alert(
+                        "In a real environment, this would upload to Arduino"
+                      );
+                    }
+                  }}
+                >
+                  <Space>
+                    <UploadOutlined />
+                    Upload to Arduino
+                  </Space>
+                </Button>
+              </div>
+            </Card>
+
+            {/* Editor Section */}
+            <Card
+              style={{
+                borderRadius: 8,
+                boxShadow: "0 1px 8px rgba(0,0,0,0.06)",
+                border: "1px solid #e8e8e8",
                 flex: 1,
                 display: "flex",
                 flexDirection: "column",
-                gap: "16px",
+                overflow: "hidden",
+              }}
+              bodyStyle={{
+                padding: 0,
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
               }}
             >
-              <div>
-                <Title level={4} style={{ margin: 0 }}>
-                  <CodeOutlined style={{ marginRight: 8 }} />
-                  Python Code Editor
-                </Title>
-                <Text type="secondary">Write your Arduino-compatible Python code below</Text>
-              </div>
-              
-              <Divider style={{ margin: 0 }} />
-
-              {/* Editor Container with subtle border */}
-              <div style={{ 
-                flex: 1, 
-                border: "1px solid #d9d9d9", 
-                borderRadius: 8,
-                overflow: "hidden",
-                background: "#1e1e1e", // Match VS Dark theme background
-              }}>
+              <div
+                style={{
+                  flex: 1,
+                  background: "#1e1e1e",
+                  minHeight: 0,
+                  position: "relative",
+                }}
+              >
                 <Editor
                   height="100%"
                   defaultLanguage="python"
@@ -138,7 +182,8 @@ def loop():
                   options={{
                     minimap: { enabled: false },
                     fontSize: 14,
-                    fontFamily: "'Fira Code', 'Cascadia Code', 'Monaco', 'Menlo', monospace",
+                    fontFamily:
+                      "'Fira Code', 'Cascadia Code', 'Monaco', 'Menlo', monospace",
                     automaticLayout: true,
                     scrollBeyondLastLine: false,
                     padding: { top: 16, bottom: 16 },
@@ -148,40 +193,45 @@ def loop():
                     renderLineHighlight: "all",
                     suggestOnTriggerCharacters: true,
                     wordBasedSuggestions: true,
+                    scrollbar: {
+                      vertical: "visible",
+                      horizontal: "visible",
+                      useShadows: false,
+                    },
                   }}
                 />
-              </div>
-
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "flex-end",
-                paddingTop: "16px",
-                borderTop: "1px solid #f0f0f0",
-              }}>
-                <Button
-                  type="primary"
-                  icon={<PlayCircleOutlined />}
-                  size="large"
+                
+                {/* Editor Status Bar */}
+                <div
                   style={{
-                    borderRadius: 6,
-                    padding: "0 24px",
-                    height: "40px",
-                    fontWeight: 500,
-                  }}
-                  onClick={() => {
-                    if (window.pywebview?.api?.compile_project) {
-                      window.pywebview.api.compile_project({ code });
-                    } else {
-                      console.log("Running code:", code);
-                      // Fallback for development
-                      alert("In a real environment, this would upload to Arduino");
-                    }
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    background: "#007acc",
+                    color: "white",
+                    fontSize: "12px",
+                    padding: "4px 12px",
+                    display: "flex",
+                    justifyContent: "space-between",
                   }}
                 >
-                  Upload to Arduino
-                </Button>
+                  <span>Python</span>
+                  <span>UTF-8</span>
+                </div>
               </div>
             </Card>
+
+            {/* Footer Info */}
+            <div style={{ 
+              padding: "8px 0", 
+              textAlign: "center",
+              flexShrink: 0 
+            }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Ready to upload • Code length: {code.length} characters
+              </Text>
+            </div>
           </Content>
         </Layout>
       </Layout>

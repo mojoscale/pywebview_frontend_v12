@@ -6,6 +6,7 @@ import UpdateBanner from "./components/UpdateBanner";
 import Home from "./pages/Home";
 import CreateProject from "./pages/CreateProject";
 import IDEPage from "./pages/IDEPage";
+import EnvironmentVariablesForm from "./pages/EnvironmentVariablesForm";
 import { usePywebviewApi } from "./hooks/usePywebviewApi";
 import TerminalView from "./components/TerminalView";
 
@@ -140,6 +141,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/create_project" element={<CreateProject />} />
             <Route path="/project/:projectId" element={<IDEPage />} />
+            <Route path="/env_vars" element={ <EnvironmentVariablesForm /> } />
           </Routes>
         </Content>
 
