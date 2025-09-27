@@ -8,6 +8,7 @@ from pathlib import Path
 # core imports
 from core.utils import APP_WINDOW_NAME
 from core.updater import start_update_checker, run_updater, APP_VERSION
+from core.serial_manager import is_serial_port_connected
 
 
 class Api:
@@ -40,6 +41,9 @@ class Api:
 
     def create_project(self, project_details):
         print(f"receieved -- {project_details}")
+
+    def serial_port_available(self):
+        return is_serial_port_connected()
 
 
 if __name__ == "__main__":

@@ -41,23 +41,7 @@ def loop():
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
-      {/* Header */}
-      <Header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          background: "#001529",
-          color: "#fff",
-          fontSize: "1.1rem",
-          fontWeight: 500,
-          padding: "0 24px",
-        }}
-      >
-        <Space>
-          <CodeOutlined />
-          Mojoscale Python → Arduino IDE
-        </Space>
-      </Header>
+      
 
       <Layout>
         {/* Documentation Panel */}
