@@ -3,6 +3,7 @@ import asyncio
 import threading
 import sys
 from pathlib import Path
+from importlib import resources
 import json
 
 
@@ -13,8 +14,10 @@ from core.serial_manager import is_serial_port_connected
 
 
 class Api:
+    def __init__(self):
+        self.is_packaged = getattr(sys, "frozen", False)
+
     def run_update(self, download_url):
-        # Call your run_updater() function here
         print("⚡ Triggering update from frontend")
         run_updater(download_url)
         return {"status": "started"}
@@ -48,52 +51,38 @@ class Api:
 
     def get_module_index(self):
         try:
-            index_path = Path(__file__).parent / "core" / "core_modules_index.json"
-            if not index_path.exists():
-                return {
-                    "success": False,
-                    "error": f"Index file not found at {index_path}",
-                }
-
-            with open(index_path, "r", encoding="utf-8") as f:
+            # "core" is the package where your JSON lives
+            with resources.files("core").joinpath("core_modules_index.json").open(
+                "r", encoding="utf-8"
+            ) as f:
                 data = json.load(f)
 
+            print(f"Loaded module index: {len(data.get('modules', []))} modules")
             return data
 
         except Exception as e:
-            # Optional: log the error
             print(f"[get_module_index ERROR] {e}")
-            return e
+            return {"success": False, "error": str(e)}
 
 
 if __name__ == "__main__":
     DEV = "--dev" in sys.argv
     api = Api()
 
-    print(f"starting in dev  mode = {DEV}")
+    print(f"starting in dev mode = {DEV}")
 
     if DEV:
         window_url = "http://localhost:5173"
-
     else:
         frontend_path = Path(__file__).parent / "frontend" / "dist" / "index.html"
         window_url = frontend_path.as_uri()
-        # window_url = Path(__file__).parent / "frontend" / "dist"
 
-    # ✅ This runs everything in the main thread
     window = webview.create_window(APP_WINDOW_NAME, url=window_url, js_api=api)
-    # api.set_window(window)
 
-    # ✅ Start an asyncio event loop BEFORE PyWebView UI starts
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    api.main_loop = loop  # save loop to api instance
+    api.main_loop = loop
 
-    # ✅ Run asyncio loop in a thread
     threading.Thread(target=loop.run_forever, daemon=True).start()
-
-    # Start update checker in background
-    start_update_checker(window, interval=3600)  # check every 1h
-
-    # ✅ Now safely start PyWebView on main thread
+    start_update_checker(window, interval=3600)
     webview.start(debug=DEV, http_server=True, private_mode=False)
