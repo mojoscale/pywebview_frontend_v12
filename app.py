@@ -8,9 +8,10 @@ import json
 
 
 # core imports
-from core.utils import APP_WINDOW_NAME
+from core.utils import APP_WINDOW_NAME, check_or_create_app_dir
 from core.updater import start_update_checker, run_updater, APP_VERSION
 from core.serial_manager import is_serial_port_connected
+from core.db import create_new_project, get_all_projects, get_project_from_id
 
 
 class Api:
@@ -26,25 +27,13 @@ class Api:
         return APP_VERSION
 
     def get_projects(self):
-        return [
-            {
-                "id": "1",
-                "name": "Arduino Sensor Logger",
-                "description": "Logs temperature + humidity data every 5 seconds.",
-                "lastUpdated": "2025-09-24",
-                "status": "Active",
-            },
-            {
-                "id": "2",
-                "name": "3D Printer Controller",
-                "description": "Controls printer speed, motors, and temp sensors.",
-                "lastUpdated": "2025-09-20",
-                "status": "Inactive",
-            },
-        ]
+        return get_all_projects()
+
+    def get_project(self, projectId):
+        return get_project_from_id(projectId)
 
     def create_project(self, project_details):
-        print(f"receieved -- {project_details}")
+        create_new_project(project_details["name"], project_details["description"])
 
     def serial_port_available(self):
         return is_serial_port_connected()
@@ -66,6 +55,10 @@ class Api:
 
 
 if __name__ == "__main__":
+    # pre - startups scripts
+    check_or_create_app_dir()
+
+    ########################
     DEV = "--dev" in sys.argv
     api = Api()
 

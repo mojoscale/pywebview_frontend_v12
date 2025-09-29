@@ -1,8 +1,7 @@
 // src/pages/CreateProject.tsx
 import React, { useState } from "react";
-import { Form, Input, Button, Select, DatePicker, Card, Space, Typography, message } from "antd";
+import { Form, Input, Button, Card, Space, Typography, message } from "antd";
 import { useNavigate } from "react-router-dom";
-import dayjs from "dayjs";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -15,7 +14,6 @@ const CreateProject: React.FC = () => {
   const handleSubmit = async (values: any) => {
     const payload = {
       ...values,
-      deadline: values.deadline ? dayjs(values.deadline).format("YYYY-MM-DD") : null,
     };
 
     try {
@@ -60,21 +58,6 @@ const CreateProject: React.FC = () => {
 
           <Form.Item name="description" label="Description">
             <TextArea rows={3} placeholder="Brief description of the project" />
-          </Form.Item>
-
-          <Form.Item
-            name="status"
-            label="Status"
-            rules={[{ required: true, message: "Please select status" }]}
-          >
-            <Select placeholder="Select status">
-              <Select.Option value="Active">Active</Select.Option>
-              <Select.Option value="Inactive">Inactive</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="deadline" label="Deadline">
-            <DatePicker style={{ width: "100%" }} />
           </Form.Item>
 
           <Form.Item style={{ marginTop: 24 }}>

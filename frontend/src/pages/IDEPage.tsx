@@ -1,6 +1,6 @@
 // src/pages/IDEPage.tsx
-import React, { useState } from "react";
-import { Layout, Typography, Card, Button, Space } from "antd";
+import React, { useState, useEffect } from "react";
+import { Layout, Typography, Card, Button, Space, Spin } from "antd";
 import {
   PlayCircleOutlined,
   CodeOutlined,
@@ -9,11 +9,29 @@ import {
 } from "@ant-design/icons";
 import Editor from "@monaco-editor/react";
 import ModuleExplorer from "../components/ModuleExplorer";
+import { useParams } from "react-router-dom";
+import { usePywebviewApi } from "../hooks/usePywebviewApi";
 
 const { Content, Sider } = Layout;
 const { Title, Text } = Typography;
 
+interface Project {
+  project_id: string;
+  name: string;
+  description: string;
+  is_active: boolean;
+  updated_at: string;
+  created_at: string;
+  metadata?: Record<string, any>;
+}
+
 const IDEPage: React.FC = () => {
+  const { projectId } = useParams<{ projectId: string }>();
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const api = usePywebviewApi("get_project");
+
   const [code, setCode] = useState<string>(
     `# Write your Python code here
 def setup():
@@ -25,6 +43,26 @@ def loop():
     digital_write(13, LOW)
     delay(1000)`
   );
+
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!api || !projectId) return;
+      try {
+        const result = await api.get_project(projectId);
+        if (result && result.project_id) {
+          setProject(result);
+        } else {
+          console.error("Invalid response from get_project:", result);
+        }
+      } catch (err) {
+        console.error("❌ Error fetching project:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProject();
+  }, [api, projectId]);
 
   return (
     <Layout style={{ minHeight: "100vh", height: "100vh", overflow: "hidden" }}>
@@ -97,53 +135,64 @@ def loop():
               }}
               bodyStyle={{ padding: "12px 16px" }}
             >
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "space-between", 
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "12px"
-              }}>
-                <div>
-                  <Title level={5} style={{ margin: 0 }}>
-                    <CodeOutlined style={{ marginRight: 8, color: "#1890ff" }} />
-                    Python Code Editor
-                  </Title>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Write your Arduino-compatible Python code below
-                  </Text>
-                </div>
-                
-                <Button
-                  type="primary"
-                  icon={<PlayCircleOutlined />}
-                  size="large"
+              {loading ? (
+                <Spin size="small" />
+              ) : (
+                <div
                   style={{
-                    borderRadius: 6,
-                    padding: "0 24px",
-                    height: "40px",
-                    fontWeight: 600,
-                    background: "linear-gradient(135deg, #52c41a 0%, #73d13d 100%)",
-                    border: "none",
-                    boxShadow: "0 2px 4px rgba(82, 196, 26, 0.3)",
-                  }}
-                  onClick={() => {
-                    if (window.pywebview?.api?.compile_project) {
-                      window.pywebview.api.compile_project({ code });
-                    } else {
-                      console.log("Running code:", code);
-                      alert(
-                        "In a real environment, this would upload to Arduino"
-                      );
-                    }
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "12px",
                   }}
                 >
-                  <Space>
-                    <UploadOutlined />
-                    Upload to Arduino
-                  </Space>
-                </Button>
-              </div>
+                  <div>
+                    <Title level={5} style={{ margin: 0 }}>
+                      <CodeOutlined
+                        style={{ marginRight: 8, color: "#1890ff" }}
+                      />
+                      {project ? project.name : "Unknown Project"}
+                    </Title>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {project
+                        ? project.description
+                        : "Write your Arduino-compatible Python code below"}
+                    </Text>
+                  </div>
+
+                  <Button
+                    type="primary"
+                    icon={<PlayCircleOutlined />}
+                    size="large"
+                    style={{
+                      borderRadius: 6,
+                      padding: "0 24px",
+                      height: "40px",
+                      fontWeight: 600,
+                      background:
+                        "linear-gradient(135deg, #52c41a 0%, #73d13d 100%)",
+                      border: "none",
+                      boxShadow: "0 2px 4px rgba(82, 196, 26, 0.3)",
+                    }}
+                    onClick={() => {
+                      if (window.pywebview?.api?.compile_project) {
+                        window.pywebview.api.compile_project({ code });
+                      } else {
+                        console.log("Running code:", code);
+                        alert(
+                          "In a real environment, this would upload to Arduino"
+                        );
+                      }
+                    }}
+                  >
+                    <Space>
+                      <UploadOutlined />
+                      Upload to Arduino
+                    </Space>
+                  </Button>
+                </div>
+              )}
             </Card>
 
             {/* Editor Section */}
@@ -206,7 +255,7 @@ def loop():
                     },
                   }}
                 />
-                
+
                 {/* Editor Status Bar */}
                 <div
                   style={{
@@ -229,11 +278,13 @@ def loop():
             </Card>
 
             {/* Footer Info */}
-            <div style={{ 
-              padding: "8px 0", 
-              textAlign: "center",
-              flexShrink: 0 
-            }}>
+            <div
+              style={{
+                padding: "8px 0",
+                textAlign: "center",
+                flexShrink: 0,
+              }}
+            >
               <Text type="secondary" style={{ fontSize: 12 }}>
                 Ready to upload • Code length: {code.length} characters
               </Text>

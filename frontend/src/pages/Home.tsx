@@ -13,11 +13,13 @@ import { usePywebviewApi } from "../hooks/usePywebviewApi";
 const { Title, Text } = Typography;
 
 interface Project {
-  id: string;
+  project_id: string;       // ✅ updated
   name: string;
   description: string;
-  lastUpdated: string;
-  status: string;
+  is_active: boolean;       // ✅ updated
+  updated_at: string;       // ✅ updated
+  created_at: string;       // optional, could be shown later
+  metadata?: Record<string, any>; // optional
 }
 
 const Home: React.FC = () => {
@@ -53,7 +55,7 @@ const Home: React.FC = () => {
     <div
       style={{
         padding: "24px",
-        width: "100%", // ✅ expand to full parent width
+        width: "100%",
       }}
     >
       {/* Header with actions */}
@@ -100,7 +102,7 @@ const Home: React.FC = () => {
                   key="open"
                   type="link"
                   icon={<SettingOutlined />}
-                  onClick={() => navigate(`/project/${project.id}`)}
+                  onClick={() => navigate(`/project/${project.project_id}`)} // ✅ updated
                 >
                   Open
                 </Button>,
@@ -111,8 +113,8 @@ const Home: React.FC = () => {
                 title={
                   <Space>
                     <Text strong>{project.name}</Text>
-                    <Tag color={project.status === "Active" ? "green" : "red"}>
-                      {project.status}
+                    <Tag color={project.is_active ? "green" : "red"}>
+                      {project.is_active ? "Active" : "Inactive"}
                     </Tag>
                   </Space>
                 }
@@ -121,7 +123,7 @@ const Home: React.FC = () => {
                     <Text>{project.description}</Text>
                     <br />
                     <Text type="secondary">
-                      Last updated: {project.lastUpdated}
+                      Last updated: {new Date(project.updated_at).toLocaleString()}
                     </Text>
                   </>
                 }

@@ -90,7 +90,7 @@ function App() {
         {/* Left side */}
         <div style={{ display: "flex", alignItems: "center" }}>
           <Text strong style={{ fontSize: "18px", marginRight: "32px" }}>
-            PyWebView IDE
+            mojoscale
           </Text>
           <Space>
             <Button
