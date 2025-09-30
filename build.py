@@ -26,9 +26,11 @@ def build():
         # f"--onefile",  # single exe (optional, skip for dir bundle)
         f"--enable-plugin=tk-inter",  # needed by pywebview on some GUIs
         f"--include-data-dir={FRONTEND_DIST}=frontend/dist",  # bundle frontend
+        f"--include-data-dir=core/transpiler=core/transpiler",
         f"--output-dir=build",  # build folder
         # f"--include-data-files=*.json=.",  # Root level JSONs
         f"--include-data-files=core/core_modules_index.json=core/core_modules_index.json",  # Core folder JSONs (one level deep)
+        f"--include-data-files=core/available_boards.json=core/available_boards.json",
         f"--remove-output",  # clean old builds
         f"--assume-yes-for-downloads",  # auto download needed files
         "--nofollow-import-to=tkinter",  # avoid tkinter bloat (pywebview may fallback)
