@@ -9,10 +9,9 @@ import {
   BugOutlined,
 } from "@ant-design/icons";
 import MonacoEditor from "@monaco-editor/react";
-import type * as monaco from "monaco-editor"; // ✅ Only import types
+import type * as monaco from "monaco-editor";
 import ModuleExplorer from "../components/ModuleExplorer";
 import { useParams } from "react-router-dom";
-import { usePywebviewApi } from "../hooks/usePywebviewApi";
 
 const { Content, Sider } = Layout;
 const { Title, Text } = Typography;
@@ -35,8 +34,7 @@ const IDEPage: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<any[]>([]);
-
-  const api = usePywebviewApi();
+  const [isApiReady, setIsApiReady] = useState(false);
 
   const [code, setCode] = useState<string>(
     `# Write your Python code here
@@ -54,12 +52,54 @@ def loop():
   const monacoRef = useRef<typeof monaco | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch project
+  // ✅ Wait for pywebview API to be ready
+  useEffect(() => {
+    const checkApiReady = () => {
+      if (window.pywebview?.api) {
+        setIsApiReady(true);
+        return true;
+      }
+      return false;
+    };
+
+    if (checkApiReady()) {
+      return;
+    }
+
+    const handleReady = () => {
+      if (checkApiReady()) {
+        console.log("pywebview API ready in IDEPage");
+      }
+    };
+
+    window.addEventListener('pywebviewready', handleReady);
+
+    const interval = setInterval(() => {
+      if (checkApiReady()) {
+        clearInterval(interval);
+      }
+    }, 100);
+
+    const timeoutId = setTimeout(() => {
+      clearInterval(interval);
+      console.warn("pywebview API not available in IDEPage");
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeoutId);
+      window.removeEventListener('pywebviewready', handleReady);
+    };
+  }, []);
+
+  // Fetch project when API is ready
   useEffect(() => {
     const fetchProject = async () => {
-      if (!api || !projectId) return;
+      if (!isApiReady || !projectId) return;
+      
       try {
-        const result = await api.get_project(projectId);
+        if (!window.pywebview?.api) return;
+        const result = await window.pywebview.api.get_project(projectId);
         if (result?.project_id) {
           setProject(result);
         }
@@ -69,14 +109,15 @@ def loop():
         setLoading(false);
       }
     };
+
     fetchProject();
-  }, [api, projectId]);
+  }, [isApiReady, projectId]);
 
   // Handle linting with debouncing
   const lintCode = useCallback(
     async (currentCode: string) => {
-      if (!monacoRef.current || !editorRef.current) {
-        console.warn("Editor or Monaco not ready");
+      if (!monacoRef.current || !editorRef.current || !isApiReady) {
+        console.warn("Editor, Monaco, or API not ready");
         return;
       }
 
@@ -84,7 +125,8 @@ def loop():
         const board = project?.metadata?.platform || "arduino";
         console.log("🔍 Running lint for platform:", board);
 
-        const result = await window.pywebview?.api?.lint_code(currentCode, board);
+        if (!window.pywebview?.api) return;
+        const result = await window.pywebview.api.lint_code(currentCode, board);
 
         if (!result || !Array.isArray(result.errors)) {
           console.warn("[WARN] lint_code returned invalid result:", result);
@@ -114,12 +156,12 @@ def loop():
         setErrors([]);
       }
     },
-    [project]
+    [project, isApiReady]
   );
 
   // Debounced lint effect
   useEffect(() => {
-    if (!project || !editorRef.current) return;
+    if (!project || !editorRef.current || !isApiReady) return;
 
     const timeoutId = setTimeout(() => {
       console.log("🚀 Running initial lint on startup");
@@ -127,7 +169,7 @@ def loop():
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [project, lintCode]);
+  }, [project, lintCode, isApiReady]);
 
   // Editor mount
   const handleEditorDidMount = (
@@ -138,7 +180,8 @@ def loop():
     monacoRef.current = monacoInstance;
 
     // Throttle content changes to reduce memory usage
-    let changeTimeout: NodeJS.Timeout;
+    //let changeTimeout: NodeJS.Timeout;
+    let changeTimeout: ReturnType<typeof setTimeout>;
     editor.onDidChangeModelContent(() => {
       clearTimeout(changeTimeout);
       changeTimeout = setTimeout(() => {
@@ -168,21 +211,33 @@ def loop():
   // Manual lint trigger
   const handleManualLint = () => {
     console.log("🔄 Manual lint triggered");
-    if (editorRef.current) {
+    if (editorRef.current && isApiReady) {
       lintCode(editorRef.current.getValue());
     }
   };
 
   const handleUploadToArduino = () => {
-    if (api?.compile_project) {
-      api.compile_project({
-        code,
-        platform: project?.metadata?.platform || "arduino",
-      });
-    } else {
-      alert("In a real environment, this would upload to Arduino");
-    }
-  };
+  if (!window.pywebview?.api) return;
+
+  if (isApiReady && window.pywebview.api.compile_project) {
+    window.pywebview.api.compile_project({
+      projectId: project?.project_id || "",  // <-- include projectId
+      code,
+      platform: project?.metadata?.platform || "arduino",
+    });
+  } else {
+    alert("In a real environment, this would upload to Arduino");
+  }
+};
+
+  // Show loading while waiting for API
+  if (!isApiReady) {
+    return (
+      <Layout style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <Spin size="large" tip="Initializing IDE..." />
+      </Layout>
+    );
+  }
 
   return (
     <Layout style={{ minHeight: "100vh", overflow: "hidden" }}>
@@ -292,19 +347,19 @@ def loop():
                   height="100%"
                   options={{
                     fontSize: 14,
-                    minimap: { enabled: false }, // ✅ Disable minimap to save memory
+                    minimap: { enabled: false },
                     scrollBeyondLastLine: false,
-                    automaticLayout: true, // ✅ Let Monaco handle layout
+                    automaticLayout: true,
                     glyphMargin: false,
                     contextmenu: false,
-                    lightbulb: { enabled: false },
+                    //lightbulb: { enabled: false },
                     renderValidationDecorations: "on",
                     lineNumbersMinChars: 3,
-                    folding: false, // ✅ Disable folding to save memory
-                    occurrencesHighlight: false, // ✅ Disable highlight to save memory
-                    selectionHighlight: false, // ✅ Disable selection highlight
+                    folding: false,
+                    occurrencesHighlight: "off",
+                    selectionHighlight: false,
                     suggestOnTriggerCharacters: false,
-                    wordBasedSuggestions: false,
+                    wordBasedSuggestions: "off",
                     parameterHints: { enabled: false },
                   }}
                 />
@@ -320,7 +375,7 @@ def loop():
                     marginTop: 8, 
                     maxHeight: 120, 
                     overflow: "auto",
-                    flexShrink: 0 // ✅ Prevent flex shrinking
+                    flexShrink: 0
                   }}
                   renderItem={(err: any) => (
                     <List.Item

@@ -8,18 +8,17 @@ import {
   FolderOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import { usePywebviewApi } from "../hooks/usePywebviewApi";
 
 const { Title, Text } = Typography;
 
 interface Project {
-  project_id: string;       // ✅ updated
+  project_id: string;
   name: string;
   description: string;
-  is_active: boolean;       // ✅ updated
-  updated_at: string;       // ✅ updated
-  created_at: string;       // optional, could be shown later
-  metadata?: Record<string, any>; // optional
+  is_active: boolean;
+  updated_at: string;
+  created_at: string;
+  metadata?: Record<string, any>;
 }
 
 const Home: React.FC = () => {
@@ -27,17 +26,20 @@ const Home: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const api = usePywebviewApi("get_projects");
-
   useEffect(() => {
     const fetchProjects = async () => {
-      if (!api) return;
       try {
-        const result = await api.get_projects();
-        if (Array.isArray(result)) {
-          setProjects(result);
+        // Direct call to pywebview API
+        if (window.pywebview?.api && typeof window.pywebview.api.get_projects === 'function') {
+          const result = await window.pywebview.api.get_projects();
+          if (Array.isArray(result)) {
+            setProjects(result);
+          } else {
+            console.error("Invalid response from get_projects:", result);
+            setProjects([]);
+          }
         } else {
-          console.error("Invalid response from get_projects:", result);
+          console.error("pywebview API not available");
           setProjects([]);
         }
       } catch (err) {
@@ -48,8 +50,33 @@ const Home: React.FC = () => {
       }
     };
 
-    fetchProjects();
-  }, [api]);
+    // Wait for pywebview to be ready
+    if (window.pywebview?.api) {
+      fetchProjects();
+    } else {
+      // If not ready, wait for the ready event
+      const handleReady = () => {
+        fetchProjects();
+      };
+
+      window.addEventListener('pywebviewready', handleReady);
+      
+      // Fallback: try after a short delay
+      const timeoutId = setTimeout(() => {
+        if (window.pywebview?.api) {
+          fetchProjects();
+        } else {
+          console.error("pywebview API not available after timeout");
+          setLoading(false);
+        }
+      }, 1000);
+
+      return () => {
+        window.removeEventListener('pywebviewready', handleReady);
+        clearTimeout(timeoutId);
+      };
+    }
+  }, []);
 
   return (
     <div
@@ -102,7 +129,7 @@ const Home: React.FC = () => {
                   key="open"
                   type="link"
                   icon={<SettingOutlined />}
-                  onClick={() => navigate(`/project/${project.project_id}`)} // ✅ updated
+                  onClick={() => navigate(`/project/${project.project_id}`)}
                 >
                   Open
                 </Button>,

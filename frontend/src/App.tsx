@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
-import { Layout, Typography, Button, Space, Tag } from "antd";
+import { Layout, Typography, Button, Space, Tag, Spin } from "antd";
 import { HomeOutlined, PlusOutlined, CodeOutlined, CloseOutlined } from "@ant-design/icons";
 import UpdateBanner from "./components/UpdateBanner";
 import Home from "./pages/Home";
 import CreateProject from "./pages/CreateProject";
 import IDEPage from "./pages/IDEPage";
 import EnvironmentVariablesForm from "./pages/EnvironmentVariablesForm";
-import { usePywebviewApi } from "./hooks/usePywebviewApi";
 import TerminalView from "./components/TerminalView";
 
 const { Header, Footer, Content } = Layout;
@@ -20,33 +19,81 @@ function App() {
   });
   const [showTerminal, setShowTerminal] = useState(false);
   const [terminalHeight, setTerminalHeight] = useState(300);
+  const [isApiReady, setIsApiReady] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  const apiVersion = usePywebviewApi("get_version");
-  const apiSerial = usePywebviewApi("serial_port_available");
+  // ✅ Wait for pywebview API to be ready
+  useEffect(() => {
+    const checkApiReady = () => {
+      if (window.pywebview?.api) {
+        setIsApiReady(true);
+        return true;
+      }
+      return false;
+    };
 
-  // ✅ Fetch version
+    // Check immediately
+    if (checkApiReady()) {
+      return;
+    }
+
+    // Listen for pywebview ready event
+    const handleReady = () => {
+      if (checkApiReady()) {
+        console.log("pywebview API ready via event");
+      }
+    };
+
+    window.addEventListener('pywebviewready', handleReady);
+
+    // Poll for API readiness
+    const interval = setInterval(() => {
+      if (checkApiReady()) {
+        clearInterval(interval);
+        console.log("pywebview API ready via polling");
+      }
+    }, 100);
+
+    // Stop polling after 5 seconds
+    const timeoutId = setTimeout(() => {
+      clearInterval(interval);
+      console.warn("pywebview API not available after timeout");
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeoutId);
+      window.removeEventListener('pywebviewready', handleReady);
+    };
+  }, []);
+
+  // ✅ Fetch version when API is ready
   useEffect(() => {
     const fetchVersion = async () => {
-      if (!apiVersion) return;
+      if (!isApiReady) return;
+      
       try {
-        const v = await apiVersion.get_version();
+        if (!window.pywebview?.api) return;
+        const v = await window.pywebview.api.get_version();
         setVersion(v);
       } catch (err) {
         console.error("❌ Error fetching version:", err);
       }
     };
-    fetchVersion();
-  }, [apiVersion]);
 
-  // ✅ Fetch serial status
+    fetchVersion();
+  }, [isApiReady]);
+
+  // ✅ Fetch serial status when API is ready
   useEffect(() => {
+    if (!isApiReady) return;
+
     const fetchSerial = async () => {
-      if (!apiSerial) return;
       try {
-        const result = await apiSerial.serial_port_available();
+        if (!window.pywebview?.api) return;
+        const result = await window.pywebview.api.serial_port_available();
         setSerialStatus(result);
       } catch (err) {
         console.error("❌ Error checking serial:", err);
@@ -54,14 +101,26 @@ function App() {
       }
     };
 
+    // Initial fetch
     fetchSerial();
+    
+    // Set up polling
     const interval = setInterval(fetchSerial, 5000);
     return () => clearInterval(interval);
-  }, [apiSerial]);
+  }, [isApiReady]);
 
   const getButtonType = (path: string) => {
     return location.pathname === path ? "primary" : "default";
   };
+
+  // Show loading spinner while waiting for API
+  if (!isApiReady) {
+    return (
+      <Layout style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <Spin size="large" tip="Initializing application..." />
+      </Layout>
+    );
+  }
 
   return (
     <Layout style={{ 
@@ -129,7 +188,7 @@ function App() {
           )}
 
           <Text type="secondary" style={{ fontSize: "0.85rem" }}>
-            {version ? `v${version}` : "Loading..."}
+            {version ? `v${version}` : "Loading version..."}
           </Text>
         </Space>
       </Header>
@@ -140,7 +199,7 @@ function App() {
         padding: "24px", 
         background: "#f0f2f5",
         overflow: "auto",
-        minHeight: "calc(100vh - 128px)", // Account for header and footer
+        minHeight: "calc(100vh - 128px)",
       }}>
         <UpdateBanner />
         <Routes>

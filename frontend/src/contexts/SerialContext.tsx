@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { usePywebviewApi } from '../hooks/usePywebviewApi';
 
 interface SerialContextType {
   serialConnected: boolean;
@@ -41,19 +40,57 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
   const [monitoring, setMonitoring] = useState(false);
   const [serialOutput, setSerialOutput] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
-  // Use the hook for all pywebview API interactions
-  const pywebviewApi = usePywebviewApi();
+  const [isApiReady, setIsApiReady] = useState(false);
+
+  // ✅ Wait for pywebview API to be ready
+  useEffect(() => {
+    const checkApiReady = () => {
+      if (window.pywebview?.api) {
+        setIsApiReady(true);
+        return true;
+      }
+      return false;
+    };
+
+    if (checkApiReady()) {
+      return;
+    }
+
+    const handleReady = () => {
+      if (checkApiReady()) {
+        console.log("pywebview API ready in SerialContext");
+      }
+    };
+
+    window.addEventListener('pywebviewready', handleReady);
+
+    const interval = setInterval(() => {
+      if (checkApiReady()) {
+        clearInterval(interval);
+      }
+    }, 100);
+
+    const timeoutId = setTimeout(() => {
+      clearInterval(interval);
+      console.warn("pywebview API not available in SerialContext");
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeoutId);
+      window.removeEventListener('pywebviewready', handleReady);
+    };
+  }, []);
 
   const checkConnection = async (): Promise<void> => {
     try {
       setError(null);
       
-      if (!pywebviewApi) {
+      if (!isApiReady || !window.pywebview?.api) {
         throw new Error('Python backend API is not available');
       }
 
-      const result = await pywebviewApi.serial_port_available();
+      const result = await window.pywebview.api.serial_port_available();
       setSerialConnected(result?.available === true);
       console.log('Serial connection status:', result);
     } catch (err) {
@@ -64,7 +101,7 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const toggleMonitoring = async (): Promise<void> => {
-    if (!pywebviewApi) {
+    if (!isApiReady || !window.pywebview?.api) {
       setError('Backend API is not ready');
       return;
     }
@@ -74,9 +111,9 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       if (newState) {
-        await pywebviewApi.start_serial_monitor();
+        await window.pywebview.api.start_serial_monitor();
       } else {
-        await pywebviewApi.stop_serial_monitor();
+        await window.pywebview.api.stop_serial_monitor();
       }
       console.log(`Serial monitoring ${newState ? 'started' : 'stopped'}`);
     } catch (err) {
@@ -92,7 +129,7 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
 
   // 🔁 Initialize and register handlers
   useEffect(() => {
-    if (!pywebviewApi) return;
+    if (!isApiReady) return;
 
     // 🔁 Overwrite handlers when API is ready
     window.onSerialLine = (line: string) => {
@@ -110,21 +147,21 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Check initial connection status
     checkConnection();
-  }, [pywebviewApi, monitoring]);
+  }, [isApiReady, monitoring]);
 
   // Cleanup effect
   useEffect(() => {
     return () => {
       // Stop monitoring on unmount if active
-      if (pywebviewApi && monitoring) {
-        pywebviewApi.stop_serial_monitor().catch(console.error);
+      if (isApiReady && window.pywebview?.api && monitoring) {
+        window.pywebview.api.stop_serial_monitor().catch(console.error);
       }
 
       // ✅ Cleanup global handlers to prevent stale closures
       window.onSerialLine = undefined;
       window.onSerialStatusUpdate = undefined;
     };
-  }, [pywebviewApi, monitoring]);
+  }, [isApiReady, monitoring]);
 
   return (
     <SerialContext.Provider

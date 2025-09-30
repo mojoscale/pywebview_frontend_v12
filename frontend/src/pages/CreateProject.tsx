@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { Form, Input, Button, Card, Space, Typography, message, Select, Spin } from "antd";
 import { useNavigate } from "react-router-dom";
-import { usePywebviewApi } from "../hooks/usePywebviewApi"; // ✅ hook to call backend
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -11,16 +10,57 @@ const CreateProject: React.FC = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-
-  const api = usePywebviewApi("get_platforms"); // ✅ backend function
   const [platforms, setPlatforms] = useState<string[]>([]);
   const [loadingPlatforms, setLoadingPlatforms] = useState(true);
+  const [isApiReady, setIsApiReady] = useState(false);
 
+  // ✅ Wait for pywebview API to be ready
+  useEffect(() => {
+    const checkApiReady = () => {
+      if (window.pywebview?.api) {
+        setIsApiReady(true);
+        return true;
+      }
+      return false;
+    };
+
+    if (checkApiReady()) {
+      return;
+    }
+
+    const handleReady = () => {
+      if (checkApiReady()) {
+        console.log("pywebview API ready in CreateProject");
+      }
+    };
+
+    window.addEventListener('pywebviewready', handleReady);
+
+    const interval = setInterval(() => {
+      if (checkApiReady()) {
+        clearInterval(interval);
+      }
+    }, 100);
+
+    const timeoutId = setTimeout(() => {
+      clearInterval(interval);
+      console.warn("pywebview API not available in CreateProject");
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeoutId);
+      window.removeEventListener('pywebviewready', handleReady);
+    };
+  }, []);
+
+  // ✅ Fetch platforms when API is ready
   useEffect(() => {
     const fetchPlatforms = async () => {
-      if (!api) return;
+      if (!isApiReady || !window.pywebview?.api) return;
+      
       try {
-        const result = await api.get_platforms();
+        const result = await window.pywebview.api.get_platforms();
         if (Array.isArray(result)) {
           setPlatforms(result);
         } else {
@@ -36,7 +76,7 @@ const CreateProject: React.FC = () => {
     };
 
     fetchPlatforms();
-  }, [api]);
+  }, [isApiReady]);
 
   const handleSubmit = async (values: any) => {
     const payload = {
@@ -46,9 +86,9 @@ const CreateProject: React.FC = () => {
     try {
       setLoading(true);
       if (window.pywebview?.api?.create_project) {
-        await window.pywebview.api.create_project(payload); // ✅ send dict to backend
+        await window.pywebview.api.create_project(payload);
         message.success("Project created successfully!");
-        navigate("/"); // go back to home after success
+        navigate("/");
       } else {
         message.error("❌ Backend API not available");
       }
@@ -59,6 +99,17 @@ const CreateProject: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Show loading while waiting for API
+  if (!isApiReady) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
+        <Card style={{ width: "100%", maxWidth: 600, textAlign: "center" }}>
+          <Spin size="large" tip="Initializing..." />
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
