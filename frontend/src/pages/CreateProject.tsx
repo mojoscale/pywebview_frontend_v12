@@ -1,7 +1,8 @@
 // src/pages/CreateProject.tsx
-import React, { useState } from "react";
-import { Form, Input, Button, Card, Space, Typography, message } from "antd";
+import React, { useState, useEffect } from "react";
+import { Form, Input, Button, Card, Space, Typography, message, Select, Spin } from "antd";
 import { useNavigate } from "react-router-dom";
+import { usePywebviewApi } from "../hooks/usePywebviewApi"; // ✅ hook to call backend
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -10,6 +11,32 @@ const CreateProject: React.FC = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+
+  const api = usePywebviewApi("get_platforms"); // ✅ backend function
+  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [loadingPlatforms, setLoadingPlatforms] = useState(true);
+
+  useEffect(() => {
+    const fetchPlatforms = async () => {
+      if (!api) return;
+      try {
+        const result = await api.get_platforms();
+        if (Array.isArray(result)) {
+          setPlatforms(result);
+        } else {
+          console.error("Invalid response from get_platforms:", result);
+          setPlatforms([]);
+        }
+      } catch (err) {
+        console.error("❌ Error fetching platforms:", err);
+        setPlatforms([]);
+      } finally {
+        setLoadingPlatforms(false);
+      }
+    };
+
+    fetchPlatforms();
+  }, [api]);
 
   const handleSubmit = async (values: any) => {
     const payload = {
@@ -36,7 +63,12 @@ const CreateProject: React.FC = () => {
   return (
     <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
       <Card
-        style={{ width: "100%", maxWidth: 600, borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}
+        style={{
+          width: "100%",
+          maxWidth: 600,
+          borderRadius: 12,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+        }}
       >
         <Title level={3} style={{ textAlign: "center", marginBottom: 24 }}>
           Create New Project
@@ -58,6 +90,24 @@ const CreateProject: React.FC = () => {
 
           <Form.Item name="description" label="Description">
             <TextArea rows={3} placeholder="Brief description of the project" />
+          </Form.Item>
+
+          <Form.Item
+            name="platform"
+            label="Platform"
+            rules={[{ required: true, message: "Please select a platform" }]}
+          >
+            {loadingPlatforms ? (
+              <Spin size="small" />
+            ) : (
+              <Select placeholder="Select a platform">
+                {platforms.map((platform) => (
+                  <Select.Option key={platform} value={platform}>
+                    {platform}
+                  </Select.Option>
+                ))}
+              </Select>
+            )}
           </Form.Item>
 
           <Form.Item style={{ marginTop: 24 }}>

@@ -13,7 +13,8 @@ from playhouse.shortcuts import model_to_dict
 import datetime
 import os
 import uuid
-import json  # <-- needed for JSONField
+import json
+import sqlite3
 
 import datetime
 
@@ -24,6 +25,10 @@ check_or_create_app_dir()
 
 db_path = os.path.join(get_app_dir(), "core_db.db")
 db = SqliteDatabase(db_path)
+
+
+def get_core_db_conn():
+    return sqlite3.connect(db_path)
 
 
 class JSONField(TextField):
@@ -47,6 +52,7 @@ class Project(BaseModel):
     metadata = JSONField(null=True)
     created_at = DateTimeField(default=datetime.datetime.now)
     updated_at = DateTimeField(default=datetime.datetime.now)
+    project_type = CharField()
 
     def save(self, *args, **kwargs):
         self.updated_at = datetime.datetime.now()
@@ -58,8 +64,13 @@ db.connect()
 db.create_tables([Project])
 
 
-def create_new_project(name, description):
-    new_project = Project.create(name=name, description=description)
+def create_new_project(name, description, metadata={}):
+    new_project = Project.create(
+        name=name,
+        description=description,
+        project_type="sketch",
+        metadata=metadata,
+    )
     return new_project  # no need to call .save() again
 
 

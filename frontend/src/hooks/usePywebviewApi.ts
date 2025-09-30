@@ -1,39 +1,55 @@
 // src/hooks/usePywebviewApi.ts
 import { useEffect, useState } from "react";
 
-export function usePywebviewApi(method?: string) {
-  const [ready, setReady] = useState(false);
+declare global {
+  interface Window {
+    pywebview?: {
+      api: any;
+    };
+  }
+}
+
+export function usePywebviewApi() {
+  const [api, setApi] = useState<any>(() => {
+    // Initialize with current value if available
+    return window.pywebview?.api || null;
+  });
 
   useEffect(() => {
-    let interval: number | undefined;
-
-    const checkReady = () => {
-      if (window.pywebview?.api) {
-        // If a specific method is requested, check if it exists
-        if (method && !(method in window.pywebview.api)) {
-          return false;
-        }
-        setReady(true);
-        return true;
-      }
-      return false;
-    };
-
-    if (!checkReady()) {
-      interval = window.setInterval(() => {
-        if (checkReady() && interval) {
-          window.clearInterval(interval);
-        }
-      }, 500);
+    // If already available, we're done
+    if (window.pywebview?.api) {
+      setApi(window.pywebview.api);
+      return;
     }
 
-    return () => {
-      if (interval) {
-        window.clearInterval(interval);
+    // Listen for pywebview ready event if it exists
+    const handleReady = () => {
+      if (window.pywebview?.api) {
+        setApi(window.pywebview.api);
       }
     };
-  }, [method]);
 
-  // Add null safety check
-  return ready && window.pywebview ? window.pywebview.api : null;
+    // Some pywebview versions fire a ready event
+    window.addEventListener('pywebviewready', handleReady);
+
+    // Fallback: poll for a short time
+    const interval = setInterval(() => {
+      if (window.pywebview?.api) {
+        setApi(window.pywebview.api);
+        clearInterval(interval);
+      }
+    }, 100);
+
+    // Stop polling after 3 seconds
+    setTimeout(() => {
+      clearInterval(interval);
+    }, 3000);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('pywebviewready', handleReady);
+    };
+  }, []);
+
+  return api;
 }

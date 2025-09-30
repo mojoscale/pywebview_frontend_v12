@@ -1,0 +1,7 @@
+{
+  "name": "OneWire",
+  "version": "3.0.0",
+  "keywords": "onewire, ds18b20",
+  "frameworks": "arduino",
+  "platforms": "*"
+}
