@@ -6,11 +6,10 @@ import {
   CodeOutlined,
   FileSearchOutlined,
   UploadOutlined,
+  BugOutlined,
 } from "@ant-design/icons";
 import MonacoEditor from "@monaco-editor/react";
-import * as monaco from "monaco-editor";
-import type { OnMount } from "@monaco-editor/react";
-
+import type * as monaco from "monaco-editor"; // ✅ Only import types
 import ModuleExplorer from "../components/ModuleExplorer";
 import { useParams } from "react-router-dom";
 import { usePywebviewApi } from "../hooks/usePywebviewApi";
@@ -53,8 +52,7 @@ def loop():
 
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monaco | null>(null);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const completionProviderRef = useRef<monaco.IDisposable | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Fetch project
   useEffect(() => {
@@ -62,7 +60,7 @@ def loop():
       if (!api || !projectId) return;
       try {
         const result = await api.get_project(projectId);
-        if (result && result.project_id) {
+        if (result?.project_id) {
           setProject(result);
         }
       } catch (err) {
@@ -74,16 +72,23 @@ def loop():
     fetchProject();
   }, [api, projectId]);
 
-  // Handle linting
+  // Handle linting with debouncing
   const lintCode = useCallback(
     async (currentCode: string) => {
-      if (!monacoRef.current || !editorRef.current) return;
+      if (!monacoRef.current || !editorRef.current) {
+        console.warn("Editor or Monaco not ready");
+        return;
+      }
+
       try {
         const board = project?.metadata?.platform || "arduino";
+        console.log("🔍 Running lint for platform:", board);
+
         const result = await window.pywebview?.api?.lint_code(currentCode, board);
 
         if (!result || !Array.isArray(result.errors)) {
           console.warn("[WARN] lint_code returned invalid result:", result);
+          setErrors([]);
           return;
         }
 
@@ -98,72 +103,74 @@ def loop():
             ? err.column + 1
             : model.getLineMaxColumn(err.line),
           message: err.message,
-          severity: monaco.MarkerSeverity.Error,
+          severity: monacoRef.current!.MarkerSeverity.Error,
         }));
 
-        monacoRef.current.editor.setModelMarkers(model, "python-linter", markers);
+        monacoRef.current!.editor.setModelMarkers(model, "python-linter", markers);
         setErrors(result.errors);
+        console.log("✅ Lint completed. Found", result.errors.length, "errors");
       } catch (e) {
         console.error("[ERROR] Exception during linting:", e);
+        setErrors([]);
       }
     },
     [project]
   );
 
-  // Handle editor mount
-  const handleEditorDidMount: OnMount = (editor, monacoInstance) => {
+  // Debounced lint effect
+  useEffect(() => {
+    if (!project || !editorRef.current) return;
+
+    const timeoutId = setTimeout(() => {
+      console.log("🚀 Running initial lint on startup");
+      lintCode(editorRef.current?.getValue() || "");
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [project, lintCode]);
+
+  // Editor mount
+  const handleEditorDidMount = (
+    editor: monaco.editor.IStandaloneCodeEditor,
+    monacoInstance: typeof monaco
+  ) => {
     editorRef.current = editor;
     monacoRef.current = monacoInstance;
 
-    // Register completions once
-    if (!completionProviderRef.current) {
-      completionProviderRef.current =
-        monacoInstance.languages.registerCompletionItemProvider("python", {
-          triggerCharacters: [".", "(", "[", '"', "'", " "],
-          provideCompletionItems: async (model, position) => {
-            const code = model.getValue();
-            const line = position.lineNumber - 1;
-            const column = position.column - 1;
-            try {
-              const response = await window.pywebview?.api?.get_completions(
-                code,
-                line,
-                column
-              );
-              if (!Array.isArray(response)) return { suggestions: [] };
-              return {
-                suggestions: response.map((item) => ({
-                  label: item.label,
-                  kind: monacoInstance.languages.CompletionItemKind.Function,
-                  insertText: item.insertText || item.label,
-                  documentation: item.documentation,
-                  detail: item.detail,
-                  range: new monaco.Range(
-                    position.lineNumber,
-                    position.column,
-                    position.lineNumber,
-                    position.column
-                  ),
-                })),
-              };
-            } catch {
-              return { suggestions: [] };
-            }
-          },
-        });
-    }
-
-    // Debounced lint on change
+    // Throttle content changes to reduce memory usage
+    let changeTimeout: NodeJS.Timeout;
     editor.onDidChangeModelContent(() => {
-      const currentCode = editor.getValue();
-      setCode(currentCode);
-
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => lintCode(currentCode), 500);
+      clearTimeout(changeTimeout);
+      changeTimeout = setTimeout(() => {
+        const currentCode = editor.getValue();
+        setCode(currentCode);
+      }, 300);
     });
 
-    // Initial lint
-    lintCode(editor.getValue());
+    console.log("✅ Editor mounted");
+  };
+
+  // Cleanup on unmount to free memory
+  useEffect(() => {
+    return () => {
+      if (editorRef.current) {
+        const model = editorRef.current.getModel();
+        if (model) {
+          model.dispose();
+        }
+        editorRef.current.dispose();
+        editorRef.current = null;
+      }
+      monacoRef.current = null;
+    };
+  }, []);
+
+  // Manual lint trigger
+  const handleManualLint = () => {
+    console.log("🔄 Manual lint triggered");
+    if (editorRef.current) {
+      lintCode(editorRef.current.getValue());
+    }
   };
 
   const handleUploadToArduino = () => {
@@ -191,60 +198,117 @@ def loop():
               Search available functions, classes & variables
             </Text>
           </div>
-          <div style={{ height: "calc(100vh - 80px)", display: "flex", flexDirection: "column" }}>
+          <div
+            style={{
+              height: "calc(100vh - 80px)",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             <ModuleExplorer />
           </div>
         </Sider>
 
         {/* Main Section */}
         <Layout style={{ background: "#fff" }}>
-          <Content style={{ padding: "12px", display: "flex", flexDirection: "column" }}>
+          <Content style={{ padding: "12px", display: "flex", flexDirection: "column", height: "100vh" }}>
             {/* Header */}
-            <Card style={{ marginBottom: 12 }}>
+            <Card 
+              size="small" 
+              style={{ marginBottom: 12 }}
+              bodyStyle={{ padding: "12px" }}
+            >
               {loading ? (
                 <Spin size="small" />
               ) : (
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <div>
-                    <Title level={5}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start" }}>
+                  <div style={{ flex: 1 }}>
+                    <Title level={5} style={{ margin: 0, lineHeight: 1.2 }}>
                       <CodeOutlined style={{ marginRight: 8, color: "#1890ff" }} />
                       {project ? project.name : "Unknown Project"}
                     </Title>
-                    <Text type="secondary">
-                      {project?.description || "Write your Arduino-compatible Python code below"}
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {project?.description ||
+                        "Write your Arduino-compatible Python code below"}
                     </Text>
                   </div>
-                  <Button
-                    type="primary"
-                    icon={<PlayCircleOutlined />}
-                    onClick={handleUploadToArduino}
-                  >
-                    <Space>
-                      <UploadOutlined />
-                      Upload to Arduino
-                    </Space>
-                  </Button>
+                  <Space>
+                    <Button
+                      size="small"
+                      icon={<BugOutlined />}
+                      onClick={handleManualLint}
+                      style={{ borderRadius: 6 }}
+                    >
+                      Run Lint
+                    </Button>
+                    <Button
+                      size="small"
+                      type="primary"
+                      icon={<PlayCircleOutlined />}
+                      onClick={handleUploadToArduino}
+                    >
+                      <Space size={4}>
+                        <UploadOutlined />
+                        Upload to Arduino
+                      </Space>
+                    </Button>
+                  </Space>
                 </div>
               )}
             </Card>
 
-            {/* Editor */}
-            <Card style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-              <MonacoEditor
-                language="python"
-                value={code}
-                theme="vs-dark"
-                onMount={handleEditorDidMount}
-                onChange={(val) => setCode(val || "")}
-                options={{
-                  fontSize: 14,
-                  minimap: { enabled: false },
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true,
-                  glyphMargin: true,
-                  renderValidationDecorations: "on",
+            {/* Editor Container */}
+            <Card 
+              style={{ 
+                flex: 1, 
+                display: "flex", 
+                flexDirection: "column",
+                padding: 0,
+                overflow: "hidden"
+              }}
+              bodyStyle={{ 
+                padding: 0, 
+                flex: 1, 
+                display: "flex", 
+                flexDirection: "column",
+                overflow: "hidden"
+              }}
+            >
+              <div 
+                ref={containerRef}
+                style={{ 
+                  flex: 1, 
+                  minHeight: 0,
+                  position: "relative",
+                  overflow: "hidden"
                 }}
-              />
+              >
+                <MonacoEditor
+                  language="python"
+                  value={code}
+                  theme="vs-dark"
+                  onMount={handleEditorDidMount}
+                  onChange={(val) => setCode(val || "")}
+                  height="100%"
+                  options={{
+                    fontSize: 14,
+                    minimap: { enabled: false }, // ✅ Disable minimap to save memory
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true, // ✅ Let Monaco handle layout
+                    glyphMargin: false,
+                    contextmenu: false,
+                    lightbulb: { enabled: false },
+                    renderValidationDecorations: "on",
+                    lineNumbersMinChars: 3,
+                    folding: false, // ✅ Disable folding to save memory
+                    occurrencesHighlight: false, // ✅ Disable highlight to save memory
+                    selectionHighlight: false, // ✅ Disable selection highlight
+                    suggestOnTriggerCharacters: false,
+                    wordBasedSuggestions: false,
+                    parameterHints: { enabled: false },
+                  }}
+                />
+              </div>
 
               {/* Problems panel */}
               {errors.length > 0 && (
@@ -252,7 +316,12 @@ def loop():
                   size="small"
                   bordered
                   dataSource={errors}
-                  style={{ marginTop: 8, maxHeight: 120, overflow: "auto" }}
+                  style={{ 
+                    marginTop: 8, 
+                    maxHeight: 120, 
+                    overflow: "auto",
+                    flexShrink: 0 // ✅ Prevent flex shrinking
+                  }}
                   renderItem={(err: any) => (
                     <List.Item
                       onClick={() => {
@@ -263,9 +332,12 @@ def loop():
                         });
                         editorRef.current?.focus();
                       }}
-                      style={{ cursor: "pointer" }}
+                      style={{ 
+                        cursor: "pointer",
+                        padding: "4px 12px" 
+                      }}
                     >
-                      <Text type="danger">
+                      <Text type="danger" style={{ fontSize: 12 }}>
                         Line {err.line}, Col {err.column || 1}: {err.message}
                       </Text>
                     </List.Item>
