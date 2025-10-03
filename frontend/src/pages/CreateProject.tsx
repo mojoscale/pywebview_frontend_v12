@@ -10,8 +10,8 @@ const CreateProject: React.FC = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [platforms, setPlatforms] = useState<string[]>([]);
-  const [loadingPlatforms, setLoadingPlatforms] = useState(true);
+  const [boards, setBoards] = useState<string[]>([]);
+  const [loadingBoards, setLoadingBoards] = useState(true);
   const [isApiReady, setIsApiReady] = useState(false);
 
   // ✅ Wait for pywebview API to be ready
@@ -34,7 +34,7 @@ const CreateProject: React.FC = () => {
       }
     };
 
-    window.addEventListener('pywebviewready', handleReady);
+    window.addEventListener("pywebviewready", handleReady);
 
     const interval = setInterval(() => {
       if (checkApiReady()) {
@@ -50,37 +50,37 @@ const CreateProject: React.FC = () => {
     return () => {
       clearInterval(interval);
       clearTimeout(timeoutId);
-      window.removeEventListener('pywebviewready', handleReady);
+      window.removeEventListener("pywebviewready", handleReady);
     };
   }, []);
 
-  // ✅ Fetch platforms when API is ready
+  // ✅ Fetch boards when API is ready
   useEffect(() => {
-    const fetchPlatforms = async () => {
+    const fetchBoards = async () => {
       if (!isApiReady || !window.pywebview?.api) return;
-      
+
       try {
-        const result = await window.pywebview.api.get_platforms();
+        const result = await window.pywebview.api.get_boards();
         if (Array.isArray(result)) {
-          setPlatforms(result);
+          setBoards(result);
         } else {
-          console.error("Invalid response from get_platforms:", result);
-          setPlatforms([]);
+          console.error("Invalid response from get_boards:", result);
+          setBoards([]);
         }
       } catch (err) {
-        console.error("❌ Error fetching platforms:", err);
-        setPlatforms([]);
+        console.error("❌ Error fetching boards:", err);
+        setBoards([]);
       } finally {
-        setLoadingPlatforms(false);
+        setLoadingBoards(false);
       }
     };
 
-    fetchPlatforms();
+    fetchBoards();
   }, [isApiReady]);
 
   const handleSubmit = async (values: any) => {
     const payload = {
-      ...values,
+      ...values, // will include board_name_id now
     };
 
     try {
@@ -144,17 +144,17 @@ const CreateProject: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            name="platform"
-            label="Platform"
-            rules={[{ required: true, message: "Please select a platform" }]}
+            name="board_name_id"
+            label="Board"
+            rules={[{ required: true, message: "Please select a board" }]}
           >
-            {loadingPlatforms ? (
+            {loadingBoards ? (
               <Spin size="small" />
             ) : (
-              <Select placeholder="Select a platform">
-                {platforms.map((platform) => (
-                  <Select.Option key={platform} value={platform}>
-                    {platform}
+              <Select placeholder="Select a board">
+                {boards.map((board) => (
+                  <Select.Option key={board} value={board}>
+                    {board}
                   </Select.Option>
                 ))}
               </Select>

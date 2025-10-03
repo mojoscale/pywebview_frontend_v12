@@ -8,6 +8,8 @@ interface SerialContextType {
   clearOutput: () => void;
   error: string | null;
   checkConnection: () => Promise<void>;
+  terminalLogs: string[];  // ✅ compiler/terminal logs
+  clearTerminal: () => void;
 }
 
 // ✅ Ensure window handlers exist early to prevent Python-side errors
@@ -23,6 +25,12 @@ if (typeof window.onSerialLine !== 'function') {
   };
 }
 
+if (typeof window.__appendTerminalLog !== 'function') {
+  window.__appendTerminalLog = (line: string) => {
+    console.warn('[Default __appendTerminalLog] Called before React initialized. Line:', line);
+  };
+}
+
 const SerialContext = createContext<SerialContextType>({
   serialConnected: false,
   toggleMonitoring: async () => {},
@@ -31,6 +39,8 @@ const SerialContext = createContext<SerialContextType>({
   clearOutput: () => {},
   error: null,
   checkConnection: async () => {},
+  terminalLogs: [],
+  clearTerminal: () => {},
 });
 
 export const useSerial = () => useContext(SerialContext);
@@ -39,6 +49,7 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
   const [serialConnected, setSerialConnected] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
   const [serialOutput, setSerialOutput] = useState<string[]>([]);
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isApiReady, setIsApiReady] = useState(false);
 
@@ -127,22 +138,32 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
     setSerialOutput([]);
   };
 
+  const clearTerminal = () => {
+    setTerminalLogs([]);
+  };
+
   // 🔁 Initialize and register handlers
   useEffect(() => {
     if (!isApiReady) return;
 
-    // 🔁 Overwrite handlers when API is ready
+    // Serial line output
     window.onSerialLine = (line: string) => {
       if (monitoring) {
         setSerialOutput(prev => [...prev, line]);
       }
     };
 
+    // Serial connection status
     window.onSerialStatusUpdate = (connected: boolean) => {
       setSerialConnected(connected);
       if (!connected && monitoring) {
         setMonitoring(false);
       }
+    };
+
+    // Compiler logs
+    window.__appendTerminalLog = (line: string) => {
+      setTerminalLogs(prev => [...prev, line]);
     };
 
     // Check initial connection status
@@ -160,6 +181,7 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
       // ✅ Cleanup global handlers to prevent stale closures
       window.onSerialLine = undefined;
       window.onSerialStatusUpdate = undefined;
+      window.__appendTerminalLog = undefined;
     };
   }, [isApiReady, monitoring]);
 
@@ -173,6 +195,8 @@ export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
         clearOutput,
         error,
         checkConnection,
+        terminalLogs,
+        clearTerminal,
       }}
     >
       {children}

@@ -1,12 +1,13 @@
 // src/pages/IDEPage.tsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Layout, Typography, Card, Button, Space, Spin, List } from "antd";
+import { Layout, Typography, Card, Button, Space, Spin, List, message } from "antd";
 import {
   PlayCircleOutlined,
   CodeOutlined,
   FileSearchOutlined,
   UploadOutlined,
   BugOutlined,
+  SaveOutlined,
 } from "@ant-design/icons";
 import MonacoEditor from "@monaco-editor/react";
 import type * as monaco from "monaco-editor";
@@ -36,23 +37,13 @@ const IDEPage: React.FC = () => {
   const [errors, setErrors] = useState<any[]>([]);
   const [isApiReady, setIsApiReady] = useState(false);
 
-  const [code, setCode] = useState<string>(
-    `# Write your Python code here
-def setup():
-    serial_print("Setup complete")
-
-def loop():
-    digital_write(13, HIGH)
-    delay(1000)
-    digital_write(13, LOW)
-    delay(1000)`
-  );
+  const [code, setCode] = useState<string>("");
 
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monaco | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // ✅ Wait for pywebview API to be ready
+  // ✅ Wait for pywebview API
   useEffect(() => {
     const checkApiReady = () => {
       if (window.pywebview?.api) {
@@ -62,24 +53,12 @@ def loop():
       return false;
     };
 
-    if (checkApiReady()) {
-      return;
-    }
+    if (checkApiReady()) return;
 
-    const handleReady = () => {
-      if (checkApiReady()) {
-        console.log("pywebview API ready in IDEPage");
-      }
-    };
+    const handleReady = () => checkApiReady();
+    window.addEventListener("pywebviewready", handleReady);
 
-    window.addEventListener('pywebviewready', handleReady);
-
-    const interval = setInterval(() => {
-      if (checkApiReady()) {
-        clearInterval(interval);
-      }
-    }, 100);
-
+    const interval = setInterval(() => checkApiReady(), 100);
     const timeoutId = setTimeout(() => {
       clearInterval(interval);
       console.warn("pywebview API not available in IDEPage");
@@ -88,23 +67,22 @@ def loop():
     return () => {
       clearInterval(interval);
       clearTimeout(timeoutId);
-      window.removeEventListener('pywebviewready', handleReady);
+      window.removeEventListener("pywebviewready", handleReady);
     };
   }, []);
 
-  // Fetch project when API is ready
+  // Fetch project + code
   useEffect(() => {
     const fetchProject = async () => {
-      if (!isApiReady || !projectId) return;
-      
+      if (!isApiReady || !projectId || !window.pywebview?.api) return;
       try {
-        if (!window.pywebview?.api) return;
         const result = await window.pywebview.api.get_project(projectId);
-        if (result?.project_id) {
-          setProject(result);
-        }
+        if (result?.project_id) setProject(result);
+
+        const codeResult = await window.pywebview.api.get_project_code(projectId);
+        if (typeof codeResult === "string") setCode(codeResult);
       } catch (err) {
-        console.error("❌ Error fetching project:", err);
+        console.error("❌ Error fetching project/code:", err);
       } finally {
         setLoading(false);
       }
@@ -113,94 +91,65 @@ def loop():
     fetchProject();
   }, [isApiReady, projectId]);
 
-  // Handle linting with debouncing
+  // ---------- linting ----------
   const lintCode = useCallback(
     async (currentCode: string) => {
-      if (!monacoRef.current || !editorRef.current || !isApiReady) {
-        console.warn("Editor, Monaco, or API not ready");
-        return;
-      }
-
+      if (!monacoRef.current || !editorRef.current || !isApiReady) return;
       try {
         const board = project?.metadata?.platform || "arduino";
-        console.log("🔍 Running lint for platform:", board);
-
-        if (!window.pywebview?.api) return;
         const result = await window.pywebview.api.lint_code(currentCode, board);
-
         if (!result || !Array.isArray(result.errors)) {
-          console.warn("[WARN] lint_code returned invalid result:", result);
           setErrors([]);
           return;
         }
-
         const model = editorRef.current.getModel();
         if (!model) return;
-
         const markers = result.errors.map((err) => ({
           startLineNumber: err.line,
           endLineNumber: err.line,
           startColumn: err.column || 1,
-          endColumn: err.column
-            ? err.column + 1
-            : model.getLineMaxColumn(err.line),
+          endColumn: err.column ? err.column + 1 : model.getLineMaxColumn(err.line),
           message: err.message,
           severity: monacoRef.current!.MarkerSeverity.Error,
         }));
-
         monacoRef.current!.editor.setModelMarkers(model, "python-linter", markers);
         setErrors(result.errors);
-        console.log("✅ Lint completed. Found", result.errors.length, "errors");
       } catch (e) {
-        console.error("[ERROR] Exception during linting:", e);
+        console.error("[ERROR] during lint:", e);
         setErrors([]);
       }
     },
     [project, isApiReady]
   );
 
-  // Debounced lint effect
   useEffect(() => {
     if (!project || !editorRef.current || !isApiReady) return;
-
     const timeoutId = setTimeout(() => {
-      console.log("🚀 Running initial lint on startup");
       lintCode(editorRef.current?.getValue() || "");
     }, 500);
-
     return () => clearTimeout(timeoutId);
   }, [project, lintCode, isApiReady]);
 
-  // Editor mount
   const handleEditorDidMount = (
     editor: monaco.editor.IStandaloneCodeEditor,
     monacoInstance: typeof monaco
   ) => {
     editorRef.current = editor;
     monacoRef.current = monacoInstance;
-
-    // Throttle content changes to reduce memory usage
-    //let changeTimeout: NodeJS.Timeout;
     let changeTimeout: ReturnType<typeof setTimeout>;
     editor.onDidChangeModelContent(() => {
       clearTimeout(changeTimeout);
       changeTimeout = setTimeout(() => {
-        const currentCode = editor.getValue();
-        setCode(currentCode);
+        setCode(editor.getValue());
       }, 300);
     });
-
-    console.log("✅ Editor mounted");
   };
 
-  // Cleanup on unmount to free memory
   useEffect(() => {
     return () => {
       if (editorRef.current) {
         const model = editorRef.current.getModel();
-        if (model) {
-          model.dispose();
-        }
+        if (model) model.dispose();
         editorRef.current.dispose();
         editorRef.current = null;
       }
@@ -208,29 +157,54 @@ def loop():
     };
   }, []);
 
-  // Manual lint trigger
-  const handleManualLint = () => {
-    console.log("🔄 Manual lint triggered");
-    if (editorRef.current && isApiReady) {
-      lintCode(editorRef.current.getValue());
+  // ---------- save ----------
+  const handleSaveProject = async () => {
+    if (!window.pywebview?.api || !isApiReady || !projectId) return;
+    try {
+      await window.pywebview.api.save_project_files(projectId, code);
+      message.success("Project saved!");
+    } catch (err) {
+      console.error("❌ Error saving project:", err);
+      message.error("Failed to save project");
     }
   };
 
-  const handleUploadToArduino = () => {
-  if (!window.pywebview?.api) return;
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        handleSaveProject();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [code, projectId, isApiReady]);
 
-  if (isApiReady && window.pywebview.api.compile_project) {
-    window.pywebview.api.compile_project({
-      projectId: project?.project_id || "",  // <-- include projectId
-      code,
-      platform: project?.metadata?.platform || "arduino",
-    });
-  } else {
-    alert("In a real environment, this would upload to Arduino");
-  }
-};
+  // ---------- compile ----------
+  const handleCompile = async () => {
+    if (!window.pywebview?.api || !isApiReady || !projectId) return;
 
-  // Show loading while waiting for API
+    try {
+      // 1. Save first
+      await window.pywebview.api.save_project_files(projectId, code);
+      message.success("Project saved, starting compile...");
+
+      // 2. Call backend compile
+      const result = await window.pywebview.api.compile(projectId);
+      console.log("Compile result:", result);
+
+      if (result.success) {
+        message.success("✅ Compilation successful!");
+      } else {
+        message.error("❌ Compilation failed: " + (result.error || "Check logs"));
+      }
+    } catch (err) {
+      console.error("❌ Compile error:", err);
+      message.error("Compilation failed");
+    }
+  };
+
+  // UI ----------
   if (!isApiReady) {
     return (
       <Layout style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -253,13 +227,7 @@ def loop():
               Search available functions, classes & variables
             </Text>
           </div>
-          <div
-            style={{
-              height: "calc(100vh - 80px)",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
+          <div style={{ height: "calc(100vh - 80px)", display: "flex", flexDirection: "column" }}>
             <ModuleExplorer />
           </div>
         </Sider>
@@ -268,11 +236,7 @@ def loop():
         <Layout style={{ background: "#fff" }}>
           <Content style={{ padding: "12px", display: "flex", flexDirection: "column", height: "100vh" }}>
             {/* Header */}
-            <Card 
-              size="small" 
-              style={{ marginBottom: 12 }}
-              bodyStyle={{ padding: "12px" }}
-            >
+            <Card size="small" style={{ marginBottom: 12 }} bodyStyle={{ padding: "12px" }}>
               {loading ? (
                 <Spin size="small" />
               ) : (
@@ -283,28 +247,20 @@ def loop():
                       {project ? project.name : "Unknown Project"}
                     </Title>
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      {project?.description ||
-                        "Write your Arduino-compatible Python code below"}
+                      {project?.description || "Write your Arduino-compatible Python code below"}
                     </Text>
                   </div>
                   <Space>
-                    <Button
-                      size="small"
-                      icon={<BugOutlined />}
-                      onClick={handleManualLint}
-                      style={{ borderRadius: 6 }}
-                    >
+                    <Button size="small" icon={<BugOutlined />} onClick={() => lintCode(code)} style={{ borderRadius: 6 }}>
                       Run Lint
                     </Button>
-                    <Button
-                      size="small"
-                      type="primary"
-                      icon={<PlayCircleOutlined />}
-                      onClick={handleUploadToArduino}
-                    >
+                    <Button size="small" icon={<SaveOutlined />} onClick={handleSaveProject} style={{ borderRadius: 6 }}>
+                      Save
+                    </Button>
+                    <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={handleCompile}>
                       <Space size={4}>
                         <UploadOutlined />
-                        Upload to Arduino
+                        Compile / Upload
                       </Space>
                     </Button>
                   </Space>
@@ -312,32 +268,12 @@ def loop():
               )}
             </Card>
 
-            {/* Editor Container */}
-            <Card 
-              style={{ 
-                flex: 1, 
-                display: "flex", 
-                flexDirection: "column",
-                padding: 0,
-                overflow: "hidden"
-              }}
-              bodyStyle={{ 
-                padding: 0, 
-                flex: 1, 
-                display: "flex", 
-                flexDirection: "column",
-                overflow: "hidden"
-              }}
+            {/* Editor */}
+            <Card
+              style={{ flex: 1, display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" }}
+              bodyStyle={{ padding: 0, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}
             >
-              <div 
-                ref={containerRef}
-                style={{ 
-                  flex: 1, 
-                  minHeight: 0,
-                  position: "relative",
-                  overflow: "hidden"
-                }}
-              >
+              <div ref={containerRef} style={{ flex: 1, minHeight: 0, position: "relative", overflow: "hidden" }}>
                 <MonacoEditor
                   language="python"
                   value={code}
@@ -352,7 +288,6 @@ def loop():
                     automaticLayout: true,
                     glyphMargin: false,
                     contextmenu: false,
-                    //lightbulb: { enabled: false },
                     renderValidationDecorations: "on",
                     lineNumbersMinChars: 3,
                     folding: false,
@@ -371,26 +306,15 @@ def loop():
                   size="small"
                   bordered
                   dataSource={errors}
-                  style={{ 
-                    marginTop: 8, 
-                    maxHeight: 120, 
-                    overflow: "auto",
-                    flexShrink: 0
-                  }}
+                  style={{ marginTop: 8, maxHeight: 120, overflow: "auto", flexShrink: 0 }}
                   renderItem={(err: any) => (
                     <List.Item
                       onClick={() => {
                         editorRef.current?.revealLineInCenter(err.line);
-                        editorRef.current?.setPosition({
-                          lineNumber: err.line,
-                          column: err.column || 1,
-                        });
+                        editorRef.current?.setPosition({ lineNumber: err.line, column: err.column || 1 });
                         editorRef.current?.focus();
                       }}
-                      style={{ 
-                        cursor: "pointer",
-                        padding: "4px 12px" 
-                      }}
+                      style={{ cursor: "pointer", padding: "4px 12px" }}
                     >
                       <Text type="danger" style={{ fontSize: 12 }}>
                         Line {err.line}, Col {err.column || 1}: {err.message}
