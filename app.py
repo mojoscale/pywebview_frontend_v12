@@ -8,6 +8,8 @@ import json
 import os
 import re
 
+import jedi
+
 # core imports
 from core.utils import (
     APP_WINDOW_NAME,
@@ -119,6 +121,33 @@ class Api:
         errors = linter_main(code, conn, platform, CORE_LIBS_PATH)
         print(f"Errors: {errors}")
         return errors
+
+    def get_completions(
+        self, code: str, line: int, column: int, stub_path: str = CORE_STUBS_PATH
+    ):
+        try:
+            stub_path = str(Path(stub_path).resolve())
+
+            # Extend sys.path with your stub folder
+            extended_sys_path = [stub_path, *sys.path]
+
+            project = jedi.Project(path=Path.cwd(), sys_path=extended_sys_path)
+
+            script = jedi.Script(code, path="script.py", project=project)
+            completions = script.complete(line + 1, column)
+
+            return [
+                {
+                    "label": c.name,
+                    "kind": c.type,
+                    "detail": c.description,
+                    "documentation": c.docstring(),
+                    "insertText": c.name,
+                }
+                for c in completions
+            ]
+        except Exception as e:
+            return {"error": str(e)}
 
     # ------------------------
     # Project files

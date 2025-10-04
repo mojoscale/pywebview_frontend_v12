@@ -30,18 +30,26 @@ interface Project {
   };
 }
 
+interface CompletionItem {
+  label: string;
+  kind: number;
+  insertText?: string;
+  documentation?: string;
+  detail?: string;
+}
+
 const IDEPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<any[]>([]);
   const [isApiReady, setIsApiReady] = useState(false);
-
   const [code, setCode] = useState<string>("");
 
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monaco | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const completionProviderRef = useRef<monaco.IDisposable | null>(null);
 
   // ✅ Wait for pywebview API
   useEffect(() => {
@@ -131,12 +139,73 @@ const IDEPage: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [project, lintCode, isApiReady]);
 
+  // ✅ Improved autocomplete provider
+  const registerCompletionProvider = useCallback((monacoInstance: typeof monaco) => {
+    if (completionProviderRef.current) {
+      completionProviderRef.current.dispose();
+    }
+
+    completionProviderRef.current = monacoInstance.languages.registerCompletionItemProvider("python", {
+      triggerCharacters: [".", "(", "[", '"', "'", " ", ","],
+      provideCompletionItems: async (model, position) => {
+        try {
+          // Check if API is available
+          if (!window.pywebview?.api?.get_completions) {
+            console.warn("Autocomplete API not available");
+            return { suggestions: [] };
+          }
+
+          const code = model.getValue();
+          const line = position.lineNumber - 1; // Convert to 0-based
+          const column = position.column - 1;   // Convert to 0-based
+
+          console.log("Requesting completions at:", { line, column });
+          
+          const response = await window.pywebview.api.get_completions(code, line, column);
+          
+          if (!Array.isArray(response)) {
+            console.warn("Invalid completion response:", response);
+            return { suggestions: [] };
+          }
+
+          console.log("Received completions:", response.length);
+
+          const suggestions = response.map((item: CompletionItem) => ({
+            label: item.label,
+            kind: item.kind || monacoInstance.languages.CompletionItemKind.Function,
+            insertText: item.insertText || item.label,
+            documentation: item.documentation,
+            detail: item.detail,
+            range: {
+              startLineNumber: position.lineNumber,
+              endLineNumber: position.lineNumber,
+              startColumn: position.column,
+              endColumn: position.column,
+            },
+          }));
+
+          return { suggestions };
+
+        } catch (err) {
+          console.error("[ERROR] Autocomplete request failed:", err);
+          return { suggestions: [] };
+        }
+      },
+    });
+
+    console.log("✅ Autocomplete provider registered");
+  }, []);
+
   const handleEditorDidMount = (
     editor: monaco.editor.IStandaloneCodeEditor,
     monacoInstance: typeof monaco
   ) => {
     editorRef.current = editor;
     monacoRef.current = monacoInstance;
+
+    // ✅ Register autocomplete provider
+    registerCompletionProvider(monacoInstance);
+
     let changeTimeout: ReturnType<typeof setTimeout>;
     editor.onDidChangeModelContent(() => {
       clearTimeout(changeTimeout);
@@ -144,10 +213,28 @@ const IDEPage: React.FC = () => {
         setCode(editor.getValue());
       }, 300);
     });
+
+    // ✅ Enable more completion features
+    editor.updateOptions({
+      quickSuggestions: { 
+        other: true, 
+        comments: false, 
+        strings: true 
+      },
+      suggestOnTriggerCharacters: true,
+      acceptSuggestionOnEnter: "on",
+      tabCompletion: "on",
+      wordBasedSuggestions: "allDocuments",
+    });
   };
 
+  // Cleanup
   useEffect(() => {
     return () => {
+      if (completionProviderRef.current) {
+        completionProviderRef.current.dispose();
+        completionProviderRef.current = null;
+      }
       if (editorRef.current) {
         const model = editorRef.current.getModel();
         if (model) model.dispose();
@@ -294,9 +381,16 @@ const IDEPage: React.FC = () => {
                     folding: false,
                     occurrencesHighlight: "off",
                     selectionHighlight: false,
-                    suggestOnTriggerCharacters: false,
-                    wordBasedSuggestions: "off",
-                    parameterHints: { enabled: false },
+                    suggestOnTriggerCharacters: true,
+                    quickSuggestions: { 
+                      other: true, 
+                      comments: false, 
+                      strings: true 
+                    },
+                    parameterHints: { enabled: true },
+                    wordBasedSuggestions: "allDocuments",
+                    acceptSuggestionOnEnter: "on",
+                    tabCompletion: "on",
                   }}
                 />
               </div>

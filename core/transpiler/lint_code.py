@@ -100,6 +100,7 @@ class LintCode(ast.NodeVisitor):
         self.is_within_If = False
         self.is_within_For = False
         self.is_within_While = False
+
         self.module_name = module_name
 
         self.scope = "global"
@@ -324,6 +325,9 @@ class LintCode(ast.NodeVisitor):
         self.is_within_If = True
 
         if self.scope == "global":
+            self.add_error(node, "'if' can be only called within a function body.")
+
+        if self.scope == "global":
             # in arduino, if only works within function/class body
             error_text = "'If' can only be called within function body."
             self.add_error(node, error_text)
@@ -335,6 +339,15 @@ class LintCode(ast.NodeVisitor):
 
     def visit_For(self, node):
         self.is_within_For = True
+
+        if self.scope == "global":
+            self.add_error(node, "'for' can be only called within a function body.")
+
+        # cannot be called on global scope in arduino
+
+        if self.scope == "global":
+            self.add_error(node, "'if' can be only called within a function body.")
+
         loop_var_type = self.type_analyzer.get_node_type(node.iter)
         loop_type = loop_var_type.split(",")[0]
         loop_var = node.target
@@ -395,6 +408,9 @@ class LintCode(ast.NodeVisitor):
             self.add_error(node, error)
 
     def visit_Call(self, node):
+        # can only be called within function
+        if self.scope == "global":
+            self.add_error(node, "Methods can be only called within a function body.")
         func = node.func
 
         call_args = []
