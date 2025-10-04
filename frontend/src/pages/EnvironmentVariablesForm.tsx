@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Form,
   Input,
@@ -31,96 +31,155 @@ const { TextArea } = Input;
 
 const EnvironmentVariablesForm = () => {
   const [form] = Form.useForm();
-  const [variables, setVariables] = useState([
-    { key: 'API_URL', value: 'https://api.example.com', isSecret: false },
-    { key: 'DATABASE_URL', value: 'postgresql://user:pass@localhost:5432/db', isSecret: true },
-    { key: 'DEBUG_MODE', value: 'false', isSecret: false },
-    { key: 'MAX_CONNECTIONS', value: '100', isSecret: false },
-  ]);
-  const [editingKey, setEditingKey] = useState(null);
+  const [variables, setVariables] = useState<any[]>([]);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [bulkEditVisible, setBulkEditVisible] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [showSecrets, setShowSecrets] = useState(false);
+  const [currentIsSecret, setCurrentIsSecret] = useState(false); // New state for tracking
+
+  // -----------------------------
+  // Backend integration helpers
+  // -----------------------------
+  const fetchVars = async () => {
+    try {
+      const result = await window.pywebview.api.get_all_env();
+      const parsed = Object.entries(result).map(([key, data]: [string, any]) => ({
+        key,
+        value: data.value,
+        isSecret: data.is_secret,
+      }));
+      setVariables(parsed);
+    } catch (err) {
+      console.error(err);
+      message.error('Failed to load environment variables');
+    }
+  };
 
   const handleAdd = async () => {
     try {
       const values = await form.validateFields();
       const existingIndex = variables.findIndex(v => v.key === values.key);
-      
+
       if (existingIndex > -1 && editingKey !== values.key) {
         message.error('Environment variable with this key already exists');
         return;
       }
 
+      // Use the currentIsSecret state instead of form value
+      const isSecret = currentIsSecret;
+      
+      console.log('Form values:', values);
+      console.log('isSecret value:', isSecret, 'Type:', typeof isSecret);
+
       if (editingKey) {
-        // Edit existing
-        setVariables(variables.map(v => 
-          v.key === editingKey ? { ...values } : v
-        ));
+        // Update existing variable
+        await window.pywebview.api.update_env_value(
+          values.key,
+          values.value,
+          isSecret
+        );
         message.success('Variable updated successfully');
         setEditingKey(null);
       } else {
-        // Add new
-        setVariables([...variables, { ...values }]);
+        // Create new variable
+        await window.pywebview.api.create_env_value(
+          values.key,
+          values.value,
+          isSecret
+        );
         message.success('Variable added successfully');
       }
-      
+
       form.resetFields();
+      setCurrentIsSecret(false); // Reset to default
       setIsModalVisible(false);
+      fetchVars();
     } catch (error) {
       console.error('Validation failed:', error);
+      message.error('Error saving variable');
     }
   };
 
-  const handleEdit = (record:any) => {
+  const handleEdit = (record: any) => {
     setEditingKey(record.key);
-    form.setFieldsValue(record);
+    const isSecret = Boolean(record.isSecret);
+    
+    // Set form values including the isSecret flag
+    form.setFieldsValue({
+      key: record.key,
+      value: record.value,
+      isSecret: isSecret
+    });
+    setCurrentIsSecret(isSecret); // Also set the state
     setIsModalVisible(true);
   };
 
-  const handleDelete = (key:any) => {
-    setVariables(variables.filter(v => v.key !== key));
-    message.success('Variable deleted successfully');
+  const handleDelete = async (key: string) => {
+    try {
+      await window.pywebview.api.delete_env_value(key);
+      message.success('Variable deleted successfully');
+      fetchVars();
+    } catch (err) {
+      console.error(err);
+      message.error('Failed to delete variable');
+    }
   };
 
-  const handleBulkSave = () => {
+  const handleBulkSave = async () => {
     try {
       const lines = bulkText.split('\n').filter(line => line.trim());
-      const newVariables:any = [];
-      
+      const newPairs: Record<string, any> = {};
       lines.forEach(line => {
         const [key, ...valueParts] = line.split('=');
         if (key && valueParts.length > 0) {
-          newVariables.push({
-            key: key.trim(),
+          newPairs[key.trim()] = {
             value: valueParts.join('=').trim(),
-            isSecret: false
-          });
+            is_secret: false,
+          };
         }
       });
-
-      setVariables([...variables, ...newVariables]);
+      await window.pywebview.api.bulk_create_env(newPairs);
+      message.success(`Added ${Object.keys(newPairs).length} variables`);
       setBulkEditVisible(false);
       setBulkText('');
-      message.success(`Added ${newVariables.length} variables`);
+      fetchVars();
     } catch (error) {
+      console.error(error);
       message.error('Invalid format. Use KEY=VALUE format, one per line.');
     }
   };
 
   const copyToClipboard = () => {
-    const envText = variables.map(v => `${v.key}=${v.value}`).join('\n');
+    const envText = variables
+      .map(v => `${v.key}=${v.value}`)
+      .join('\n');
     navigator.clipboard.writeText(envText);
     message.success('Environment variables copied to clipboard!');
   };
 
-  const maskSecret = (value:any, isSecret:any) => {
+  const maskSecret = (value: string, isSecret: boolean) => {
     if (isSecret && !showSecrets) {
       return '•'.repeat(8);
     }
     return value;
   };
+
+  // Handle switch change
+  const handleSecretSwitchChange = (checked: boolean) => {
+    console.log('Switch changed to:', checked);
+    setCurrentIsSecret(checked);
+    // Also update the form value
+    form.setFieldsValue({ isSecret: checked });
+  };
+
+  // -----------------------------
+  // Fetch all variables on mount
+  // -----------------------------
+  useEffect(() => {
+    fetchVars();
+  }, []);
 
   const columns = [
     {
@@ -128,7 +187,7 @@ const EnvironmentVariablesForm = () => {
       dataIndex: 'key',
       key: 'key',
       width: '30%',
-      render: (text:any, record:any) => (
+      render: (text: string, record: any) => (
         <Space>
           <Tag color="blue">{text}</Tag>
           {record.isSecret && <EyeInvisibleOutlined style={{ color: '#ff4d4f' }} />}
@@ -139,7 +198,7 @@ const EnvironmentVariablesForm = () => {
       title: 'Value',
       dataIndex: 'value',
       key: 'value',
-      render: (value:any, record:any) => (
+      render: (value: string, record: any) => (
         <Text code style={{ fontSize: '12px' }}>
           {maskSecret(value, record.isSecret)}
         </Text>
@@ -150,7 +209,7 @@ const EnvironmentVariablesForm = () => {
       dataIndex: 'isSecret',
       key: 'isSecret',
       width: '100px',
-      render: (isSecret:any) => (
+      render: (isSecret: boolean) => (
         <Tag color={isSecret ? 'red' : 'green'}>
           {isSecret ? 'Secret' : 'Plain'}
         </Tag>
@@ -160,12 +219,12 @@ const EnvironmentVariablesForm = () => {
       title: 'Actions',
       key: 'actions',
       width: '120px',
-      render: (_:any, record:any) => (
+      render: (_: any, record: any) => (
         <Space size="small">
           <Tooltip title="Edit">
-            <Button 
-              type="link" 
-              icon={<EditOutlined />} 
+            <Button
+              type="link"
+              icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
             />
           </Tooltip>
@@ -209,12 +268,13 @@ const EnvironmentVariablesForm = () => {
             <Button icon={<CopyOutlined />} onClick={copyToClipboard}>
               Export
             </Button>
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               icon={<PlusOutlined />}
               onClick={() => {
                 setEditingKey(null);
                 form.resetFields();
+                setCurrentIsSecret(false); // Reset to default
                 setIsModalVisible(true);
               }}
             >
@@ -245,8 +305,8 @@ const EnvironmentVariablesForm = () => {
         {/* Bulk Actions */}
         <div style={{ textAlign: 'center' }}>
           <Space>
-            <Button 
-              type="dashed" 
+            <Button
+              type="dashed"
               onClick={() => setBulkEditVisible(true)}
             >
               Bulk Edit
@@ -267,6 +327,7 @@ const EnvironmentVariablesForm = () => {
           setIsModalVisible(false);
           setEditingKey(null);
           form.resetFields();
+          setCurrentIsSecret(false);
         }}
         okText={editingKey ? 'Update' : 'Add'}
         width={600}
@@ -275,6 +336,9 @@ const EnvironmentVariablesForm = () => {
           form={form}
           layout="vertical"
           style={{ marginTop: 24 }}
+          initialValues={{
+            isSecret: false
+          }}
         >
           <Form.Item
             name="key"
@@ -284,9 +348,10 @@ const EnvironmentVariablesForm = () => {
               { pattern: /^[A-Z_][A-Z0-9_]*$/, message: 'Key must contain only uppercase letters, numbers, and underscores' }
             ]}
           >
-            <Input 
-              placeholder="e.g., DATABASE_URL, API_KEY" 
+            <Input
+              placeholder="e.g., DATABASE_URL, API_KEY"
               style={{ width: '100%' }}
+              disabled={!!editingKey}
             />
           </Form.Item>
 
@@ -308,11 +373,25 @@ const EnvironmentVariablesForm = () => {
             valuePropName="checked"
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Switch />
+              <Switch 
+                checked={currentIsSecret}
+                onChange={handleSecretSwitchChange}
+              />
               <Text>Treat as secret (value will be masked)</Text>
+              <Text type="secondary" style={{ marginLeft: 8 }}>
+                Current: {currentIsSecret ? 'Secret' : 'Plain'}
+              </Text>
             </div>
           </Form.Item>
         </Form>
+        
+        {/* Debug info - remove in production */}
+        <div style={{ marginTop: 16, padding: 8, background: '#f5f5f5', borderRadius: 4 }}>
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            Debug: Form isSecret: {form.getFieldValue('isSecret')?.toString()}, 
+            State isSecret: {currentIsSecret.toString()}
+          </Text>
+        </div>
       </Modal>
 
       {/* Bulk Edit Modal */}
@@ -333,28 +412,29 @@ const EnvironmentVariablesForm = () => {
           showIcon
           style={{ marginBottom: 16 }}
         />
-        
+
         <TextArea
           rows={10}
           placeholder={`DATABASE_URL=postgresql://user:pass@localhost:5432/db\nAPI_KEY=sk_1234567890\nDEBUG_MODE=false`}
           value={bulkText}
           onChange={(e) => setBulkText(e.target.value)}
-          style={{ 
+          style={{
             fontFamily: 'monospace',
             fontSize: '14px'
           }}
         />
-        
+
         <div style={{ marginTop: 8 }}>
           <Text type="secondary">Example format:</Text>
-          <pre style={{ 
-            background: '#f5f5f5', 
-            padding: '8px', 
+          <pre style={{
+            background: '#f5f5f5',
+            padding: '8px',
             borderRadius: '4px',
             fontSize: '12px',
             marginTop: '4px'
           }}>
-            KEY1=value1{'\n'}KEY2=value2{'\n'}SECRET_KEY=very_secret_value</pre>
+            KEY1=value1{'\n'}KEY2=value2{'\n'}SECRET_KEY=very_secret_value
+          </pre>
         </div>
       </Modal>
     </div>

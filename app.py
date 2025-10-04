@@ -33,6 +33,15 @@ from core.db import (
 from core.transpiler.generate_pyi import generate_pyi_stubs, CORE_LIBS
 from core.transpiler.lint_code import main as linter_main
 from core.compiler import compile_project
+from core.env_vars import (
+    get_all,
+    get_value,
+    create_value,
+    update_value,
+    delete_value,
+    bulk_create,
+    bulk_update,
+)
 
 
 CORE_LIBS_PATH = os.path.join(
@@ -226,7 +235,39 @@ class Api:
             except Exception as e:
                 print(f"❌ Compile failed: {e}")
             finally:
-                self.compile_queue.task_done()
+                self.compile_queue.task_done
+
+        # ------------------------
+
+    # Environment Variables
+    # ------------------------
+    def get_all_env(self):
+        """Return all environment variables."""
+        return get_all()
+
+    def get_env_value(self, key):
+        """Return a single environment variable."""
+        return get_value(key)
+
+    def create_env_value(self, key, value, is_secret=False):
+        """Create a new environment variable."""
+        return create_value(key, value, is_secret)
+
+    def update_env_value(self, key, value=None, is_secret=None):
+        """Update an existing environment variable."""
+        return update_value(key, value, is_secret)
+
+    def delete_env_value(self, key):
+        """Delete a specific environment variable."""
+        return delete_value(key)
+
+    def bulk_create_env(self, pairs):
+        """Create multiple environment variables at once."""
+        return bulk_create(pairs)
+
+    def bulk_update_env(self, pairs):
+        """Update multiple environment variables at once."""
+        return bulk_update(pairs)
 
 
 # ------------------------
