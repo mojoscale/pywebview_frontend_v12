@@ -1,4 +1,4 @@
-#define AppVer "0.0.5"
+#define AppVer "0.0.9"
 
 [Setup]
 ; Basic info

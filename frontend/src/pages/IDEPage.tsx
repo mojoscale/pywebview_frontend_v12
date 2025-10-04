@@ -97,6 +97,7 @@ const IDEPage: React.FC = () => {
       if (!monacoRef.current || !editorRef.current || !isApiReady) return;
       try {
         const board = project?.metadata?.platform || "arduino";
+        if (!isApiReady || !projectId || !window.pywebview?.api) return;
         const result = await window.pywebview.api.lint_code(currentCode, board);
         if (!result || !Array.isArray(result.errors)) {
           setErrors([]);

@@ -19,7 +19,6 @@ declare global {
     ) => Promise<{ errors: { line: number; column?: number; message: string }[] }>;
     compile_project: (args: { projectId: string; code?: string; platform?: string }) => Promise<any>;
 
-
     // Catch-all: allows new methods without type errors
     [key: string]: (...args: any[]) => Promise<any>;
   }
@@ -37,6 +36,9 @@ declare global {
 
     /** Called from backend when a new line is received from serial */
     onSerialLine?: (line: string) => void;
+
+    /** Called from backend when compiler/PlatformIO logs are emitted */
+    __appendTerminalLog?: (line: string) => void;
   }
 
   //

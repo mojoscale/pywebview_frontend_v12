@@ -14,12 +14,13 @@ from pathlib import Path
 from .utils import get_bundled_python_exe
 from .db import db_path as DB_PATH
 
-
 from core.transpiler.transpiler import main as transpiler_main
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 CORE_LIBS_PATH = os.path.join(BASE_DIR, "transpiler", "core_libs")
+
+# Global state to track installation
+_PLATFORMIO_INSTALLED = False
 
 
 def _get_relevant_platform_version(platform):
@@ -41,7 +42,7 @@ def find_first_serial_port():
     ports = list(serial.tools.list_ports.comports())
     if not ports:
         raise RuntimeError("❌ No serial ports found.")
-    return ports[0].device  # e.g., 'COM3' or '/dev/ttyUSB0'
+    return ports[0].device
 
 
 def is_platformio_installed(target_dir: str) -> bool:
@@ -187,6 +188,165 @@ def parse_platformio_result(stdout: str, stderr: str) -> dict:
     return result
 
 
+def install_platformio_once(user_app_dir: str):
+    """
+    Install PlatformIO once during app installation/setup.
+    This should be called separately from your main application setup.
+    """
+    global _PLATFORMIO_INSTALLED
+
+    if _PLATFORMIO_INSTALLED:
+        print("🟢 PlatformIO already installed (cached).")
+        return True
+
+    pio_home = os.path.join(user_app_dir, ".platformio")
+    python_exe = get_bundled_python_exe()
+
+    print("🚀 Installing PlatformIO for first-time use...")
+    print(f"🔍 Using Python: {python_exe}")
+    print(f"🔍 PlatformIO home: {pio_home}")
+
+    try:
+        # Use virtual environment approach for better reliability
+        venv_dir = os.path.join(pio_home, "platformio_venv")
+        marker_file = Path(venv_dir) / ".pio_installed"
+
+        if marker_file.exists():
+            print("🟢 PlatformIO virtual environment already exists.")
+            _PLATFORMIO_INSTALLED = True
+            return True
+
+        print(f"🔧 Creating virtual environment in: {venv_dir}")
+
+        # Create virtual environment
+        result = subprocess.run(
+            [python_exe, "-m", "venv", venv_dir], capture_output=True, text=True
+        )
+
+        if result.returncode != 0:
+            print(f"❌ Virtual environment creation failed: {result.stderr}")
+            return False
+
+        print("✅ Virtual environment created.")
+
+        # Get venv Python executable
+        if sys.platform == "win32":
+            venv_python = os.path.join(venv_dir, "Scripts", "python.exe")
+        else:
+            venv_python = os.path.join(venv_dir, "bin", "python")
+
+        # Wait a bit for venv to be fully ready
+        import time
+
+        time.sleep(2)
+
+        # Install PlatformIO
+        print("📦 Installing PlatformIO in virtual environment...")
+
+        # Upgrade pip first
+        pip_result = subprocess.run(
+            [venv_python, "-m", "pip", "install", "--upgrade", "pip"],
+            capture_output=True,
+            text=True,
+        )
+
+        if pip_result.returncode != 0:
+            print(f"⚠️ Pip upgrade had issues: {pip_result.stderr}")
+
+        # Install PlatformIO
+        pio_result = subprocess.run(
+            [venv_python, "-m", "pip", "install", "platformio"],
+            capture_output=True,
+            text=True,
+        )
+
+        if pio_result.returncode != 0:
+            print(f"❌ PlatformIO installation failed: {pio_result.stderr}")
+            return False
+
+        marker_file.write_text("installed")
+        print("✅ PlatformIO installed successfully!")
+
+        # Verify installation
+        verify_result = subprocess.run(
+            [
+                venv_python,
+                "-c",
+                'import platformio; print(f"PlatformIO version: {platformio.__version__}")',
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        if verify_result.returncode == 0:
+            print(f"✅ {verify_result.stdout.strip()}")
+        else:
+            print(f"⚠️ Verification had issues: {verify_result.stderr}")
+
+        _PLATFORMIO_INSTALLED = True
+        return True
+
+    except Exception as e:
+        print(f"❌ Unexpected error during PlatformIO installation: {e}")
+        return False
+
+
+def get_platformio_command(user_app_dir: str):
+    """
+    Get the PlatformIO command and environment for compilation.
+    This assumes PlatformIO is already installed via install_platformio_once().
+    """
+    pio_home = os.path.join(user_app_dir, ".platformio")
+    venv_dir = os.path.join(pio_home, "platformio_venv")
+
+    # Get the correct Python executable for the platform
+    if sys.platform == "win32":
+        venv_python = os.path.join(venv_dir, "Scripts", "python.exe")
+    else:
+        venv_python = os.path.join(venv_dir, "bin", "python")
+
+    # Verify the virtual environment exists
+    if not os.path.exists(venv_python):
+        # Try to install it automatically
+        print("🔄 PlatformIO not found, attempting automatic installation...")
+        success = install_platformio_once(user_app_dir)
+        if not success:
+            raise FileNotFoundError(
+                f"PlatformIO virtual environment not found at {venv_python} and "
+                f"automatic installation failed. Please run install_platformio_once() first."
+            )
+        # After installation, verify again
+        if not os.path.exists(venv_python):
+            raise FileNotFoundError(
+                f"PlatformIO virtual environment still not found at {venv_python} "
+                f"after installation attempt."
+            )
+
+    env = os.environ.copy()
+    env["PLATFORMIO_CORE_DIR"] = pio_home
+
+    # Test that PlatformIO is accessible
+    try:
+        result = subprocess.run(
+            [venv_python, "-c", "import platformio; print('PlatformIO available')"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        if result.returncode != 0:
+            print(f"⚠️ PlatformIO test had issues: {result.stderr}")
+            # Don't raise here, let it try to run anyway
+    except Exception as e:
+        print(f"⚠️ PlatformIO verification had issues: {e}")
+        # Don't raise here, let it try to run anyway
+
+    return [
+        venv_python,
+        "-c",
+        "import platformio.__main__; platformio.__main__.main()",
+    ], env
+
+
 async def compile_project(
     py_files: dict,
     board: str,
@@ -196,93 +356,80 @@ async def compile_project(
     port=None,
     dependencies=None,
 ):
-    commit_hash = str(uuid.uuid4()).replace("-", "_")
-    DB_CONN = sqlite3.connect(DB_PATH)
+    try:
+        commit_hash = str(uuid.uuid4()).replace("-", "_")
+        DB_CONN = sqlite3.connect(DB_PATH)
 
-    transpiler = transpiler_main(
-        commit_hash, DB_CONN, py_files, CORE_LIBS_PATH, platform
-    )
-
-    files = transpiler["code"]
-    dependencies = transpiler["dependencies"]
-    print("📦 Starting compilation...")
-
-    pio_home = os.path.join(user_app_dir, ".platformio")
-    python_exe = get_bundled_python_exe()
-    print(f"🔍 Python exe: {python_exe}")
-
-    # Get both the command AND the environment
-    pio_cmd, pio_env = bootstrap_pio(python_exe, pio_home)
-
-    build_dir = prepare_build_folder()
-    print(f"📁 Build folder prepared: {build_dir}")
-    write_transpiled_code(files, build_dir)
-    print("✍️ Transpiled files written.")
-    write_platformio_ini(board, platform, build_dir, dependencies=dependencies)
-    print(f"📝 platformio.ini written for board '{board}'.")
-
-    # Merge environments - THIS IS CRITICAL
-    env = os.environ.copy()
-    env.update(pio_env)  # Add the PYTHONPATH from bootstrap_pio
-    env["PLATFORMIO_CORE_DIR"] = pio_home
-
-    print(f"🚀 Running PlatformIO compile in: {build_dir}")
-    print(f"🔍 Command: {' '.join(pio_cmd)}")
-    print(f"🔍 PYTHONPATH: {env.get('PYTHONPATH', 'Not set')}")
-
-    stdout, stderr, code = await stream_command_to_terminal(
-        pio_cmd + ["run"], cwd=build_dir, env=env  # Make sure env is passed here
-    )
-
-    parsed = parse_platformio_result(stdout, stderr)
-    parsed["success"] = code == 0
-
-    if upload and code == 0:
-        actual_port = port or find_first_serial_port()
-        print(f"🧭 Selected serial port: {actual_port}")
-        release_serial_port(actual_port)
-        await asyncio.sleep(1)
-        u_stdout, u_stderr, u_code = await stream_command_to_terminal(
-            pio_cmd + ["run", "-t", "upload", f"--upload-port={actual_port}"],
-            cwd=build_dir,
-            env=env,  # Make sure env is passed here too
+        transpiler = transpiler_main(
+            commit_hash, DB_CONN, py_files, CORE_LIBS_PATH, platform
         )
-        parsed["upload_success"] = u_code == 0
-        parsed["upload_port"] = actual_port
 
-    return {
-        **parsed,
-        "board": board,
-        "platform": platform,
-        "build_dir": str(build_dir),
-        "returncode": code,
-    }
+        files = transpiler["code"]
+        dependencies = transpiler["dependencies"]
+        print("📦 Starting compilation...")
 
+        # Get PlatformIO command - this will automatically install if needed
+        pio_cmd, pio_env = get_platformio_command(user_app_dir)
 
-def bootstrap_pio(python_exe: str, pio_home: str):
-    target_dir = os.path.join(pio_home, "platformio_packages")
-    os.makedirs(target_dir, exist_ok=True)
+        build_dir = prepare_build_folder()
+        print(f"📁 Build folder prepared: {build_dir}")
+        write_transpiled_code(files, build_dir)
+        print("✍️ Transpiled files written.")
+        write_platformio_ini(board, platform, build_dir, dependencies=dependencies)
+        print(f"📝 platformio.ini written for board '{board}'.")
 
-    # Check if already installed
-    if is_platformio_installed(target_dir):
-        print("🟢 PlatformIO already installed.")
-        env = {"PYTHONPATH": target_dir + os.pathsep + os.environ.get("PYTHONPATH", "")}
-        return [python_exe, "-m", "platformio"], env
+        # Merge environments
+        env = os.environ.copy()
+        env.update(pio_env)
 
-    print(f"📦 Installing PlatformIO to: {target_dir}")
-    install_cmd = [
-        python_exe,
-        "-m",
-        "pip",
-        "install",
-        "--target",
-        target_dir,
-        "platformio",
-    ]
-    subprocess.run(install_cmd, check=True)
+        print(f"🚀 Running PlatformIO compile in: {build_dir}")
+        print(f"🔍 Command: {' '.join(pio_cmd)}")
+        print(f"🔍 Working Directory: {build_dir}")
 
-    env = {"PYTHONPATH": target_dir + os.pathsep + os.environ.get("PYTHONPATH", "")}
-    return [python_exe, "-m", "platformio"], env
+        stdout, stderr, code = await stream_command_to_terminal(
+            pio_cmd + ["run"], cwd=build_dir, env=env
+        )
+
+        parsed = parse_platformio_result(stdout, stderr)
+        parsed["success"] = code == 0
+
+        if upload and code == 0:
+            actual_port = port or find_first_serial_port()
+            print(f"🧭 Selected serial port: {actual_port}")
+            release_serial_port(actual_port)
+            await asyncio.sleep(1)
+            u_stdout, u_stderr, u_code = await stream_command_to_terminal(
+                pio_cmd + ["run", "-t", "upload", f"--upload-port={actual_port}"],
+                cwd=build_dir,
+                env=env,
+            )
+            parsed["upload_success"] = u_code == 0
+            parsed["upload_port"] = actual_port
+
+        return {
+            **parsed,
+            "board": board,
+            "platform": platform,
+            "build_dir": str(build_dir),
+            "returncode": code,
+        }
+
+    except FileNotFoundError as e:
+        error_msg = f"PlatformIO not installed: {e}"
+        print(f"❌ {error_msg}")
+        return {
+            "success": False,
+            "errors": [error_msg],
+            "returncode": -1,
+        }
+    except Exception as e:
+        error_msg = f"Unexpected error during compilation: {e}"
+        print(f"❌ {error_msg}")
+        return {
+            "success": False,
+            "errors": [error_msg],
+            "returncode": -1,
+        }
 
 
 def prepare_build_folder():
@@ -376,3 +523,9 @@ def write_platformio_ini(
 
     with open(ini_path) as f:
         print("📄 Final platformio.ini content:\n" + f.read())
+
+
+# Convenience function to check and install PlatformIO if needed
+def ensure_platformio_installed(user_app_dir: str):
+    """Ensure PlatformIO is installed, install if needed."""
+    return install_platformio_once(user_app_dir)

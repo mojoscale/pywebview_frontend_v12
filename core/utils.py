@@ -103,10 +103,19 @@ def get_resource_path(relative_path):
 
 
 def get_bundled_python_exe():
-    # 1. If app ships with its own env folder, use that first
-    local_env = os.path.join(os.path.dirname(__file__), "env", "Scripts", "python.exe")
-    if os.path.exists(local_env):
-        return local_env
-
-    # 2. Otherwise, always use current interpreter
-    return sys.executable
+    """
+    Get the correct Python executable for both dev and packaged environments.
+    """
+    # If we're in a packaged app (Nuitka, PyInstaller, etc.)
+    if hasattr(sys, "_MEIPASS"):
+        # In packaged mode, use the bundled Python
+        if sys.platform == "win32":
+            # Windows packaged app - Python should be in the same directory
+            python_exe = os.path.join(os.path.dirname(sys.executable), "python.exe")
+            if os.path.exists(python_exe):
+                return python_exe
+        # Fallback to sys.executable (the packaged app itself might be Python)
+        return sys.executable
+    else:
+        # Development mode - use current Python
+        return sys.executable

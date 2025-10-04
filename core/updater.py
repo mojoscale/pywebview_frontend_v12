@@ -8,7 +8,7 @@ import tempfile
 import subprocess
 
 # Keep this in sync with your build script
-APP_VERSION = "0.0.8"
+APP_VERSION = "0.0.9"
 # Your server endpoint that returns {"version": "...", "download_url": "..."}
 BASE_SERVER_URL = "https://mojoscale-1c7e8.web.app"
 UPDATE_URL = f"{BASE_SERVER_URL}/latest_version.json"
