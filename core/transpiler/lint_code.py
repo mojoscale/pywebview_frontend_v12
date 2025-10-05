@@ -247,7 +247,7 @@ class LintCode(ast.NodeVisitor):
         self.add_error(node, f"'from {node.module} import ...' is not allowed")
         self.generic_visit(node)
 
-    def _save_function_args(self, node):
+    """def _save_function_args(self, node):
         return_type = None
         func_name = node.name
         if node.returns:
@@ -268,6 +268,57 @@ class LintCode(ast.NodeVisitor):
             json.dumps(save_args),
             return_type,
         )
+
+        return"""
+
+    def _save_function_args(self, node):
+        func_name = node.name
+        return_type = None
+
+        # Handle return type safely
+        try:
+            if node.returns:
+                return_type = self.type_analyzer._extract_annotation(node.returns)
+        except Exception as ex:
+            self.add_error(
+                node,
+                f"Invalid return type annotation in function '{func_name}': {str(ex)}",
+            )
+            return_type = None
+
+        save_args = []
+
+        for arg in node.args.args:
+            arg_name = arg.arg
+            try:
+                if arg.annotation is not None:
+                    arg_type = self.type_analyzer._extract_annotation(arg.annotation)
+                else:
+                    arg_type = None
+            except Exception as ex:
+                # gracefully record the issue, not crash
+                self.add_error(
+                    arg,
+                    f"Invalid type annotation for argument '{arg_name}' in function '{func_name}': {str(ex)}",
+                )
+                arg_type = None
+
+            save_args.append({"arg_name": arg_name, "arg_type": arg_type})
+
+        # Save method metadata anyway so rest of linting works
+        try:
+            self.dependency_resolver._insert_method(
+                func_name,
+                None,
+                self.module_name,
+                "user",
+                json.dumps(save_args),
+                return_type,
+            )
+        except Exception as ex:
+            self.add_error(
+                node, f"Internal error saving metadata for '{func_name}': {str(ex)}"
+            )
 
         return
 
@@ -409,8 +460,8 @@ class LintCode(ast.NodeVisitor):
 
     def visit_Call(self, node):
         # can only be called within function
-        if self.scope == "global":
-            self.add_error(node, "Methods can be only called within a function body.")
+        """if self.scope == "global":
+        self.add_error(node, "Methods can be only called within a function body.")"""
         func = node.func
 
         call_args = []
@@ -460,6 +511,12 @@ class LintCode(ast.NodeVisitor):
                             method_name, module_name=module_name, class_name=None
                         )
 
+                        if self.scope == "global":
+                            self.add_error(
+                                node,
+                                "Methods can be only called within a function body.",
+                            )
+
                     if not method_metadata:
                         self.add_error(
                             node,
@@ -476,9 +533,17 @@ class LintCode(ast.NodeVisitor):
 
                 else:
                     # its a variable
+                    print(f"{base_name} is a variable.")
+                    if self.scope == "global":
+                        self.add_error(
+                            node,
+                            "Methods can be only called within a function body.",
+                        )
                     variable_type = self.dependency_resolver.get_variable_type(
                         base_name, self.scope
                     )
+
+                    print(f"found {base_name} as type {variable_type}.")
 
                     if is_core_python_type(variable_type):
                         pass
@@ -514,6 +579,11 @@ class LintCode(ast.NodeVisitor):
         elif isinstance(node.func, ast.Name):
             # direct function call which is defined in
             # current module
+            if self.scope == "global":
+                self.add_error(
+                    node,
+                    "Methods can be only called within a function body.",
+                )
             method_name = node.func.id
 
             if is_builtin_function(method_name):

@@ -33,7 +33,7 @@ from core.db import (
 from core.transpiler.generate_pyi import generate_pyi_stubs, CORE_LIBS
 from core.transpiler.lint_code import main as linter_main
 from core.compiler import compile_project
-from core.env_vars import (
+from core.env_manager import (
     get_all,
     get_value,
     create_value,
@@ -42,6 +42,8 @@ from core.env_vars import (
     bulk_create,
     bulk_update,
 )
+
+from core.core_modules_index_generator import main as docs_generator
 
 
 CORE_LIBS_PATH = os.path.join(
@@ -284,6 +286,7 @@ if __name__ == "__main__":
     if DEV:
         window_url = "http://localhost:5173"
         generate_pyi_stubs(CORE_LIBS)
+        docs_generator()
     else:
         frontend_path = Path(__file__).parent / "frontend" / "dist" / "index.html"
         window_url = frontend_path.as_uri()

@@ -2,7 +2,7 @@ import os
 import ast
 import json
 
-CORE_MODULES_DIR = os.path.join(os.path.dirname(__file__), "core_libs")
+CORE_MODULES_DIR = os.path.join(os.path.dirname(__file__), "transpiler", "core_libs")
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "core_modules_index.json")
 
 

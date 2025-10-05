@@ -365,6 +365,7 @@ async def compile_project(
         )
 
         files = transpiler["code"]
+        print(files)
         dependencies = transpiler["dependencies"]
         print("📦 Starting compilation...")
 

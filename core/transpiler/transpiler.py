@@ -9,9 +9,15 @@ from pathlib import Path
 import builtins
 import types
 import os
+
+
+# move this to arg later
+from core.utils import get_app_dir
+
+ENV_PATH = Path(get_app_dir()) / ".env"
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(ENV_PATH)
 
 
 LIST_ALLOWED_TYPES = [str, int, bool, float]

@@ -297,12 +297,12 @@
     "classes": [
       {
         "name": "AsyncWebServerRequest",
-        "doc": "Dummy for AsyncWebServerRequest* in ESPAsyncWebServer.\n\nThis class simulates methods available in an HTTP request object\nfor async handling on ESP32/ESP8266.",
+        "doc": "No docstring available",
         "methods": [
           {
             "name": "__init__",
             "signature": "(self)",
-            "doc": "No docstring available"
+            "doc": "    Initializes a new instance of the asynchronous HTTP server.\n\nThis constructor creates an `AsyncWebServer` object bound to a specific\nnetwork port. Once instantiated, you can register HTTP route handlers\nusing the `on()` method and start the server with `begin()`.\n\nThis class serves as a Python stub for the C++ `AsyncWebServer` class from\nthe **ESPAsyncWebServer** library, commonly used on ESP32 and ESP8266 boards.\nThe actual implementation is handled by the corresponding C++ library when\nthe transpiler generates the final firmware code.\n\n**Usage Example (Python \u2192 Arduino Transpilation):**\n    ```python\n    import async_webserver as a\n\n    server = a.AsyncWebServer(80)\n\n    def handle_root(request:a.AsyncWebServerRequest) -> None:\n        request.send(200, \"text/plain\", \"Hello from ESP!\")\n\n\n    def setup()->None:\n        server.on(\"/\", HTTP_GET, handle_root)\n        server.begin()\n\n\n    def loop()->None:\n        pass\n    ```\n\n\nArgs:\n    port (int):\n        The TCP port number on which the HTTP server will listen.\n        Typically, 80 is used for standard HTTP and 443 for HTTPS.\nReturns:\n    None"
           },
           {
             "name": "send",

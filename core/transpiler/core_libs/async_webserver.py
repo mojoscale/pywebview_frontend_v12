@@ -1,24 +1,58 @@
-#__include_modules__ = "ESPAsyncWebServer"
+# __include_modules__ = "ESPAsyncWebServer"
 
-__include_modules__ = {"espressif8266":"ESPAsyncWebServer", 
-"espressif32":"ESPAsyncWebServer,AsyncTCP"}
+__include_modules__ = {
+    "espressif8266": "ESPAsyncWebServer",
+    "espressif32": "ESPAsyncWebServer,AsyncTCP",
+}
 __include_internal_modules__ = ""
 __dependencies__ = "me-no-dev/ESPAsyncWebServer,me-no-dev/AsyncTCP"
 
 
 class AsyncWebServerRequest:
-    """
-    Dummy for AsyncWebServerRequest* in ESPAsyncWebServer.
-
-    This class simulates methods available in an HTTP request object
-    for async handling on ESP32/ESP8266.
-
-    """
+    """ """
 
     def __init__(self):
-        __pass_as__="pointer"
+        """
+            Initializes a new instance of the asynchronous HTTP server.
+
+        This constructor creates an `AsyncWebServer` object bound to a specific
+        network port. Once instantiated, you can register HTTP route handlers
+        using the `on()` method and start the server with `begin()`.
+
+        This class serves as a Python stub for the C++ `AsyncWebServer` class from
+        the **ESPAsyncWebServer** library, commonly used on ESP32 and ESP8266 boards.
+        The actual implementation is handled by the corresponding C++ library when
+        the transpiler generates the final firmware code.
+
+        **Usage Example (Python → Arduino Transpilation):**
+            ```python
+            import async_webserver as a
+
+            server = a.AsyncWebServer(80)
+
+            def handle_root(request:a.AsyncWebServerRequest) -> None:
+                request.send(200, "text/plain", "Hello from ESP!")
+
+
+            def setup()->None:
+                server.on("/", HTTP_GET, handle_root)
+                server.begin()
+
+
+            def loop()->None:
+                pass
+            ```
+
+
+        Args:
+            port (int):
+                The TCP port number on which the HTTP server will listen.
+                Typically, 80 is used for standard HTTP and 443 for HTTPS.
+        Returns:
+            None
+        """
+        __pass_as__ = "pointer"
         __class_actual_type__ = ""
-        
 
     def send(self, status_code: int, content_type: str, body: str) -> None:
         """
@@ -84,7 +118,7 @@ class AsyncWebServer:
         __translation__ = "({1})"
         __class_actual_type__ = "AsyncWebServer"
         __construct_with_equal_to__ = False
-        __pass_as__="reference"
+        __pass_as__ = "reference"
         pass
 
     def on(self, path: str, method: str, handler) -> None:
@@ -127,5 +161,7 @@ class AsyncWebServer:
             None
         """
         __use_as_is__ = False
-        __translation__ = "custom_serve_static({0}, {1}.c_str(), LITTLEFS, {2}.c_str(), {3})"
+        __translation__ = (
+            "custom_serve_static({0}, {1}.c_str(), LITTLEFS, {2}.c_str(), {3})"
+        )
         pass
