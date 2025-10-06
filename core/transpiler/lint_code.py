@@ -286,14 +286,19 @@ class LintCode(ast.NodeVisitor):
             )
             return_type = None
 
-        save_args = []
+        saved_args = []
 
         for arg in node.args.args:
             arg_name = arg.arg
             try:
                 if arg.annotation is not None:
                     arg_type = self.type_analyzer._extract_annotation(arg.annotation)
+                    print(f"{arg_name} is found to be of type {arg_type}")
                 else:
+                    self.add_error(
+                        arg,
+                        f"Invalid type annotation for argument '{arg_name}' in function '{func_name}': {str(ex)}",
+                    )
                     arg_type = None
             except Exception as ex:
                 # gracefully record the issue, not crash
@@ -303,7 +308,7 @@ class LintCode(ast.NodeVisitor):
                 )
                 arg_type = None
 
-            save_args.append({"arg_name": arg_name, "arg_type": arg_type})
+            saved_args.append({"arg_name": arg_name, "arg_type": arg_type})
 
         # Save method metadata anyway so rest of linting works
         try:
@@ -312,12 +317,25 @@ class LintCode(ast.NodeVisitor):
                 None,
                 self.module_name,
                 "user",
-                json.dumps(save_args),
+                json.dumps(saved_args),
                 return_type,
             )
         except Exception as ex:
             self.add_error(
                 node, f"Internal error saving metadata for '{func_name}': {str(ex)}"
+            )
+
+        # finally save the arg types
+        for arg in saved_args:
+            print(
+                f'saving arg {arg["arg_name"]} of type {arg["arg_type"]} for scope {self.scope}'
+            )
+            self.dependency_resolver.insert_variable(
+                arg["arg_name"],
+                arg["arg_type"],
+                self.module_name,
+                "user",
+                scope=self.scope,
             )
 
         return
@@ -363,11 +381,13 @@ class LintCode(ast.NodeVisitor):
                     f"Argument '{arg.arg}' in function '{func_name}' must have a type annotation",
                 )
 
+        # save function args before body traversal.
+
+        self._save_function_args(node)
+
         # Recursively visit body of the function
         for stmt in node.body:
             self.visit(stmt)
-
-        self._save_function_args(node)
 
         # After body, reset scope to global
         self.scope = "global"
@@ -543,7 +563,9 @@ class LintCode(ast.NodeVisitor):
                         base_name, self.scope
                     )
 
-                    print(f"found {base_name} as type {variable_type}.")
+                    print(
+                        f"found {base_name} as type {variable_type} for scope {self.scope}."
+                    )
 
                     if is_core_python_type(variable_type):
                         pass
@@ -554,6 +576,10 @@ class LintCode(ast.NodeVisitor):
                             self.dependency_resolver.get_variable_module_name(
                                 base_name, self.scope
                             )
+                        )
+
+                        print(
+                            f"{base_name} has module of {variable_module_name} and variable_type {variable_type}"
                         )
                         method_metadata = self.dependency_resolver.get_method_metadata(
                             method_name, module_name=None, class_name=variable_type

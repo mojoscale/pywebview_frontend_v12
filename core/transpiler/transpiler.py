@@ -466,7 +466,7 @@ class DependencyResolver:
             query = f"""
             SELECT method_name, return_type, args
             FROM {methods_table}
-            WHERE method_name = ? AND module_name = ? AND class_name IS ?
+            WHERE method_name = ? AND module_name = ? AND class_name = ?
             """
 
             self.cursor.execute(query, (method_name, module_name, class_name))
@@ -475,7 +475,7 @@ class DependencyResolver:
             query = f"""
             SELECT method_name, return_type, args
             FROM {methods_table}
-            WHERE method_name = ? AND  class_name IS ?
+            WHERE method_name = ? AND  class_name = ?
             """
 
             self.cursor.execute(query, (method_name, class_name))
@@ -964,8 +964,10 @@ class DependencyResolver:
         return None
 
     def get_variable_type(self, variable_name, scope):
+        print(f"checking type for {variable_name} in scope {scope}")
         if scope != "global":
             var_type = self._exec_get_variable_type_query(variable_name, scope)
+            print(f"got type {var_type} for {variable_name} in scope {scope}")
             if var_type:
                 return var_type
 
@@ -1635,31 +1637,45 @@ class TypeAnalyzer:
         return "auto"
 
     def _extract_annotation(self, node):
+        """Extract only the final type name(s) from an annotation node."""
+
+        if node is None:
+            return None
+
+        # Simple names like int, str, float
         if isinstance(node, ast.Name):
-            # Basic type like int, str
             return node.id
 
+        # Qualified attributes like a.SomeType or x.y.Type -> return only final part
+        elif isinstance(node, ast.Attribute):
+            return node.attr
+
+        # Subscripted types: e.g. List[int], Dict[str, a.Type]
         elif isinstance(node, ast.Subscript):
+            # Get the main type (e.g. "List" or "Dict")
             base = self._extract_annotation(node.value)
 
-            if hasattr(node.slice, "value"):  # Python < 3.9
-                sub = node.slice.value
-            else:
-                sub = node.slice
+            # Handle slice difference between Python <3.9 and >=3.9
+            sub = node.slice.value if hasattr(node.slice, "value") else node.slice
 
+            # Get inner types recursively
             if isinstance(sub, ast.Tuple):
                 inner = [self._extract_annotation(elt) for elt in sub.elts]
             else:
                 inner = [self._extract_annotation(sub)]
 
+            # Combine all relevant type names
             return ",".join([base] + inner)
 
-        elif isinstance(node, ast.Attribute):
-            return f"{node.attr}"
-
+        # Handle None, Optional[None], etc.
         elif isinstance(node, ast.Constant) and node.value is None:
             return "None"
 
+        # Handle string literal annotations (PEP 563)
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+
+        # If nothing matches, raise to catch unsupported structures
         raise ValueError(f"Unsupported annotation node: {ast.dump(node)}")
 
 

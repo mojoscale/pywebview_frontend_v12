@@ -4,7 +4,7 @@ __include_modules__ = {
     "espressif8266": "ESPAsyncWebServer",
     "espressif32": "ESPAsyncWebServer,AsyncTCP",
 }
-__include_internal_modules__ = ""
+__include_internal_modules__ = "helpers/AsyncWebServerHelper"
 __dependencies__ = "me-no-dev/ESPAsyncWebServer,me-no-dev/AsyncTCP"
 
 
@@ -134,7 +134,8 @@ class AsyncWebServer:
             None
         """
         __use_as_is__ = False
-        __translation__ = "{0}.on({1}.c_str(), {2}, {3})"
+        # __translation__ = "{0}.on({1}.c_str(), {2}, {3})"
+        __translation__ = "async_server_on({0}, {1}, {2}, {3})"
         pass
 
     def begin(self) -> None:
