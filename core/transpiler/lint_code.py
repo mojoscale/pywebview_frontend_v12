@@ -379,6 +379,26 @@ class LintCode(ast.NodeVisitor):
         else:
             # Assume user-defined or imported type
             # No validation errors — acceptable as "custom type"
+            print(f"hoo hoo haa haa got type {annotation_type}")
+
+            is_class_valid = self.dependency_resolver.is_module_class(annotation_type)
+
+            if not is_class_valid:
+                closest_class_name = self.dependency_resolver.get_closest_class_name(
+                    annotation_type
+                )
+
+                if closest_class_name:
+                    self.add_error(
+                        node,
+                        f"{annotation_type} is neither imported nor defined anywhere. Did you mean {closest_class_name}?",
+                    )
+
+                else:
+                    self.add_error(
+                        node,
+                        f"{annotation_type} is neither imported nor defined anywhere. Check this and try again.",
+                    )
             return
 
     def _save_function_args(self, node):

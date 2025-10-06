@@ -149,26 +149,17 @@ const IDEPage: React.FC = () => {
       triggerCharacters: [".", "(", "[", '"', "'", " ", ","],
       provideCompletionItems: async (model, position) => {
         try {
-          // Check if API is available
           if (!window.pywebview?.api?.get_completions) {
             console.warn("Autocomplete API not available");
             return { suggestions: [] };
           }
 
           const code = model.getValue();
-          const line = position.lineNumber - 1; // Convert to 0-based
-          const column = position.column - 1;   // Convert to 0-based
+          const line = position.lineNumber - 1;
+          const column = position.column - 1;
 
-          console.log("Requesting completions at:", { line, column });
-          
           const response = await window.pywebview.api.get_completions(code, line, column);
-          
-          if (!Array.isArray(response)) {
-            console.warn("Invalid completion response:", response);
-            return { suggestions: [] };
-          }
-
-          console.log("Received completions:", response.length);
+          if (!Array.isArray(response)) return { suggestions: [] };
 
           const suggestions = response.map((item: CompletionItem) => ({
             label: item.label,
@@ -185,15 +176,12 @@ const IDEPage: React.FC = () => {
           }));
 
           return { suggestions };
-
         } catch (err) {
           console.error("[ERROR] Autocomplete request failed:", err);
           return { suggestions: [] };
         }
       },
     });
-
-    console.log("✅ Autocomplete provider registered");
   }, []);
 
   const handleEditorDidMount = (
@@ -203,7 +191,6 @@ const IDEPage: React.FC = () => {
     editorRef.current = editor;
     monacoRef.current = monacoInstance;
 
-    // ✅ Register autocomplete provider
     registerCompletionProvider(monacoInstance);
 
     let changeTimeout: ReturnType<typeof setTimeout>;
@@ -214,13 +201,8 @@ const IDEPage: React.FC = () => {
       }, 300);
     });
 
-    // ✅ Enable more completion features
     editor.updateOptions({
-      quickSuggestions: { 
-        other: true, 
-        comments: false, 
-        strings: true 
-      },
+      quickSuggestions: { other: true, comments: false, strings: true },
       suggestOnTriggerCharacters: true,
       acceptSuggestionOnEnter: "on",
       tabCompletion: "on",
@@ -228,7 +210,6 @@ const IDEPage: React.FC = () => {
     });
   };
 
-  // Cleanup
   useEffect(() => {
     return () => {
       if (completionProviderRef.current) {
@@ -245,12 +226,14 @@ const IDEPage: React.FC = () => {
     };
   }, []);
 
-  // ---------- save ----------
+  // ---------- save (updated to lint after save) ----------
   const handleSaveProject = async () => {
     if (!window.pywebview?.api || !isApiReady || !projectId) return;
     try {
       await window.pywebview.api.save_project_files(projectId, code);
       message.success("Project saved!");
+      // 🧠 Immediately lint after save
+      await lintCode(code);
     } catch (err) {
       console.error("❌ Error saving project:", err);
       message.error("Failed to save project");
@@ -273,26 +256,18 @@ const IDEPage: React.FC = () => {
     if (!window.pywebview?.api || !isApiReady || !projectId) return;
 
     try {
-      // 1. Save first
       await window.pywebview.api.save_project_files(projectId, code);
       message.success("Project saved, starting compile...");
 
-      // 2. Call backend compile
       const result = await window.pywebview.api.compile(projectId);
-      console.log("Compile result:", result);
-
-      if (result.success) {
-        message.success("✅ Compilation successful!");
-      } else {
-        message.error("❌ Compilation failed: " + (result.error || "Check logs"));
-      }
+      if (result.success) message.success("✅ Compilation successful!");
+      else message.error("❌ Compilation failed: " + (result.error || "Check logs"));
     } catch (err) {
       console.error("❌ Compile error:", err);
       message.error("Compilation failed");
     }
   };
 
-  // UI ----------
   if (!isApiReady) {
     return (
       <Layout style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -304,7 +279,6 @@ const IDEPage: React.FC = () => {
   return (
     <Layout style={{ minHeight: "100vh", overflow: "hidden" }}>
       <Layout>
-        {/* Sidebar */}
         <Sider width={400} theme="light">
           <div style={{ padding: "12px 16px", borderBottom: "1px solid #f0f0f0" }}>
             <Title level={5} style={{ margin: 0 }}>
@@ -320,10 +294,8 @@ const IDEPage: React.FC = () => {
           </div>
         </Sider>
 
-        {/* Main Section */}
         <Layout style={{ background: "#fff" }}>
           <Content style={{ padding: "12px", display: "flex", flexDirection: "column", height: "100vh" }}>
-            {/* Header */}
             <Card size="small" style={{ marginBottom: 12 }} bodyStyle={{ padding: "12px" }}>
               {loading ? (
                 <Spin size="small" />
@@ -356,7 +328,6 @@ const IDEPage: React.FC = () => {
               )}
             </Card>
 
-            {/* Editor */}
             <Card
               style={{ flex: 1, display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" }}
               bodyStyle={{ padding: 0, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}
@@ -382,11 +353,7 @@ const IDEPage: React.FC = () => {
                     occurrencesHighlight: "off",
                     selectionHighlight: false,
                     suggestOnTriggerCharacters: true,
-                    quickSuggestions: { 
-                      other: true, 
-                      comments: false, 
-                      strings: true 
-                    },
+                    quickSuggestions: { other: true, comments: false, strings: true },
                     parameterHints: { enabled: true },
                     wordBasedSuggestions: "allDocuments",
                     acceptSuggestionOnEnter: "on",
@@ -395,7 +362,6 @@ const IDEPage: React.FC = () => {
                 />
               </div>
 
-              {/* Problems panel */}
               {errors.length > 0 && (
                 <List
                   size="small"

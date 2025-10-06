@@ -608,6 +608,48 @@ class DependencyResolver:
 
         return "reference"
 
+    def get_closest_class_name(self, input_name, cutoff=0.5):
+        """
+        Return the class_name that most closely matches input_name
+        from the current commit's _methods table.
+
+        Args:
+            input_name (str): Possibly misspelled class name.
+            cutoff (float): Similarity threshold (0–1). Defaults to 0.5.
+
+        Returns:
+            str | None: Closest class name or None if no close match found.
+        """
+        import difflib
+
+        table_name = f"{self.current_id}_methods"
+
+        try:
+            self.cursor.execute(
+                f"SELECT DISTINCT class_name FROM {table_name} WHERE class_name IS NOT NULL"
+            )
+            class_names = [row[0] for row in self.cursor.fetchall() if row[0]]
+
+            if not class_names:
+                print("[DEBUG] No class names found in table.")
+                return None
+
+            matches = difflib.get_close_matches(
+                input_name, class_names, n=1, cutoff=cutoff
+            )
+            if matches:
+                print(
+                    f"[DEBUG] Closest class name for '{input_name}' is '{matches[0]}'"
+                )
+                return matches[0]
+            else:
+                print(f"[DEBUG] No close match found for '{input_name}'")
+                return None
+
+        except Exception as e:
+            print(f"[ERROR] Failed to find closest class name: {e}")
+            return None
+
     def class_constructor_use_equal_to(self, class_name) -> bool:
         methods_table = f"{self.current_id}_methods"
 
