@@ -158,15 +158,40 @@ class LintCode(ast.NodeVisitor):
                 ]
             }
         except Exception as ex:
+            # Capture traceback details
+            tb = sys.exc_info()[2]
+            extracted = traceback.extract_tb(tb)
             detailed_trace = traceback.format_exc()
+
+            # Try to find the first relevant frame inside *your own* project files
+            offending_line = 1
+            offending_file = None
+            offending_func = None
+
+            for frame in reversed(extracted):  # go from inner to outer
+                if "lint_code.py" in frame.filename or "transpiler" in frame.filename:
+                    offending_line = frame.lineno
+                    offending_file = frame.filename
+                    offending_func = frame.name
+                    break
+            else:
+                # fallback: last frame of the traceback
+                if extracted:
+                    offending_line = extracted[-1].lineno
+                    offending_file = extracted[-1].filename
+                    offending_func = extracted[-1].name
+
             return {
                 "errors": [
                     {
-                        "line": 1,
+                        "line": offending_line,
                         "column": 1,
                         "message": (
                             "Unexpected internal error during linting:\n"
-                            f"{str(ex)}\n\n"
+                            f"{type(ex).__name__}: {str(ex)}\n"
+                            f"File: {offending_file or '<unknown>'}, "
+                            f"Function: {offending_func or '<unknown>'}, "
+                            f"Line: {offending_line}\n\n"
                             "Full traceback:\n"
                             f"{detailed_trace}"
                         ),
@@ -175,7 +200,6 @@ class LintCode(ast.NodeVisitor):
             }
 
         self.run_global_checks()
-
         return {"errors": self.errors}
 
     def is_core_module(self, import_name: str) -> bool:
@@ -271,6 +295,92 @@ class LintCode(ast.NodeVisitor):
 
         return"""
 
+    def check_annotation_validity(self, annotation_type, node):
+        """
+        Validate a parsed annotation string.
+
+        Rules:
+          - Base Python types allowed: int, str, float, bool, list, dict
+          - list must be 'list,<element>'
+          - dict must be 'dict,<key>,<value>'
+          - list element types allowed: int, bool, float, str
+          - dict key must be str; value can be int, bool, float, str
+        """
+
+        if not annotation_type or not isinstance(annotation_type, str):
+            return  # ignore empty or invalid input
+
+        base_parts = annotation_type.split(",")
+        base_type = base_parts[0]
+
+        ALLOWED_BASE = {"int", "str", "float", "bool", "list", "dict"}
+        ALLOWED_ELEM = {"int", "str", "float", "bool"}
+
+        annotation_label = annotation_type
+
+        if len(base_parts) == 1:
+            annotation_label = annotation_type
+        elif len(base_parts) == 2:
+            annotation_label = f"{base_parts[0]}[{base_parts[1]}]"
+        elif len(base_parts) == 3:
+            annotation_label = f"{base_parts[0]}[{base_parts[1]}, {base_parts[2]}]"
+
+        # --- Case 1: Base type is a core Python type ---
+        if base_type in ALLOWED_BASE:
+            # Simple scalar type (no extra commas)
+            if base_type in {"int", "str", "float", "bool"}:
+                if len(base_parts) > 1:
+                    self.add_error(
+                        node,
+                        f"Annotation '{annotation_label}' is invalid — '{base_type}' should not have subtypes.",
+                    )
+                return
+
+            # --- list ---
+            if base_type == "list":
+                if len(base_parts) != 2:
+                    self.add_error(
+                        node,
+                        f"Annotation '{annotation_label}' is invalid — list must specify one subtype (e.g. 'list[int]').",
+                    )
+                    return
+
+                subtype = base_parts[1]
+                if subtype not in ALLOWED_ELEM:
+                    self.add_error(
+                        node,
+                        f"Annotation '{annotation_label}' is invalid — list element type must be one of {ALLOWED_ELEM}.",
+                    )
+                return
+
+            # --- dict ---
+            if base_type == "dict":
+                if len(base_parts) != 3:
+                    self.add_error(
+                        node,
+                        f"Annotation '{annotation_label}' is invalid — dict must specify key and value (e.g. 'dict[str, int]').",
+                    )
+                    return
+
+                key_type, val_type = base_parts[1], base_parts[2]
+                if key_type != "str":
+                    self.add_error(
+                        node,
+                        f"Annotation '{annotation_label}' is invalid — dict key type must be 'str'.",
+                    )
+                if val_type not in ALLOWED_ELEM:
+                    self.add_error(
+                        node,
+                        f"Annotation '{annotation_label}' is invalid — dict value type must be one of {ALLOWED_ELEM}.",
+                    )
+                return
+
+        # --- Case 2: Custom types (not in allowed base types) ---
+        else:
+            # Assume user-defined or imported type
+            # No validation errors — acceptable as "custom type"
+            return
+
     def _save_function_args(self, node):
         func_name = node.name
         return_type = None
@@ -293,7 +403,7 @@ class LintCode(ast.NodeVisitor):
             try:
                 if arg.annotation is not None:
                     arg_type = self.type_analyzer._extract_annotation(arg.annotation)
-                    print(f"{arg_name} is found to be of type {arg_type}")
+                    self.check_annotation_validity(arg_type, node)
                 else:
                     self.add_error(
                         arg,
@@ -341,33 +451,34 @@ class LintCode(ast.NodeVisitor):
         return
 
     def visit_FunctionDef(self, node):
-        if self.scope != "global":
-            # function is defined within another function
-            error_text = "Function within function not allowed."
-            self.add_error(node, error_text)
-
-        if self.is_within_If or self.is_within_For or self.is_within_While:
-            self.add_error(
-                node,
-                "Function cannot be defined within logical constructors like If/For/While.",
-            )
-
         func_name = node.name
+
+        # check current scope, if its not global, then function is defined
+        # within function and not valid.
+
+        if self.scope != "global":
+            self.add_error(node, "Function within function not allowed.")
+        if self.is_within_If or self.is_within_For or self.is_within_While:
+            self.add_error(node, "Function cannot be defined within If/For/While.")
+
         self.scope = func_name
 
         if func_name in builtin_funcs or func_name == "range":
-            error_text = f"{func_name} is a builtin func and cannot be overriden."
-            self.add_error(node, error_text)
+            self.add_error(
+                node, f"{func_name} is a builtin func and cannot be overriden."
+            )
 
         imported_global_methods = self.dependency_resolver.get_imported_global_methods(
             self.module_name
-        )  # returns a dict
-
+        )
         if func_name in imported_global_methods.keys():
             imported_from_module = imported_global_methods[func_name]
-            error_text = f"{func_name} is imported from {imported_from_module}. \n Consider renaming this method."
-            self.add_error(node, error_text)
+            self.add_error(
+                node,
+                f"{func_name} is imported from {imported_from_module}. Consider renaming this method.",
+            )
 
+        # Ensure annotation exists
         if node.returns is None:
             self.add_error(
                 node,
@@ -381,16 +492,56 @@ class LintCode(ast.NodeVisitor):
                     f"Argument '{arg.arg}' in function '{func_name}' must have a type annotation",
                 )
 
-        # save function args before body traversal.
-
+        # Save function args before traversal
         self._save_function_args(node)
 
-        # Recursively visit body of the function
+        # Track if function has an explicit return
+        has_return = False
+
+        # Visit body
         for stmt in node.body:
+            if isinstance(stmt, ast.Return):
+                has_return = True
             self.visit(stmt)
 
-        # After body, reset scope to global
+        # Post traversal checks
+        annotated_return_type = self.dependency_resolver.get_module_call_return_type(
+            self.module_name, func_name
+        )
+
+        # 1️⃣ No return at all but annotated type is not None
+        if not has_return and annotated_return_type not in ("None", "NoneType", None):
+            self.add_error(
+                node,
+                f"Function '{func_name}' is annotated as returning {annotated_return_type} but has no return statement.",
+            )
+
+        # 2️⃣ Has a return, but no annotation
+        if has_return and (node.returns is None):
+            self.add_error(
+                node,
+                f"Function '{func_name}' returns a value but has no return type annotation.",
+            )
+
+        # Reset scope
         self.scope = "global"
+
+    def visit_Return(self, node):
+        current_function = self.scope
+        annotated_return_type = self.dependency_resolver.get_module_call_return_type(
+            self.module_name, current_function
+        )
+
+        if node.value is None:
+            actual_return_type = "None"
+        else:
+            actual_return_type = self.type_analyzer.get_node_type(node.value)
+
+        if actual_return_type != annotated_return_type:
+            self.add_error(
+                node,
+                f"Method returns {actual_return_type}, but it is annotated as {annotated_return_type}.",
+            )
 
     def visit_If(self, node):
         self.is_within_If = True
