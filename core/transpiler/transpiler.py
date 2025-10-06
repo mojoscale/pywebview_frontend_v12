@@ -2479,14 +2479,39 @@ class ArduinoTranspiler(ast.NodeVisitor):
         value_code = self.visit(node.value)
         value_type = self.type_analyzer.get_node_type(node.value)
 
-        # Case 1: Standard Index like mylist[2]
+        # --- Case 1: Standard Index like mylist[2] ---
         if isinstance(node.slice, ast.Constant):
             index_code = self.visit(node.slice)
-            converted_type = get_cpp_python_type(value_type, custom_type_str=True)
 
-            return f"{converted_type}({value_code})[{index_code}]"
+            # Extract core type from list,str,dict,...
+            if value_type.startswith("list"):
+                # list,int,bool,float,str
+                parts = value_type.split(",")
+                elem_type = parts[1] if len(parts) > 1 else "auto"
+                cpp_elem_type = get_cpp_python_type(elem_type)
 
-        # Case 2: Slice like mylist[1:3]
+                # If it's a literal list like [1,2,3][0]
+                if isinstance(node.value, ast.List):
+                    return f"PyList<{cpp_elem_type}>::from({{{', '.join(self.visit(e) for e in node.value.elts)}}})[{index_code}]"
+
+                # Otherwise, variable/expression list
+                return f"{value_code}[{index_code}]"
+
+            elif value_type.startswith("dict"):
+                # dict,str,int,...
+                parts = value_type.split(",")
+                val_type = parts[2] if len(parts) > 2 else "auto"
+                cpp_val_type = get_cpp_python_type(val_type)
+                return f"({value_code}).get({index_code})"
+
+            elif value_type == "str":
+                return f"PyString({value_code})[{index_code}]"
+
+            else:
+                # Fallback for unsupported types
+                return f"{value_code}[{index_code}]"
+
+        # --- Case 2: Slice like mylist[1:3] ---
         elif isinstance(node.slice, ast.Slice):
             lower = self.visit(node.slice.lower) if node.slice.lower else "0"
             upper = (
@@ -2495,9 +2520,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 else f"{value_code}.size()"
             )
 
-            # NOTE: C++ doesn't support step unless you implement it
             if node.slice.step:
-                step = self.visit(node.slice.step)
                 raise NotImplementedError("Slicing with step is not supported yet.")
 
             if value_type.startswith("list") or value_type.startswith("PyList"):
@@ -2509,7 +2532,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                     f"Subscript slice not supported for type: {value_type}"
                 )
 
-        # Fallback (shouldn't hit this often)
+        # --- Fallback (should rarely happen) ---
         return f"{value_code}[UNKNOWN]"
 
     def visit_While(self, node: ast.While):

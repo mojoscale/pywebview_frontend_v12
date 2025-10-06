@@ -224,6 +224,115 @@ class LintCode(ast.NodeVisitor):
             print(f"[ERROR] is_core_module('{import_name}') exception: {e}")
             return False
 
+    def visit_Subscript(self, node):
+        expression = node.value
+        expression_type = self.type_analyzer.get_node_type(expression)
+
+        base_type = expression_type.split(",")
+
+        if base_type not in ("str", "list", "dict"):
+            self.add_error(node, f"Invalid use of Subscript on type '{base_type}.")
+
+    def visit_List(self, node: ast.List):
+        """Validate literal lists: all elements same type, and of allowed scalar types."""
+        ALLOWED_TYPES = (ast.Constant,)
+        ALLOWED_VALUE_TYPES = (str, int, float, bool)
+
+        # Empty list is allowed, but warn if empty
+        if not node.elts:
+            self.add_error(node, "Empty lists are not allowed.")
+            return
+
+        element_types = []
+
+        for elt in node.elts:
+            if not isinstance(elt, ALLOWED_TYPES):
+                self.add_error(
+                    node,
+                    f"List elements must be literal constants (int, str, float, bool). Found: {type(elt).__name__}",
+                )
+                continue
+
+            val = elt.value
+            if not isinstance(val, ALLOWED_VALUE_TYPES):
+                self.add_error(
+                    node,
+                    f"Invalid list element type: {type(val).__name__}. Allowed: int, str, float, bool.",
+                )
+                continue
+
+            element_types.append(type(val).__name__)
+
+        # Check uniformity
+        if element_types:
+            first_type = element_types[0]
+            for t in element_types[1:]:
+                if t != first_type:
+                    self.add_error(
+                        node,
+                        f"List elements must be of the same type. Found both '{first_type}' and '{t}'.",
+                    )
+                    break
+
+    def visit_Dict(self, node: ast.Dict):
+        """Validate literal dicts: key/value type restrictions and uniformity."""
+        ALLOWED_VALUE_TYPES = (str, int, float, bool)
+
+        if not node.keys or not node.values:
+            self.add_error(node, "Empty dictionaries are not allowed.")
+            return
+
+        key_types = []
+        val_types = []
+
+        for key, val in zip(node.keys, node.values):
+            # Key must be a constant string
+            if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+                self.add_error(
+                    node,
+                    f"Invalid key type '{type(key).__name__}'. Dict keys must be string literals.",
+                )
+            else:
+                key_types.append(type(key.value).__name__)
+
+            # Value type check
+            if not isinstance(val, ast.Constant):
+                self.add_error(
+                    node,
+                    f"Dict values must be literal constants (int, str, float, bool). Found: {type(val).__name__}",
+                )
+            elif not isinstance(val.value, ALLOWED_VALUE_TYPES):
+                self.add_error(
+                    node,
+                    f"Invalid dict value type: {type(val.value).__name__}. Allowed: int, str, float, bool.",
+                )
+            else:
+                val_types.append(type(val.value).__name__)
+
+        # Check uniformity of keys and values
+        if key_types:
+            first_key_type = key_types[0]
+            for t in key_types[1:]:
+                if t != first_key_type:
+                    self.add_error(
+                        node,
+                        f"Dict keys must all be of the same type. Found both '{first_key_type}' and '{t}'.",
+                    )
+                    break
+
+        if val_types:
+            first_val_type = val_types[0]
+            for t in val_types[1:]:
+                if t != first_val_type:
+                    self.add_error(
+                        node,
+                        f"Dict values must all be of the same type. Found both '{first_val_type}' and '{t}'.",
+                    )
+                    break
+
+        # Continue walking
+        self.generic_visit(node)
+
     def visit_Import(self, node):
         if (
             self.scope != "global"
