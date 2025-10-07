@@ -44,6 +44,7 @@ const EnvironmentVariablesForm = () => {
   // -----------------------------
   const fetchVars = async () => {
     try {
+      if (!window.pywebview?.api) return;
       const result = await window.pywebview.api.get_all_env();
       const parsed = Object.entries(result).map(([key, data]: [string, any]) => ({
         key,
@@ -75,6 +76,7 @@ const EnvironmentVariablesForm = () => {
 
       if (editingKey) {
         // Update existing variable
+        if (!window.pywebview?.api) return;
         await window.pywebview.api.update_env_value(
           values.key,
           values.value,
@@ -84,6 +86,7 @@ const EnvironmentVariablesForm = () => {
         setEditingKey(null);
       } else {
         // Create new variable
+        if (!window.pywebview?.api) return;
         await window.pywebview.api.create_env_value(
           values.key,
           values.value,
@@ -118,6 +121,7 @@ const EnvironmentVariablesForm = () => {
 
   const handleDelete = async (key: string) => {
     try {
+      if (!window.pywebview?.api) return;
       await window.pywebview.api.delete_env_value(key);
       message.success('Variable deleted successfully');
       fetchVars();
@@ -140,6 +144,7 @@ const EnvironmentVariablesForm = () => {
           };
         }
       });
+      if (!window.pywebview?.api) return;
       await window.pywebview.api.bulk_create_env(newPairs);
       message.success(`Added ${Object.keys(newPairs).length} variables`);
       setBulkEditVisible(false);

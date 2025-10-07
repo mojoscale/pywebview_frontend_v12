@@ -6,7 +6,6 @@ import {
   Typography,
   List,
   Card,
-  Tabs,
   Switch,
   Tag,
   Button,
@@ -38,7 +37,7 @@ import {
 } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 type FunctionEntry = { name: string; signature: string; doc: string };
-type ClassEntry = { name: string; doc: string; methods?: FunctionEntry[] };
+type ClassEntry = { name: string; doc: string; signature: string; methods?: FunctionEntry[] };
 type VariableEntry = { name: string; value: string; doc?: string };
 type ModuleEntry = {
   functions?: FunctionEntry[];
@@ -53,7 +52,7 @@ type ExplorerItem =
   | (ClassEntry & { type: "class"; module: string })
   | (FunctionEntry & { type: "method"; module: string; parentClass: string })
   | (VariableEntry & { type: "variable"; module: string })
-  | { type: "module"; module: string; doc: string }; // New type for module doc
+  | { type: "module"; module: string; doc: string };
 
 // Code block type
 type CodeBlock = {
@@ -106,7 +105,7 @@ const ModuleExplorer = () => {
   const processedModules = useMemo(() => {
     const processed: Record<string, ModuleEntry> = JSON.parse(JSON.stringify(rawModules));
     
-    Object.entries(processed).forEach(([modName, mod]) => {
+    Object.entries(processed).forEach(([_, mod]) => {
       if (mod.classes) {
         mod.classes = mod.classes.map(cls => {
           // Look for __init__ method to get class doc and signature
@@ -230,6 +229,22 @@ const ModuleExplorer = () => {
     return list;
   }, [processedModules]);
 
+  // Helper to get display content for signature
+  const getSignatureDisplay = (item: ExplorerItem, signature: string | null): string => {
+    if (!signature) return "";
+    
+    if (item.type === "module") {
+      return signature;
+    }
+    
+    // For items with names (functions, methods, classes)
+    if ("name" in item) {
+      return `${item.name}${signature}`;
+    }
+    
+    return signature;
+  };
+
   // Search with fuse
   const searchResults = useMemo(() => {
     if (!search.trim()) {
@@ -334,18 +349,33 @@ const ModuleExplorer = () => {
       case "module":
         return item.doc || "";
       default:
-        return item.name;
+        return "";
     }
+  };
+
+  // Fixed type guard for signature
+  /*const hasSignature = (item: ExplorerItem): boolean => {
+    return (item.type === "function" || item.type === "method" || item.type === "class") && 
+           "signature" in item && 
+           item.signature !== '()';
+  };*/
+
+  // Helper to get signature safely
+  const getSignature = (item: ExplorerItem): string | null => {
+    if ((item.type === "function" || item.type === "method" || item.type === "class") && "signature" in item) {
+      return item.signature;
+    }
+    return null;
   };
 
   // Render entry card
   const renderEntry = (item: ExplorerItem) => {
     const typeConfig = getTypeConfig(item.type);
     const displayName = getDisplayName(item);
-    const copyableContent = getCopyableContent(item);
 
     // Special styling for module doc cards
     const isModuleDoc = item.type === "module";
+    const signature = getSignature(item);
 
     return (
       <Card
@@ -415,7 +445,7 @@ const ModuleExplorer = () => {
                   {displayName}
                 </Text>
                 
-                {"signature" in item && item.signature && item.signature !== '()' && (
+                {signature && (
                   <Tag
                     color={darkMode ? "blue" : "geekblue"}
                     style={{ 
@@ -426,10 +456,10 @@ const ModuleExplorer = () => {
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      copyToClipboard(item.signature, "signature");
+                      copyToClipboard(signature, "signature");
                     }}
                   >
-                    {item.signature}
+                    {signature}
                   </Tag>
                 )}
               </div>
@@ -505,7 +535,7 @@ const ModuleExplorer = () => {
           )}
 
           {/* Variable value */}
-          {"value" in item && item.value && (
+          {item.type === "variable" && item.value && (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Text 
                 style={{ 
@@ -576,6 +606,8 @@ const ModuleExplorer = () => {
       parseDocstringForCodeBlocks(item.doc) : 
       { description: '', codeBlocks: [] };
 
+    const signature = getSignature(item);
+
     return (
       <Modal
         title={
@@ -628,7 +660,7 @@ const ModuleExplorer = () => {
           </div>
 
           {/* Signature for functions/methods/classes */}
-          {"signature" in item && item.signature && item.signature !== '()' && (
+          {signature && (
             <div>
               <Text strong>Signature: </Text>
               <Text 
@@ -639,18 +671,15 @@ const ModuleExplorer = () => {
                   padding: "2px 6px",
                   borderRadius: 3,
                 }}
-                onClick={() => copyToClipboard(
-                  item.type === "class" ? `${item.name}${item.signature}` : `${item.name}${item.signature}`, 
-                  "signature"
-                )}
+                onClick={() => copyToClipboard(getSignatureDisplay(item, signature), "signature")}
               >
-                {item.type === "class" ? `${item.name}${item.signature}` : `${item.name}${item.signature}`}
+                {getSignatureDisplay(item, signature)}
               </Text>
             </div>
           )}
 
           {/* Value for variables */}
-          {"value" in item && item.value && (
+          {item.type === "variable" && item.value && (
             <div>
               <Text strong>Value: </Text>
               <Text 
