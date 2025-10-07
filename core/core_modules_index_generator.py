@@ -81,7 +81,10 @@ def parse_module(filepath: str) -> dict:
 
     top_level_nodes = tree.body
 
+    # FIXED: Changed "ModuleEntry" to "doc" to match TypeScript expectations
     return {
+        "doc": ast.get_docstring(tree)
+        or "No module docstring available",  # ← CHANGED THIS LINE
         "functions": [
             extract_function_info(n)
             for n in top_level_nodes
@@ -114,3 +117,7 @@ def main():
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(index, f, indent=2)
     print(f"✅ Index generated at: {OUTPUT_PATH}")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,17 +1,12 @@
-
-
-__dependencies__ = "adafruit/Adafruit BME280 Library@^2.2.2,adafruit/Adafruit Unified Sensor@^1.1.9"
+__dependencies__ = (
+    "adafruit/Adafruit BME280 Library@^2.2.2,adafruit/Adafruit Unified Sensor@^1.1.9"
+)
 
 __include_modules__ = "Adafruit_Sensor,Adafruit_BME280"
 __include_internal_modules__ = ""
 
+
 class BME280Sensor:
-    """
-    Dummy class for the BME280 sensor.
-
-    This mimics the Adafruit_BME280 Arduino library for transpilation use.
-    """
-
     def __init__(self) -> None:
         """
         Initializes the BME280 sensor. Requires `begin()` to be called later.

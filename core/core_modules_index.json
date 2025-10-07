@@ -1,5 +1,6 @@
 {
   "arduino": {
+    "doc": "No module docstring available",
     "functions": [
       {
         "name": "pinMode",
@@ -293,6 +294,7 @@
     "variables": []
   },
   "async_webserver": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -351,6 +353,7 @@
     "variables": []
   },
   "ble_simple": {
+    "doc": "BLESimple\n=========\n\nA lightweight abstraction layer that simulates Bluetooth Low Energy (BLE)\noperations for both **Central** and **Peripheral** roles.\n\nThis class provides a Python-like API for creating, managing, and interacting\nwith BLE devices. It is designed to serve as a stub for generating or simulating\nBLE logic in microcontroller environments such as ESP32 or similar boards.\n\nSupported Features\n------------------\n- Initialize BLE in `central` or `peripheral` mode.\n- Start/stop advertising or scanning.\n- Connect and disconnect devices.\n- Define services and characteristics.\n- Read, write, and notify characteristic values.\n- Register callbacks for connection, disconnection, write, and notify events.\n\nExample Usage\n-------------\n```python\n# Initialize as a peripheral\nble = BLESimple(\"MyDevice\", \"peripheral\")\n\n# Inside setup()\nble.init_ble()\nble.add_service(\"1234\")\nble.add_characteristic(\"1234\", \"5678\", \"Hello\", readable=True, writable=True, notify=True)\nble.start()\n\n# Handle incoming writes\ndef on_write_handler(value: str):\n    print(\"Central wrote:\", value)\n\nble.on_write(\"5678\", on_write_handler)```",
     "functions": [],
     "classes": [
       {
@@ -463,6 +466,7 @@
     "variables": []
   },
   "env_vars": {
+    "doc": "No module docstring available",
     "functions": [
       {
         "name": "get_env_var",
@@ -474,6 +478,7 @@
     "variables": []
   },
   "littlefs": {
+    "doc": "No module docstring available",
     "functions": [
       {
         "name": "littlefs_begin",
@@ -657,6 +662,7 @@
     "variables": []
   },
   "mqtt": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -774,6 +780,7 @@
     "variables": []
   },
   "onewire": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -836,6 +843,7 @@
     "variables": []
   },
   "software_serial": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -853,6 +861,7 @@
     "variables": []
   },
   "spiffs": {
+    "doc": "No module docstring available",
     "functions": [
       {
         "name": "spiffs_begin",
@@ -929,6 +938,7 @@
     "variables": []
   },
   "tests": {
+    "doc": "No module docstring available",
     "functions": [
       {
         "name": "test_function",
@@ -972,6 +982,7 @@
     ]
   },
   "webserver": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1019,6 +1030,7 @@
     "variables": []
   },
   "wifi": {
+    "doc": "No module docstring available",
     "functions": [
       {
         "name": "wifi_connect",
@@ -1132,6 +1144,7 @@
     "variables": []
   },
   "wifi_manager": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1184,6 +1197,7 @@
     "variables": []
   },
   "wire": {
+    "doc": "No module docstring available",
     "functions": [
       {
         "name": "begin",
@@ -1235,11 +1249,13 @@
     "variables": []
   },
   "__init__": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [],
     "variables": []
   },
   "sensors.adxl345": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1322,6 +1338,7 @@
     "variables": []
   },
   "sensors.apds9960": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1509,6 +1526,7 @@
     "variables": []
   },
   "sensors.bh1750": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1551,11 +1569,12 @@
     "variables": []
   },
   "sensors.bme280": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
         "name": "BME280Sensor",
-        "doc": "Dummy class for the BME280 sensor.\n\nThis mimics the Adafruit_BME280 Arduino library for transpilation use.",
+        "doc": "No docstring available",
         "methods": [
           {
             "name": "__init__",
@@ -1593,6 +1612,7 @@
     "variables": []
   },
   "sensors.bmp085": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1655,6 +1675,7 @@
     "variables": []
   },
   "sensors.ccd811": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1707,6 +1728,7 @@
     "variables": []
   },
   "sensors.dht": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1744,6 +1766,7 @@
     "variables": []
   },
   "sensors.ds18b20": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1776,6 +1799,7 @@
     "variables": []
   },
   "sensors.gp2y0a21yk": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1798,6 +1822,7 @@
     "variables": []
   },
   "sensors.mhz19": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1865,6 +1890,7 @@
     "variables": []
   },
   "sensors.mpu6050": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1937,6 +1963,7 @@
     "variables": []
   },
   "sensors.mq135": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -1989,6 +2016,7 @@
     "variables": []
   },
   "sensors.mq2": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -2036,6 +2064,7 @@
     "variables": []
   },
   "sensors.sgp30": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -2198,6 +2227,7 @@
     "variables": []
   },
   "sensors.sht31": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -2240,6 +2270,7 @@
     "variables": []
   },
   "sensors.tsl2561": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -2287,6 +2318,7 @@
     "variables": []
   },
   "sensors.ultrasonic": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {
@@ -2334,6 +2366,7 @@
     "variables": []
   },
   "sensors.vl53l0x": {
+    "doc": "No module docstring available",
     "functions": [],
     "classes": [
       {

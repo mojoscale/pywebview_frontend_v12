@@ -1,3 +1,42 @@
+"""
+BLESimple
+=========
+
+A lightweight abstraction layer that simulates Bluetooth Low Energy (BLE)
+operations for both **Central** and **Peripheral** roles.
+
+This class provides a Python-like API for creating, managing, and interacting
+with BLE devices. It is designed to serve as a stub for generating or simulating
+BLE logic in microcontroller environments such as ESP32 or similar boards.
+
+Supported Features
+------------------
+- Initialize BLE in `central` or `peripheral` mode.
+- Start/stop advertising or scanning.
+- Connect and disconnect devices.
+- Define services and characteristics.
+- Read, write, and notify characteristic values.
+- Register callbacks for connection, disconnection, write, and notify events.
+
+Example Usage
+-------------
+```python
+# Initialize as a peripheral
+ble = BLESimple("MyDevice", "peripheral")
+
+# Inside setup()
+ble.init_ble()
+ble.add_service("1234")
+ble.add_characteristic("1234", "5678", "Hello", readable=True, writable=True, notify=True)
+ble.start()
+
+# Handle incoming writes
+def on_write_handler(value: str):
+    print("Central wrote:", value)
+
+ble.on_write("5678", on_write_handler)```
+"""
+
 __include_modules__ = "BLESimple"
 __include_internal_modules__ = ""
 __dependencies__ = ""

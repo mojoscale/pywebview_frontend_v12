@@ -28,8 +28,14 @@ import {
   SearchOutlined,
   CopyOutlined,
   EyeOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import Fuse from "fuse.js";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { 
+  vscDarkPlus,
+  vs 
+} from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 type FunctionEntry = { name: string; signature: string; doc: string };
 type ClassEntry = { name: string; doc: string; methods?: FunctionEntry[] };
@@ -46,10 +52,42 @@ type ExplorerItem =
   | (FunctionEntry & { type: "function"; module: string })
   | (ClassEntry & { type: "class"; module: string })
   | (FunctionEntry & { type: "method"; module: string; parentClass: string })
-  | (VariableEntry & { type: "variable"; module: string });
+  | (VariableEntry & { type: "variable"; module: string })
+  | { type: "module"; module: string; doc: string }; // New type for module doc
+
+// Code block type
+type CodeBlock = {
+  language: string;
+  code: string;
+};
 
 const { Title, Text, Paragraph } = Typography;
 const { Panel } = Collapse;
+
+// Helper function to parse docstrings for code blocks
+const parseDocstringForCodeBlocks = (doc: string): { description: string; codeBlocks: CodeBlock[] } => {
+  if (!doc) return { description: '', codeBlocks: [] };
+  
+  const codeBlockRegex = /```(\w+)?\s*\n([\s\S]*?)```/g;
+  const codeBlocks: CodeBlock[] = [];
+  let cleanDoc = doc;
+  
+  // Extract code blocks
+  let match;
+  while ((match = codeBlockRegex.exec(doc)) !== null) {
+    const language = match[1] || 'python';
+    const code = match[2].trim();
+    codeBlocks.push({ language, code });
+    
+    // Remove the code block from the description to avoid duplication
+    cleanDoc = cleanDoc.replace(match[0], '');
+  }
+  
+  // Clean up extra newlines and whitespace
+  cleanDoc = cleanDoc.trim().replace(/\n\s*\n\s*\n/g, '\n\n');
+  
+  return { description: cleanDoc, codeBlocks };
+};
 
 const ModuleExplorer = () => {
   const [rawModules, setRawModules] = useState<Record<string, ModuleEntry>>({});
@@ -131,6 +169,15 @@ const ModuleExplorer = () => {
   const getModuleItems = (modName: string, mod: ModuleEntry): ExplorerItem[] => {
     const items: ExplorerItem[] = [];
     
+    // Add module docstring as first item if it exists
+    if (mod.doc) {
+      items.push({
+        module: modName,
+        type: "module",
+        doc: mod.doc,
+      });
+    }
+    
     // Add functions
     mod.functions?.forEach((fn) => {
       items.push({
@@ -172,11 +219,13 @@ const ModuleExplorer = () => {
     return items;
   };
 
-  // Flatten for search only
+  // Flatten for search only (excluding module docs for search)
   const flattened: ExplorerItem[] = useMemo(() => {
     const list: ExplorerItem[] = [];
     Object.entries(processedModules).forEach(([modName, mod]) => {
-      list.push(...getModuleItems(modName, mod));
+      // Only include actual code items in search, not module docs
+      const items = getModuleItems(modName, mod).filter(item => item.type !== "module");
+      list.push(...items);
     });
     return list;
   }, [processedModules]);
@@ -233,6 +282,8 @@ const ModuleExplorer = () => {
         return { icon: <CodeOutlined />, color: "#722ed1", label: "Method" };
       case "variable":
         return { icon: <ApiOutlined />, color: "#fa8c16", label: "Variable" };
+      case "module":
+        return { icon: <FileTextOutlined />, color: "#13c2c2", label: "Module" };
       default:
         return { icon: <CodeOutlined />, color: "#8c8c8c", label: "Unknown" };
     }
@@ -261,6 +312,9 @@ const ModuleExplorer = () => {
     if (item.type === "method") {
       return `${item.parentClass}.${item.name}`;
     }
+    if (item.type === "module") {
+      return "Module Documentation";
+    }
     return item.name;
   };
 
@@ -277,6 +331,8 @@ const ModuleExplorer = () => {
         return `${item.name}${item.signature}`;
       case "variable":
         return item.name;
+      case "module":
+        return item.doc || "";
       default:
         return item.name;
     }
@@ -288,19 +344,25 @@ const ModuleExplorer = () => {
     const displayName = getDisplayName(item);
     const copyableContent = getCopyableContent(item);
 
+    // Special styling for module doc cards
+    const isModuleDoc = item.type === "module";
+
     return (
       <Card
         size="small"
-        hoverable
+        hoverable={!isModuleDoc}
         style={{
           marginBottom: 8,
           border: `1px solid ${darkMode ? "#434343" : "#f0f0f0"}`,
           borderRadius: 6,
-          background: darkMode ? "rgba(255,255,255,0.02)" : "#fff",
-          cursor: "pointer",
+          background: isModuleDoc 
+            ? (darkMode ? "rgba(19, 194, 194, 0.08)" : "rgba(19, 194, 194, 0.04)")
+            : (darkMode ? "rgba(255,255,255,0.02)" : "#fff"),
+          cursor: isModuleDoc ? "default" : "pointer",
+          borderLeft: isModuleDoc ? `3px solid ${typeConfig.color}` : undefined,
         }}
         bodyStyle={{ padding: 12 }}
-        onClick={() => showDetailModal(item)}
+        onClick={isModuleDoc ? undefined : () => showDetailModal(item)}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {/* Header */}
@@ -343,7 +405,11 @@ const ModuleExplorer = () => {
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    copyToClipboard(displayName, "name");
+                    if (item.type === "module") {
+                      copyToClipboard(item.module, "module name");
+                    } else {
+                      copyToClipboard(displayName, "name");
+                    }
                   }}
                 >
                   {displayName}
@@ -405,19 +471,21 @@ const ModuleExplorer = () => {
               </div>
             </div>
             
-            <Button
-              type="text"
-              size="small"
-              icon={<EyeOutlined />}
-              style={{ 
-                flexShrink: 0,
-                marginLeft: 4 
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                showDetailModal(item);
-              }}
-            />
+            {!isModuleDoc && (
+              <Button
+                type="text"
+                size="small"
+                icon={<EyeOutlined />}
+                style={{ 
+                  flexShrink: 0,
+                  marginLeft: 4 
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  showDetailModal(item);
+                }}
+              />
+            )}
           </div>
 
           {/* Documentation */}
@@ -428,10 +496,11 @@ const ModuleExplorer = () => {
                 fontSize: 12,
                 lineHeight: 1.4,
                 color: darkMode ? "#8c8c8c" : "#666",
+                fontStyle: isModuleDoc ? "normal" : undefined,
               }}
-              ellipsis={{ rows: 2, expandable: true }}
+              ellipsis={{ rows: isModuleDoc ? 4 : 2, expandable: true }}
             >
-              {item.doc}
+              {parseDocstringForCodeBlocks(item.doc).description}
             </Paragraph>
           )}
 
@@ -463,6 +532,31 @@ const ModuleExplorer = () => {
               </Tag>
             </div>
           )}
+
+          {/* Module doc actions */}
+          {isModuleDoc && (
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <Button
+                size="small"
+                type="text"
+                icon={<CopyOutlined />}
+                onClick={() => copyToClipboard(item.doc || "", "module documentation")}
+                style={{ fontSize: 11, height: 24 }}
+              >
+                Copy Doc
+              </Button>
+              <Button
+                size="small"
+                type="primary"
+                ghost
+                icon={<EyeOutlined />}
+                onClick={() => showDetailModal(item)}
+                style={{ fontSize: 11, height: 24 }}
+              >
+                View Full
+              </Button>
+            </div>
+          )}
         </div>
       </Card>
     );
@@ -476,6 +570,11 @@ const ModuleExplorer = () => {
     const typeConfig = getTypeConfig(item.type);
     const displayName = getDisplayName(item);
     const copyableContent = getCopyableContent(item);
+    
+    // Parse docstring for code blocks
+    const docContent = "doc" in item && item.doc ? 
+      parseDocstringForCodeBlocks(item.doc) : 
+      { description: '', codeBlocks: [] };
 
     return (
       <Modal
@@ -501,7 +600,8 @@ const ModuleExplorer = () => {
             icon={<CopyOutlined />}
             onClick={() => copyToClipboard(copyableContent, displayName)}
           >
-            Copy {item.type === "function" || item.type === "method" || item.type === "class" ? "Signature" : "Name"}
+            Copy {item.type === "function" || item.type === "method" || item.type === "class" ? "Signature" : 
+                  item.type === "module" ? "Documentation" : "Name"}
           </Button>,
           <Button
             key="close"
@@ -510,7 +610,9 @@ const ModuleExplorer = () => {
             Close
           </Button>,
         ]}
-        width={600}
+        width={700}
+        style={{ maxWidth: '90vw' }}
+        bodyStyle={{ maxHeight: '70vh', overflow: 'auto' }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Basic info */}
@@ -573,22 +675,74 @@ const ModuleExplorer = () => {
               <div
                 style={{
                   marginTop: 8,
-                  padding: 12,
+                  padding: 16,
                   background: darkMode ? "#1f1f1f" : "#f9f9f9",
-                  borderRadius: 4,
+                  borderRadius: 6,
                   border: `1px solid ${darkMode ? "#303030" : "#e8e8e8"}`,
                 }}
               >
-                <Paragraph
-                  style={{
-                    margin: 0,
-                    whiteSpace: "pre-wrap",
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {item.doc}
-                </Paragraph>
+                {/* Render description text */}
+                {docContent.description && (
+                  <Paragraph
+                    style={{
+                      margin: docContent.codeBlocks.length > 0 ? '0 0 20px 0' : 0,
+                      whiteSpace: "pre-wrap",
+                      fontSize: 13,
+                      lineHeight: 1.6,
+                      color: darkMode ? '#d9d9d9' : '#333',
+                    }}
+                  >
+                    {docContent.description}
+                  </Paragraph>
+                )}
+                
+                {/* Render code blocks */}
+                {docContent.codeBlocks.map((block, index) => (
+                  <div key={index} style={{ marginBottom: 20, position: 'relative' }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      marginBottom: 8 
+                    }}>
+                      <Tag 
+                        color={darkMode ? "blue" : "geekblue"}
+                        style={{ fontSize: 10, fontWeight: 500 }}
+                      >
+                        {block.language.toUpperCase()}
+                      </Tag>
+                      <Button
+                        size="small"
+                        type="text"
+                        icon={<CopyOutlined />}
+                        onClick={() => copyToClipboard(block.code, "code sample")}
+                        style={{ 
+                          fontSize: 11,
+                          height: 22,
+                          padding: '0 6px'
+                        }}
+                      >
+                        Copy Code
+                      </Button>
+                    </div>
+                    <SyntaxHighlighter
+                      language={block.language}
+                      style={darkMode ? vscDarkPlus : vs}
+                      customStyle={{
+                        margin: 0,
+                        borderRadius: 4,
+                        fontSize: 12,
+                        lineHeight: 1.4,
+                        background: darkMode ? '#1a1a1a' : '#f5f5f5',
+                        border: `1px solid ${darkMode ? '#333' : '#e8e8e8'}`,
+                      }}
+                      showLineNumbers
+                      wrapLongLines
+                    >
+                      {block.code}
+                    </SyntaxHighlighter>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -739,7 +893,7 @@ const ModuleExplorer = () => {
                           {modName}
                         </Text>
                         <Badge
-                          count={items.length}
+                          count={items.filter(item => item.type !== "module").length}
                           size="small"
                           color={darkMode ? "blue" : "geekblue"}
                         />
