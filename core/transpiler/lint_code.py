@@ -228,7 +228,8 @@ class LintCode(ast.NodeVisitor):
         expression = node.value
         expression_type = self.type_analyzer.get_node_type(expression)
 
-        base_type = expression_type.split(",")
+        base_type = expression_type.split(",")[0]
+        print(f"found base type {base_type} and expression type {expression_type}")
 
         if base_type not in ("str", "list", "dict"):
             self.add_error(node, f"Invalid use of Subscript on type '{base_type}.")
@@ -928,10 +929,32 @@ class LintCode(ast.NodeVisitor):
         self.visit(node.value)
         return node
 
+    def visit_Name(self, node):
+        """
+        Handle variable usage and detect undeclared identifiers.
+        """
+        # Only check variables that are *used*, not assigned
+        if isinstance(node.ctx, ast.Load):
+            var_name = node.id
+
+            # Skip builtins
+            if var_name in dir(__builtins__):
+                return
+
+            # Check if variable exists in dependency_resolver
+            var_type = self.dependency_resolver.get_variable_type(var_name, self.scope)
+
+            if not var_type:
+                self.add_error(
+                    node, f"Variable '{var_name}' is not defined before use."
+                )
+
+        # Recurse further (in case of nested attributes)
+        self.generic_visit(node)
+
 
 def main(code, sql_conn, platform, path_to_core_libs, module_name="main"):
-    tree = ast.parse(code)
-    """try:
+    try:
         tree = ast.parse(code)
 
     except SyntaxError as e:
@@ -949,7 +972,7 @@ def main(code, sql_conn, platform, path_to_core_libs, module_name="main"):
             "errors": [
                 {"line": 1, "column": 1, "message": f"Unexpected error: {str(ex)}"}
             ]
-        }"""
+        }
 
     extracted_modules = extract_imported_modules_from_tree(tree, path_to_core_libs)
 

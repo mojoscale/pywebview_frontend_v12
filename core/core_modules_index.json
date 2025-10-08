@@ -1255,7 +1255,7 @@
     "variables": []
   },
   "sensors.adxl345": {
-    "doc": "No module docstring available",
+    "doc": "ADXL345 Accelerometer Module\n============================\n\nThis module provides a Python-style abstraction for the **Adafruit ADXL345** 3-axis accelerometer, \nallowing you to easily configure range, data rate, and read acceleration data in a Pythonic way.  \nIt wraps the `Adafruit_ADXL345_U` and `Adafruit_Sensor` C++ libraries, enabling usage from \ntranspiled Python code with full compatibility on ESP32/ESP8266 and other Arduino boards.\n\n**Features**\n- 3-axis acceleration measurement (X, Y, Z)\n- Configurable range: \u00b12g, \u00b14g, \u00b18g, \u00b116g\n- Adjustable data output rate\n- Access to raw register-level operations\n- Device ID and configuration helpers\n- I2C communication (default address: 0x53)\n\n**Dependencies**\n- Adafruit ADXL345 (`adafruit/Adafruit ADXL345`)\n- Adafruit Unified Sensor (`Adafruit_Sensor`)\n- Internal helper: `helpers/sensors/ADXL345Helper`\n\n**Sample Code**\n```python\nimport sensors.adxl345 as sensor_adxl\n\nadxl = sensor_adxl.ADXL345Sensor(0x53)\n\ndef setup() -> None:\n    adxl.begin(0x53)\n    adxl.set_range(2)        # \u00b18g\n    adxl.set_data_rate(10)   # Medium speed\n\ndef loop() -> None:\n    accel = adxl.read_acceleration()\n    print(f\"Acceleration: X={accel[0]}, Y={accel[1]}, Z={accel[2]}\")\n```",
     "functions": [],
     "classes": [
       {
@@ -1275,21 +1275,21 @@
           {
             "name": "set_range",
             "signature": "(self, range_val: int) -> None",
-            "doc": "Set measurement range.\n\nArgs:\n    range_val (int): 0=\u00b12g, 1=\u00b14g, 2=\u00b18g, 3=\u00b116g"
+            "doc": "Set the ADXL345 sensor's measurement range.\n\nThe measurement range determines the maximum acceleration (in g) that\nthe sensor can detect on each axis. Larger ranges allow detection of\nstronger motion but reduce resolution.\n\nArgs:\n    range_val (int): Range selector value from 0\u20133, corresponding to:\n        0 \u2192 \u00b12g\n        1 \u2192 \u00b14g\n        2 \u2192 \u00b18g\n        3 \u2192 \u00b116g\n\nExample:\n    ```python\n    adxl.set_range(2)  # sets range to \u00b18g\n    ```\n\nNotes:\n    - Defaults to \u00b12g if the value is invalid.\n    - Internally maps to the Adafruit `range_t` enum."
           },
           {
             "name": "get_range",
-            "signature": "(self) -> int",
+            "signature": "(self) -> str",
             "doc": "Get current measurement range.\n\nReturns:\n    int: Current range value"
           },
           {
             "name": "set_data_rate",
             "signature": "(self, rate: int) -> None",
-            "doc": "Set data output rate.\n\nArgs:\n    rate (int): Use predefined constants (e.g., 0\u201315 for ~0.1Hz to 3200Hz)"
+            "doc": "Set the ADXL345 sensor's data output rate.\n\nThe data rate determines how frequently acceleration data is updated and made\navailable for reading. Higher rates improve responsiveness but increase power\nconsumption.\n\nArgs:\n    rate (int): Data rate selector value from 0\u201315, corresponding to:\n        0 \u2192 0.10 Hz\n        1 \u2192 0.20 Hz\n        2 \u2192 0.39 Hz\n        3 \u2192 0.78 Hz\n        4 \u2192 1.56 Hz\n        5 \u2192 3.13 Hz\n        6 \u2192 6.25 Hz\n        7 \u2192 12.5 Hz\n        8 \u2192 25 Hz\n        9 \u2192 50 Hz\n        10 \u2192 100 Hz\n        11 \u2192 200 Hz\n        12 \u2192 400 Hz\n        13 \u2192 800 Hz\n        14 \u2192 1600 Hz\n        15 \u2192 3200 Hz\n\nExample:\n    ```python\n    adxl.set_data_rate(10)  # sets update rate to 100 Hz\n    ```\n\nNotes:\n    - Defaults to 100 Hz if the rate value is invalid.\n    - Internally maps to the Adafruit `dataRate_t` enum."
           },
           {
             "name": "get_data_rate",
-            "signature": "(self) -> int",
+            "signature": "(self) -> str",
             "doc": "Get current data output rate.\n\nReturns:\n    int: Data rate value"
           },
           {
@@ -1728,7 +1728,7 @@
     "variables": []
   },
   "sensors.dht": {
-    "doc": "No module docstring available",
+    "doc": "DHT Sensor Module\n=================\n\nThis module provides a Python-style abstraction layer for **DHT11** and **DHT22** sensors,\nallowing seamless integration within the transpiler environment. It wraps the underlying\nC++ `DHT` class and its helper (`DHTHelper`), enabling temperature and humidity readings\nusing clean, intuitive Python syntax.\n\nThe transpiler automatically converts these calls to equivalent Arduino C++ code,\nlinking with the `adafruit/DHT sensor library`.\n\n**Dependencies:**\n    - adafruit/DHT sensor library\n\n**Includes:**\n    - DHT (hardware driver)\n    - helpers/sensors/DHTHelper (internal helper for combined reads)\n\nExample:\n```python\nimport sensors.dht as sensor_dht\n\ndht = sensor_dht.DHTSensor(2, \"DHT11\")\n\ndef setup() -> None:\n    dht.begin()\n\ndef loop() -> None:\n    temp = dht.read_temperature(False)\n    humidity = dht.read_humidity()\n    print(f\"Temperature is {temp}\")\n    print(f\"Humidity is {humidity}\")\n```",
     "functions": [],
     "classes": [
       {
@@ -1737,8 +1737,8 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, pin: int, type) -> None",
-            "doc": "Initialize the DHT sensor on a specific GPIO pin.\n\nArgs:\n    pin (int): GPIO pin connected to the sensor.\n    type (special): Type of the sensor: DHT11 or DHT22."
+            "signature": "(self, pin: int, type: str) -> None",
+            "doc": "Initialize the DHT sensor on a specific GPIO pin.\n\nArgs:\n    pin (int): GPIO pin connected to the sensor.\n    type (str): Type of the sensor: \"DHT11\" or \"DHT22\"."
           },
           {
             "name": "begin",

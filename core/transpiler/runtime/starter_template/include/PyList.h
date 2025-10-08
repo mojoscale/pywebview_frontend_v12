@@ -335,22 +335,28 @@ public:
         for (int i = 0; i < length; ++i) {
             if (i > 0) result += ", ";
 
-            if (std::is_same<T, String>::value) {
+            if constexpr (std::is_same<T, String>::value) {
                 result += "\"" + data[i] + "\"";
             }
-            else if (std::is_same<T, bool>::value) {
+            else if constexpr (std::is_same<T, float>::value || 
+                               std::is_same<T, double>::value || 
+                               std::is_same<T, int>::value) {
+                result += "\"" + String(data[i]) + "\"";
+            }
+            else if constexpr (std::is_same<T, bool>::value) {
                 result += data[i] ? "True" : "False";
             }
-            else if (std::is_same<T, PyInt>::value ||
-                     std::is_same<T, PyFloat>::value ||
-                     std::is_same<T, PyBool>::value ||
-                     std::is_same<T, PyString>::value) {
+            else if constexpr (std::is_same<T, PyInt>::value ||
+                               std::is_same<T, PyFloat>::value ||
+                               std::is_same<T, PyBool>::value ||
+                               std::is_same<T, PyString>::value) {
                 result += data[i].to_string();
             }
             else {
                 result += String(data[i]);
             }
         }
+
         result += "]";
         return result;
     }
