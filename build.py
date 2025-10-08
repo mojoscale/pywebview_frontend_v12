@@ -28,8 +28,7 @@ def build():
         f"--include-data-dir={FRONTEND_DIST}=frontend/dist",  # bundle frontend
         f"--include-data-dir=core/transpiler=core/transpiler",
         f"--output-dir=build",  # build folder
-        # f"--include-data-files=*.json=.",  # Root level JSONs
-        f"--include-data-files=core/core_modules_index.json=core/core_modules_index.json",  # Core folder JSONs (one level deep)
+        f"--include-data-files=core/core_modules_index.json=core/core_modules_index.json",
         f"--include-data-files=core/available_boards.json=core/available_boards.json",
         f"--remove-output",  # clean old builds
         f"--assume-yes-for-downloads",  # auto download needed files
@@ -37,6 +36,19 @@ def build():
         "--nofollow-import-to=PyQt5",  # avoid qt bloat unless needed
         "--nofollow-import-to=PySide6",  # avoid qt bloat unless needed
     ]
+
+    # Include Python packages properly
+    options.append("--include-package=core.transpiler.core_libs")
+
+    # Include stub files with pattern matching
+    options.append(
+        "--include-data-files=core/transpiler/core_stubs/*.pyi=core/transpiler/core_stubs/"
+    )
+
+    # Include all Python files in core_libs as data (backup method)
+    options.append(
+        "--include-data-files=core/transpiler/core_libs/*.py=core/transpiler/core_libs/"
+    )
 
     # Platform-specific tweaks
     system = platform.system()

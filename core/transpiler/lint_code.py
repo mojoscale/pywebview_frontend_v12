@@ -769,6 +769,7 @@ class LintCode(ast.NodeVisitor):
         for arg in node.args:
             arg_type = self.type_analyzer.get_node_type(arg)
             call_args.append(arg_type)
+            self.visit(arg)
 
         print(f"call of node type {func}")
 
@@ -915,6 +916,17 @@ class LintCode(ast.NodeVisitor):
                     self._check_passed_method_args(
                         call_args, saved_args, method_name, node
                     )
+
+    def visit_JoinedStr(self, node):
+        print(f"⚡ NodeTransformer/Visitor visit_JoinedStr called!")
+        for value in node.values:
+            self.visit(value)
+        return node
+
+    def visit_FormattedValue(self, node):
+        print(f"🔍 NodeTransformer/Visitor visit_FormattedValue called!")
+        self.visit(node.value)
+        return node
 
 
 def main(code, sql_conn, platform, path_to_core_libs, module_name="main"):
