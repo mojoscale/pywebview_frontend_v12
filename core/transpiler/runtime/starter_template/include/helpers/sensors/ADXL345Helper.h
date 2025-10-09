@@ -111,3 +111,4 @@ String getADXLDataRateText(Adafruit_ADXL345_Unified& sensor) {
         default: return "Unknown rate";
     }
 }
+

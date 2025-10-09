@@ -1362,13 +1362,13 @@
           },
           {
             "name": "get_adc_integration_time",
-            "signature": "(self) -> float",
+            "signature": "(self) -> int",
             "doc": "Get the currently set integration time for color sensing.\n\nReturns:\n    float: Integration time in milliseconds."
           },
           {
             "name": "set_adc_gain",
             "signature": "(self, gain: int) -> None",
-            "doc": "Set gain for the ADC during color measurement.\n\nArgs:\n    gain (int): Gain value (0=1x, 1=4x, 2=16x, 3=64x)."
+            "doc": "Set the APDS9960 sensor's ADC (Analog-to-Digital Converter) gain.\n\nThe ADC gain determines the sensitivity of the color sensing channel.\nHigher gains allow the sensor to detect faint light, while lower gains\nprevent saturation in bright environments.\n\nArgs:\n    gain (int): Gain selector value from 0\u20133, corresponding to:\n        0 \u2192 1\u00d7  (lowest sensitivity)\n        1 \u2192 4\u00d7\n        2 \u2192 16\u00d7\n        3 \u2192 64\u00d7 (highest sensitivity)\n\nExample:\n    ```python\n    apds.set_adc_gain(2)  # sets ADC gain to 16\u00d7\n    ```\n\nNotes:\n    - Defaults to 1\u00d7 if an invalid value is provided.\n    - Internally maps to the Adafruit `apds9960AGain_t` enum."
           },
           {
             "name": "get_adc_gain",
@@ -1378,7 +1378,7 @@
           {
             "name": "set_led",
             "signature": "(self, drive: int, boost: int) -> None",
-            "doc": "Set LED drive strength and boost.\n\nArgs:\n    drive (int): Drive strength (e.g., 0\u20133).\n    boost (int): LED boost percentage (e.g., 0=100%, 1=150%, 2=200%, 3=300%)."
+            "doc": "Configures the infrared (IR) emitter LED drive and boost settings\nfor the APDS9960 sensor.\n\nThis method adjusts the current and boost factor that control\nthe intensity of the IR LED used for proximity and gesture\ndetection. Higher drive or boost values increase LED brightness\nand sensing range but also raise power consumption.\n\nArgs:\n    drive (int): LED drive current code (0\u20133).\n        Maps to approximate current levels as follows:\n            0 \u2192 100 mA\n            1 \u2192 50 mA\n            2 \u2192 25 mA\n            3 \u2192 12.5 mA\n\n    boost (int): LED current boost multiplier code (0\u20133).\n        Maps to effective current scaling factors:\n            0 \u2192 100%\n            1 \u2192 150%\n            2 \u2192 200%\n            3 \u2192 300%\n\nReturns:\n    None"
           },
           {
             "name": "enable_proximity",
@@ -1393,12 +1393,12 @@
           {
             "name": "get_prox_gain",
             "signature": "(self) -> int",
-            "doc": "Get current proximity gain setting.\n\nReturns:\n    int: Proximity gain."
+            "doc": "Retrieves the currently configured proximity gain level.\n\nReturns:\n    int: The proximity gain multiplier as a user-friendly integer\n    (1, 2, 4, or 8), representing the effective sensitivity applied\n    to the proximity sensing engine.\n\nNotes:\n    This value is returned in a human-readable form rather than a\n    raw register code, allowing users to work directly with familiar\n    gain factors used in proximity configuration."
           },
           {
             "name": "set_prox_pulse",
             "signature": "(self, pulse_len: int, pulses: int) -> None",
-            "doc": "Set length and count of proximity pulses.\n\nArgs:\n    pulse_len (int): Pulse length (e.g., 0=4\u00b5s ... 3=32\u00b5s).\n    pulses (int): Number of pulses."
+            "doc": "Configures the proximity sensing pulse sequence.\n\nThis sets both the duration of each IR LED pulse and the total\nnumber of pulses emitted during each proximity measurement cycle.\nLonger or more frequent pulses increase detection range but also\nraise power consumption.\n\nArgs:\n    pulse_len (int): Pulse duration code (0\u20133), mapped to\n        user-friendly time intervals:\n            0 \u2192 4 \u00b5s\n            1 \u2192 8 \u00b5s\n            2 \u2192 16 \u00b5s\n            3 \u2192 32 \u00b5s\n\n    pulses (int): Number of IR LED pulses per proximity cycle\n        (range: 0\u201363). Higher values improve sensitivity at the\n        cost of additional measurement time.\n\nReturns:\n    None\n\nNotes:\n    This method provides an intuitive interface for tuning the\n    proximity sensor\u2019s performance by combining pulse width and\n    count into a single configuration call."
           },
           {
             "name": "enable_proximity_interrupt",
@@ -1417,8 +1417,8 @@
           },
           {
             "name": "set_proximity_interrupt_threshold",
-            "signature": "(self, low: int, high: int, persistence: int = 4) -> None",
-            "doc": "Set thresholds and persistence for proximity interrupts.\n\nArgs:\n    low (int): Minimum threshold.\n    high (int): Maximum threshold.\n    persistence (int): How many consecutive crossings to trigger interrupt."
+            "signature": "(self, low: int, high: int, persistence: int) -> None",
+            "doc": "Configures the proximity interrupt trigger conditions.\n\nThis sets the low and high threshold values that determine\nwhen the proximity interrupt fires, along with a persistence\nvalue that controls how many consecutive readings must exceed\nthose thresholds before triggering.\n\nArgs:\n    low (int): Lower threshold (0\u2013255). The interrupt will trigger\n        when proximity values fall below this limit.\n    high (int): Upper threshold (0\u2013255). The interrupt will trigger\n        when proximity values exceed this limit.\n    persistence (int): Number of consecutive readings (0\u201315)\n        required to confirm the threshold condition before\n        generating an interrupt.\n\nReturns:\n    None\n\nNotes:\n    Use this to avoid false triggers from transient movements\n    by setting appropriate threshold limits and persistence\n    for stable proximity event detection."
           },
           {
             "name": "get_proximity_interrupt",

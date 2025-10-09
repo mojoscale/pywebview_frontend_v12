@@ -43,7 +43,7 @@ class APDS9960Sensor:
         """
         __translation__ = "{0}.setADCIntegrationTime({1})"
 
-    def get_adc_integration_time(self) -> float:
+    def get_adc_integration_time(self) -> int:
         """
         Get the currently set integration time for color sensing.
 
@@ -54,12 +54,29 @@ class APDS9960Sensor:
 
     def set_adc_gain(self, gain: int) -> None:
         """
-        Set gain for the ADC during color measurement.
+        Set the APDS9960 sensor's ADC (Analog-to-Digital Converter) gain.
+
+        The ADC gain determines the sensitivity of the color sensing channel.
+        Higher gains allow the sensor to detect faint light, while lower gains
+        prevent saturation in bright environments.
 
         Args:
-            gain (int): Gain value (0=1x, 1=4x, 2=16x, 3=64x).
+            gain (int): Gain selector value from 0–3, corresponding to:
+                0 → 1×  (lowest sensitivity)
+                1 → 4×
+                2 → 16×
+                3 → 64× (highest sensitivity)
+
+        Example:
+            ```python
+            apds.set_adc_gain(2)  # sets ADC gain to 16×
+            ```
+
+        Notes:
+            - Defaults to 1× if an invalid value is provided.
+            - Internally maps to the Adafruit `apds9960AGain_t` enum.
         """
-        __translation__ = "{0}.setADCGain({1})"
+        __translation__ = "setAPDS9960ADCGain({0}, {1})"
 
     def get_adc_gain(self) -> int:
         """
@@ -72,13 +89,34 @@ class APDS9960Sensor:
 
     def set_led(self, drive: int, boost: int) -> None:
         """
-        Set LED drive strength and boost.
+        Configures the infrared (IR) emitter LED drive and boost settings
+        for the APDS9960 sensor.
+
+        This method adjusts the current and boost factor that control
+        the intensity of the IR LED used for proximity and gesture
+        detection. Higher drive or boost values increase LED brightness
+        and sensing range but also raise power consumption.
 
         Args:
-            drive (int): Drive strength (e.g., 0–3).
-            boost (int): LED boost percentage (e.g., 0=100%, 1=150%, 2=200%, 3=300%).
+            drive (int): LED drive current code (0–3).
+                Maps to approximate current levels as follows:
+                    0 → 100 mA
+                    1 → 50 mA
+                    2 → 25 mA
+                    3 → 12.5 mA
+
+            boost (int): LED current boost multiplier code (0–3).
+                Maps to effective current scaling factors:
+                    0 → 100%
+                    1 → 150%
+                    2 → 200%
+                    3 → 300%
+
+        Returns:
+            None
+
         """
-        __translation__ = "{0}.setLED({1}, {2})"
+        __translation__ = "configureAPDS9960LED({0}, {1}, {2})"
 
     def enable_proximity(self, enable: bool = True) -> None:
         """
@@ -96,26 +134,54 @@ class APDS9960Sensor:
         Args:
             gain (int): Gain (0=1x, 1=2x, 2=4x, 3=8x).
         """
-        __translation__ = "{0}.setProxGain({1})"
+        __translation__ = "configureAPDS9960ProxGain({0}, {1})"
 
     def get_prox_gain(self) -> int:
         """
-        Get current proximity gain setting.
+        Retrieves the currently configured proximity gain level.
 
         Returns:
-            int: Proximity gain.
+            int: The proximity gain multiplier as a user-friendly integer
+            (1, 2, 4, or 8), representing the effective sensitivity applied
+            to the proximity sensing engine.
+
+        Notes:
+            This value is returned in a human-readable form rather than a
+            raw register code, allowing users to work directly with familiar
+            gain factors used in proximity configuration.
         """
         __translation__ = "{0}.getProxGain()"
 
     def set_prox_pulse(self, pulse_len: int, pulses: int) -> None:
         """
-        Set length and count of proximity pulses.
+        Configures the proximity sensing pulse sequence.
+
+        This sets both the duration of each IR LED pulse and the total
+        number of pulses emitted during each proximity measurement cycle.
+        Longer or more frequent pulses increase detection range but also
+        raise power consumption.
 
         Args:
-            pulse_len (int): Pulse length (e.g., 0=4µs ... 3=32µs).
-            pulses (int): Number of pulses.
+            pulse_len (int): Pulse duration code (0–3), mapped to
+                user-friendly time intervals:
+                    0 → 4 µs
+                    1 → 8 µs
+                    2 → 16 µs
+                    3 → 32 µs
+
+            pulses (int): Number of IR LED pulses per proximity cycle
+                (range: 0–63). Higher values improve sensitivity at the
+                cost of additional measurement time.
+
+        Returns:
+            None
+
+        Notes:
+            This method provides an intuitive interface for tuning the
+            proximity sensor’s performance by combining pulse width and
+            count into a single configuration call.
         """
-        __translation__ = "{0}.setProxPulse({1}, {2})"
+        __translation__ = "configureAPDS9960ProxPulse({0}, {1}, {2})"
 
     def enable_proximity_interrupt(self) -> None:
         """Enable interrupt when proximity crosses threshold."""
@@ -135,15 +201,32 @@ class APDS9960Sensor:
         __translation__ = "{0}.readProximity()"
 
     def set_proximity_interrupt_threshold(
-        self, low: int, high: int, persistence: int = 4
+        self, low: int, high: int, persistence: int
     ) -> None:
         """
-        Set thresholds and persistence for proximity interrupts.
+        Configures the proximity interrupt trigger conditions.
+
+        This sets the low and high threshold values that determine
+        when the proximity interrupt fires, along with a persistence
+        value that controls how many consecutive readings must exceed
+        those thresholds before triggering.
 
         Args:
-            low (int): Minimum threshold.
-            high (int): Maximum threshold.
-            persistence (int): How many consecutive crossings to trigger interrupt.
+            low (int): Lower threshold (0–255). The interrupt will trigger
+                when proximity values fall below this limit.
+            high (int): Upper threshold (0–255). The interrupt will trigger
+                when proximity values exceed this limit.
+            persistence (int): Number of consecutive readings (0–15)
+                required to confirm the threshold condition before
+                generating an interrupt.
+
+        Returns:
+            None
+
+        Notes:
+            Use this to avoid false triggers from transient movements
+            by setting appropriate threshold limits and persistence
+            for stable proximity event detection.
         """
         __translation__ = "{0}.setProximityInterruptThreshold({1}, {2}, {3})"
 
