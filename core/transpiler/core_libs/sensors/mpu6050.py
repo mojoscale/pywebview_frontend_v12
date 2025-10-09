@@ -1,6 +1,6 @@
 __include_modules__ = "MPU6050_light,Wire"
 __include_internal_modules__ = "helpers/sensors/MPU6050Helper"
-__dependencies__ = "rfetick/MPU6050_light"
+__dependencies__ = "rfetick/MPU6050_light@^1.1.0"
 
 
 class MPU6050Sensor:
@@ -84,13 +84,31 @@ class MPU6050Sensor:
         __translation__ = "custom_mpu6050_helper_read_acceleration({0})"
         return []
 
-    def read_temperature(self) -> float:
+    def get_angle_x(self) -> float:
+        """
+        Returns orientation angle along x-axis
+        """
+        __translation__ = "{0}.getAngleX()"
+
+    def get_angle_y(self) -> float:
+        """
+        Returns orientation angle along y-axis
+        """
+        __translation__ = "{0}.getAngleY()"
+
+    def get_angle_z(self) -> float:
+        """
+        Returns orientation angle along z-axis
+        """
+        __translation__ = "{0}.getAngleZ()"
+
+    def get_temperature(self) -> float:
         """
         Returns:
             float: Temperature in °C
         """
         __use_as_is__ = False
-        __translation__ = "{0}.readTemp()"
+        __translation__ = "{0}.getTemp()"
         return 0.0
 
     def set_gyro_offsets(self, x: float, y: float, z: float) -> None:
@@ -129,21 +147,54 @@ class MPU6050Sensor:
         __use_as_is__ = False
         __translation__ = "{0}.calcOffsets({1}, {2})"
 
-    def set_address(self, addr: int) -> None:
+    def set_filter_gyro_coef(self, coef: float) -> None:
         """
-        Change I2C address for the sensor (0x68 or 0x69).
+        Adjust the complementary filter’s gyro weighting coefficient.
 
         Args:
-            addr (int): New I2C address
+            coef (float): Gyroscope weighting (0.0–1.0).
+                Higher values emphasize gyro data; lower values favor accelerometer data.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setAddress({1})"
+        __translation__ = "{0}.setFilterGyroCoef({1})"
 
-    def get_address(self) -> int:
+    def set_filter_acc_coef(self, coef: float) -> None:
         """
-        Returns:
-            int: Current I2C address (typically 0x68 or 0x69)
+        Adjust the complementary filter’s accelerometer weighting coefficient.
+
+        Args:
+            coef (float): Accelerometer weighting (0.0–1.0).
+                Typically, acc_coef = 1.0 - gyro_coef.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getAddress()"
-        return 0x68
+        __translation__ = "{0}.setFilterAccCoef({1})"
+
+    def get_filter_gyro_coef(self) -> float:
+        """
+        Retrieve the current complementary filter gyroscope coefficient.
+
+        Returns:
+            float: Current gyro weighting (0.0–1.0).
+        """
+        __use_as_is__ = False
+        __translation__ = "{0}.getFilterGyroCoef()"
+        return 0.98
+
+    def get_filter_acc_coef(self) -> float:
+        """
+        Retrieve the current complementary filter accelerometer coefficient.
+
+        Returns:
+            float: Current accelerometer weighting (0.0–1.0).
+        """
+        __use_as_is__ = False
+        __translation__ = "{0}.getFilterAccCoef()"
+        return 0.02
+
+    def fetch_data(self) -> None:
+        """
+        Perform a low-level data fetch directly from sensor registers.
+        Normally, use `update()` instead of this.
+        """
+        __use_as_is__ = False
+        __translation__ = "{0}.fetchData()"

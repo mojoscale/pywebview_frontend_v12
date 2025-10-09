@@ -16,16 +16,6 @@ class MHZ19Sensor:
         __translation__ = "custom_mhz19_helper_create_mhz19({1})"
         __construct_with_equal_to__ = True
 
-    def retrieve_data(self) -> int:
-        """
-        Request sensor to update internal values.
-
-        Returns:
-            int: Result code from MHZ19_RESULT enum (e.g., 0 for OK, 5 for TIMEOUT).
-        """
-        __use_as_is__ = False
-        __translation__ = "{0}.retrieveData()"
-
     def get_co2(self) -> int:
         """
         Get the measured CO₂ concentration.
@@ -35,16 +25,6 @@ class MHZ19Sensor:
         """
         __use_as_is__ = False
         __translation__ = "{0}.getCO2()"
-
-    def get_min_co2(self) -> int:
-        """
-        Get the minimum possible CO₂ value (requires further processing).
-
-        Returns:
-            int: Minimum CO₂ value.
-        """
-        __use_as_is__ = False
-        __translation__ = "{0}.getMinCO2()"
 
     def get_temperature(self) -> int:
         """
@@ -66,19 +46,21 @@ class MHZ19Sensor:
         __use_as_is__ = False
         __translation__ = "{0}.getAccuracy()"
 
-    def set_range(self, range_val: int) -> int:
+    def set_range(self, range_val: int) -> None:
         """
-        Set the CO2 sensing range.
+        Set the CO₂ measurement range of the MH-Z19 sensor.
 
         Args:
-            range_val (int): One of:
-                - 0: MHZ19_RANGE_1000
-                - 1: MHZ19_RANGE_2000
-                - 2: MHZ19_RANGE_3000
-                - 3: MHZ19_RANGE_5000
-                - 4: MHZ19_RANGE_10000
-        Returns:
-            int: Result code from MHZ19_RESULT enum.
+            range_val (int): Desired measurement range in parts per million (ppm).
+                Valid values are typically:
+                    - 2000   → 0–2000 ppm
+                    - 5000   → 0–5000 ppm
+                    - 10000  → 0–10000 ppm (only on supported models)
+
+        Notes:
+            - The range is stored in the sensor’s non-volatile memory.
+            - Changing the range may require recalibration.
+            - Unsupported values will be ignored or may yield invalid readings.
         """
         __use_as_is__ = False
         __translation__ = "{0}.setRange({1})"
@@ -90,33 +72,12 @@ class MHZ19Sensor:
         __use_as_is__ = False
         __translation__ = "{0}.calibrateZero()"
 
-    def calibrate_span(self, span: int) -> None:
+    def auto_calibration(self, enable: bool) -> None:
         """
-        Calibrate span (high-end point) using known CO₂ concentration.
+        Enable or disable Automatic Baseline Calibration (ABC) mode.
 
         Args:
-            span (int): Known CO₂ concentration in ppm (e.g., 2000).
+            enable (bool): True to enable ABC, False to disable.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.calibrateSpan({1})"
-
-    def set_auto_calibration(self, mode: bool) -> None:
-        """
-        Enable or disable automatic baseline calibration.
-
-        Args:
-            mode (bool): True to enable, False to disable.
-        """
-        __use_as_is__ = False
-        __translation__ = "{0}.setAutoCalibration({1})"
-
-    def send_command(self, command: int) -> None:
-        """
-        Send a custom command to the sensor.
-
-        Args:
-            command (int): Command byte.
-
-        """
-        __use_as_is__ = False
-        __translation__ = "{0}.sendCommand({1})"
+        __translation__ = "{0}.autoCalibration({1})"

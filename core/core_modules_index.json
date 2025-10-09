@@ -477,6 +477,79 @@
     "classes": [],
     "variables": []
   },
+  "hardware_serial": {
+    "doc": "HardwareSerial core stub for Arduino-compatible boards (AVR, ESP8266, ESP32, RP2040).\n\nThis class represents a hardware UART interface used for serial communication.\nIt provides methods to configure baud rate, read and write data, and manage\nthe serial buffer.\n\nCompatible with the built-in Arduino `Serial`, `Serial1`, `Serial2`, etc.",
+    "functions": [],
+    "classes": [
+      {
+        "name": "HardwareSerial",
+        "doc": "Stub representation of Arduino's HardwareSerial class.\nUsed for serial communication with external devices or debug consoles.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, port_id: int = 0)",
+            "doc": "Initialize a HardwareSerial interface.\n\nArgs:\n    port_id (int): UART port index (0 for Serial, 1 for Serial1, etc.)."
+          },
+          {
+            "name": "begin",
+            "signature": "(self, baud: int, config: int = 6) -> None",
+            "doc": "Begin serial communication with the specified baud rate and configuration.\n\nArgs:\n    baud (int): Baud rate (e.g., 9600, 115200).\n    config (int): Serial configuration constant (e.g., SERIAL_8N1 = 0x06).\n\nExample:\n    ```python\n    serial = HardwareSerial(1)\n    serial.begin(115200)\n    ```"
+          },
+          {
+            "name": "end",
+            "signature": "(self) -> None",
+            "doc": "Stop serial communication."
+          },
+          {
+            "name": "available",
+            "signature": "(self) -> int",
+            "doc": "Get number of bytes available to read from the buffer.\n\nReturns:\n    int: Number of available bytes."
+          },
+          {
+            "name": "available_for_write",
+            "signature": "(self) -> int",
+            "doc": "Get number of bytes available for writing to the transmit buffer.\n\nReturns:\n    int: Number of writable bytes."
+          },
+          {
+            "name": "read",
+            "signature": "(self) -> int",
+            "doc": "Read one byte from the serial buffer.\n\nReturns:\n    int: The next byte, or -1 if no data is available."
+          },
+          {
+            "name": "peek",
+            "signature": "(self) -> int",
+            "doc": "Return the next byte without removing it from the buffer.\n\nReturns:\n    int: Next byte, or -1 if none."
+          },
+          {
+            "name": "flush",
+            "signature": "(self) -> None",
+            "doc": "Wait for outgoing data to be transmitted."
+          },
+          {
+            "name": "write",
+            "signature": "(self, value: int) -> int",
+            "doc": "Write a single byte to the serial output.\n\nArgs:\n    value (int): Byte value to send (0\u2013255).\n\nReturns:\n    int: Number of bytes written (usually 1)."
+          },
+          {
+            "name": "print",
+            "signature": "(self, value) -> None",
+            "doc": "Print a value as text to the serial output.\n\nArgs:\n    value: Any printable type (str, int, float)."
+          },
+          {
+            "name": "println",
+            "signature": "(self, value) -> None",
+            "doc": "Print a value followed by a newline.\n\nArgs:\n    value: Any printable type (str, int, float)."
+          },
+          {
+            "name": "set_timeout",
+            "signature": "(self, timeout_ms: int) -> None",
+            "doc": "Set read timeout (used by readBytes, readString, etc.).\n\nArgs:\n    timeout_ms (int): Timeout in milliseconds."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
   "littlefs": {
     "doc": "No module docstring available",
     "functions": [
@@ -1840,19 +1913,9 @@
             "doc": "Initialize the MHZ19 CO\u2082 sensor.\n\nArgs:\n    stream: A serial stream object (e.g., Serial1 or SoftwareSerial)."
           },
           {
-            "name": "retrieve_data",
-            "signature": "(self) -> int",
-            "doc": "Request sensor to update internal values.\n\nReturns:\n    int: Result code from MHZ19_RESULT enum (e.g., 0 for OK, 5 for TIMEOUT)."
-          },
-          {
             "name": "get_co2",
             "signature": "(self) -> int",
             "doc": "Get the measured CO\u2082 concentration.\n\nReturns:\n    int: CO\u2082 value in ppm."
-          },
-          {
-            "name": "get_min_co2",
-            "signature": "(self) -> int",
-            "doc": "Get the minimum possible CO\u2082 value (requires further processing).\n\nReturns:\n    int: Minimum CO\u2082 value."
           },
           {
             "name": "get_temperature",
@@ -1866,8 +1929,8 @@
           },
           {
             "name": "set_range",
-            "signature": "(self, range_val: int) -> int",
-            "doc": "Set the CO2 sensing range.\n\nArgs:\n    range_val (int): One of:\n        - 0: MHZ19_RANGE_1000\n        - 1: MHZ19_RANGE_2000\n        - 2: MHZ19_RANGE_3000\n        - 3: MHZ19_RANGE_5000\n        - 4: MHZ19_RANGE_10000\nReturns:\n    int: Result code from MHZ19_RESULT enum."
+            "signature": "(self, range_val: int) -> None",
+            "doc": "Set the CO\u2082 measurement range of the MH-Z19 sensor.\n\nArgs:\n    range_val (int): Desired measurement range in parts per million (ppm).\n        Valid values are typically:\n            - 2000   \u2192 0\u20132000 ppm\n            - 5000   \u2192 0\u20135000 ppm\n            - 10000  \u2192 0\u201310000 ppm (only on supported models)\n\nNotes:\n    - The range is stored in the sensor\u2019s non-volatile memory.\n    - Changing the range may require recalibration.\n    - Unsupported values will be ignored or may yield invalid readings."
           },
           {
             "name": "calibrate_zero",
@@ -1875,19 +1938,9 @@
             "doc": "Calibrate sensor assuming current ambient air has 400 ppm CO\u2082."
           },
           {
-            "name": "calibrate_span",
-            "signature": "(self, span: int) -> None",
-            "doc": "Calibrate span (high-end point) using known CO\u2082 concentration.\n\nArgs:\n    span (int): Known CO\u2082 concentration in ppm (e.g., 2000)."
-          },
-          {
-            "name": "set_auto_calibration",
-            "signature": "(self, mode: bool) -> None",
-            "doc": "Enable or disable automatic baseline calibration.\n\nArgs:\n    mode (bool): True to enable, False to disable."
-          },
-          {
-            "name": "send_command",
-            "signature": "(self, command: int) -> None",
-            "doc": "Send a custom command to the sensor.\n\nArgs:\n    command (int): Command byte."
+            "name": "auto_calibration",
+            "signature": "(self, enable: bool) -> None",
+            "doc": "Enable or disable Automatic Baseline Calibration (ABC) mode.\n\nArgs:\n    enable (bool): True to enable ABC, False to disable."
           }
         ]
       }
@@ -1933,7 +1986,22 @@
             "doc": "Returns estimated orientation angles using a complementary filter.\n\nReturns:\n    list[float]: [angleX, angleY, angleZ] in degrees"
           },
           {
-            "name": "read_temperature",
+            "name": "get_angle_x",
+            "signature": "(self) -> float",
+            "doc": "Returns orientation angle along x-axis"
+          },
+          {
+            "name": "get_angle_y",
+            "signature": "(self) -> float",
+            "doc": "Returns orientation angle along y-axis"
+          },
+          {
+            "name": "get_angle_z",
+            "signature": "(self) -> float",
+            "doc": "Returns orientation angle along z-axis"
+          },
+          {
+            "name": "get_temperature",
             "signature": "(self) -> float",
             "doc": "Returns:\n    float: Temperature in \u00b0C"
           },
@@ -1953,14 +2021,29 @@
             "doc": "Automatically calculate gyro and/or accelerometer offsets.\nSensor must be stable during this process.\n\nArgs:\n    calc_gyro (bool): Calibrate gyroscope\n    calc_acc (bool): Calibrate accelerometer"
           },
           {
-            "name": "set_address",
-            "signature": "(self, addr: int) -> None",
-            "doc": "Change I2C address for the sensor (0x68 or 0x69).\n\nArgs:\n    addr (int): New I2C address"
+            "name": "set_filter_gyro_coef",
+            "signature": "(self, coef: float) -> None",
+            "doc": "Adjust the complementary filter\u2019s gyro weighting coefficient.\n\nArgs:\n    coef (float): Gyroscope weighting (0.0\u20131.0).\n        Higher values emphasize gyro data; lower values favor accelerometer data."
           },
           {
-            "name": "get_address",
-            "signature": "(self) -> int",
-            "doc": "Returns:\n    int: Current I2C address (typically 0x68 or 0x69)"
+            "name": "set_filter_acc_coef",
+            "signature": "(self, coef: float) -> None",
+            "doc": "Adjust the complementary filter\u2019s accelerometer weighting coefficient.\n\nArgs:\n    coef (float): Accelerometer weighting (0.0\u20131.0).\n        Typically, acc_coef = 1.0 - gyro_coef."
+          },
+          {
+            "name": "get_filter_gyro_coef",
+            "signature": "(self) -> float",
+            "doc": "Retrieve the current complementary filter gyroscope coefficient.\n\nReturns:\n    float: Current gyro weighting (0.0\u20131.0)."
+          },
+          {
+            "name": "get_filter_acc_coef",
+            "signature": "(self) -> float",
+            "doc": "Retrieve the current complementary filter accelerometer coefficient.\n\nReturns:\n    float: Current accelerometer weighting (0.0\u20131.0)."
+          },
+          {
+            "name": "fetch_data",
+            "signature": "(self) -> None",
+            "doc": "Perform a low-level data fetch directly from sensor registers.\nNormally, use `update()` instead of this."
           }
         ]
       }
