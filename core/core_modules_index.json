@@ -1546,7 +1546,7 @@
           {
             "name": "configure",
             "signature": "(self, mode: int) -> bool",
-            "doc": "Change measurement mode of the sensor.\n\nArgs:\n    mode (int): One of the defined measurement mode constants.\n\nReturns:\n    bool: True if configuration succeeded."
+            "doc": "Configures the BH1750 sensor\u2019s measurement mode using a simple\ninteger mapping for user convenience.\n\nThis method allows selection of one of the standard BH1750\nillumination measurement modes \u2014 continuous or one-time,\nhigh- or low-resolution \u2014 through an integer input that is\ninternally translated to the correct `BH1750::Mode` enum.\n\nArgs:\n    mode (int): Integer mode selector corresponding to:\n        1 \u2192 CONTINUOUS_HIGH_RES_MODE\n        2 \u2192 CONTINUOUS_HIGH_RES_MODE_2\n        3 \u2192 CONTINUOUS_LOW_RES_MODE\n        4 \u2192 ONE_TIME_HIGH_RES_MODE\n        5 \u2192 ONE_TIME_HIGH_RES_MODE_2\n        6 \u2192 ONE_TIME_LOW_RES_MODE\n\nReturns:\n    bool: Always returns True if the configuration function\n    is invoked successfully.\n\nNotes:\n    This function simplifies mode selection by abstracting\n    enum handling, ensuring compatibility with the C++ helper\n    `configureBH1750Mode()`."
           },
           {
             "name": "set_mtreg",
@@ -1674,7 +1674,7 @@
     ],
     "variables": []
   },
-  "sensors.ccd811": {
+  "sensors.ccs811": {
     "doc": "No module docstring available",
     "functions": [],
     "classes": [
@@ -1690,37 +1690,42 @@
           {
             "name": "begin",
             "signature": "(self) -> bool",
-            "doc": "Start the sensor with default I2C address."
+            "doc": "Initialize the CCS811 sensor over I2C.\n\nReturns:\n    bool: True if sensor initialized successfully."
           },
           {
             "name": "available",
             "signature": "(self) -> bool",
-            "doc": "Check if new data is available."
+            "doc": "Check whether new measurement data is available.\n\nReturns:\n    bool: True if new data is available."
           },
           {
             "name": "read_data",
             "signature": "(self) -> bool",
-            "doc": "Read latest sensor data."
+            "doc": "Read the latest data sample from the sensor.\n\nReturns:\n    bool: True if the read succeeded."
           },
           {
             "name": "get_eco2",
             "signature": "(self) -> int",
-            "doc": "Return eCO2 in ppm."
+            "doc": "Get the equivalent CO2 (eCO2) reading in parts per million (ppm).\n\nReturns:\n    int: eCO2 concentration in ppm."
           },
           {
             "name": "get_tvoc",
             "signature": "(self) -> int",
-            "doc": "Return TVOC in ppb."
+            "doc": "Get the Total Volatile Organic Compounds (TVOC) reading in parts per billion (ppb).\n\nReturns:\n    int: TVOC concentration in ppb."
           },
           {
             "name": "set_environmental_data",
             "signature": "(self, humidity: float, temperature: float) -> None",
-            "doc": "Provide humidity (%) and temperature (\u00b0C) for compensation."
+            "doc": "Provide humidity (%) and temperature (\u00b0C) data for compensation.\n\nArgs:\n    humidity (float): Relative humidity percentage.\n    temperature (float): Ambient temperature in \u00b0C."
           },
           {
-            "name": "get_error_id",
-            "signature": "(self) -> int",
-            "doc": "Get the error ID from the sensor."
+            "name": "calculate_temperature",
+            "signature": "(self) -> float",
+            "doc": "Calculate temperature using the onboard thermistor.\n\nReturns:\n    float: Temperature in Celsius."
+          },
+          {
+            "name": "set_drive_mode",
+            "signature": "(self, mode: int) -> None",
+            "doc": "Set the sensor\u2019s drive mode.\n\nArgs:\n    mode (int): Drive mode (0\u20134). Each mode defines a different measurement frequency."
           }
         ]
       }

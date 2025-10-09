@@ -1,7 +1,6 @@
 __include_modules__ = "OneWire,DallasTemperature"
 __include_internal_modules__ = ""
 __dependencies__ = "milesburton/DallasTemperature"
-import OneWire
 
 
 class DS18B20Sensor:
@@ -48,5 +47,3 @@ class DS18B20Sensor:
         __use_as_is__ = False
         __translation__ = "{0}.getTempCByIndex({1})"
         return 0.0
-
-

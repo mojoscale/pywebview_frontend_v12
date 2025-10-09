@@ -40,16 +40,34 @@ class BH1750Sensor:
 
     def configure(self, mode: int) -> bool:
         """
-        Change measurement mode of the sensor.
+        Configures the BH1750 sensor’s measurement mode using a simple
+        integer mapping for user convenience.
+
+        This method allows selection of one of the standard BH1750
+        illumination measurement modes — continuous or one-time,
+        high- or low-resolution — through an integer input that is
+        internally translated to the correct `BH1750::Mode` enum.
 
         Args:
-            mode (int): One of the defined measurement mode constants.
+            mode (int): Integer mode selector corresponding to:
+                1 → CONTINUOUS_HIGH_RES_MODE
+                2 → CONTINUOUS_HIGH_RES_MODE_2
+                3 → CONTINUOUS_LOW_RES_MODE
+                4 → ONE_TIME_HIGH_RES_MODE
+                5 → ONE_TIME_HIGH_RES_MODE_2
+                6 → ONE_TIME_LOW_RES_MODE
 
         Returns:
-            bool: True if configuration succeeded.
+            bool: Always returns True if the configuration function
+            is invoked successfully.
+
+        Notes:
+            This function simplifies mode selection by abstracting
+            enum handling, ensuring compatibility with the C++ helper
+            `configureBH1750Mode()`.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.configure({1})"
+        __translation__ = "configureBH1750Mode({0}, {1})"
 
     def set_mtreg(self, mtreg: int) -> bool:
         """
