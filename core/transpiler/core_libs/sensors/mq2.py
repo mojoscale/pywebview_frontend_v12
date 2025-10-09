@@ -1,84 +1,84 @@
-__include_modules__ = ""
+__include_modules__ = "MQ2"
 __include_internal_modules__ = "helpers/sensors/MQ2Helper"
-__dependencies__ = ""
+__dependencies__ = "https://github.com/labay11/MQ-2-sensor-library.git"
 
 
 class MQ2Sensor:
+    """
+    MQ2 gas sensor abstraction using the Labay11/MQ-2-sensor-library.
+
+    Provides methods for reading concentrations of LPG, CO, and Smoke.
+    """
+
     def __init__(self, pin: int):
         """
         Initialize the MQ2 sensor.
 
         Args:
-            pin (int): The analog pin the MQ2 is connected to (e.g., A0 → 0)
+            pin (int): The analog pin connected to the sensor (e.g., A0 → 0).
         """
         __use_as_is__ = False
         __class_actual_type__ = "MQ2"
         __translation__ = "({1})"
 
-    def calibrate_r0(self, samples: int, delay_ms: int) -> None:
+    def begin(self) -> None:
         """
-        Calibrate R0 using clean air.
+        Initialize the MQ2 sensor hardware and calibration routines.
+        Must be called before reading data.
+        """
+        __use_as_is__ = False
+        __translation__ = "{0}.begin()"
 
-        Args:
-            samples (int): Number of samples to average.
-            delay_ms (int): Delay between samples.
+    def close(self) -> None:
         """
-        __use_as_is__ = True
-
-    def set_r0(self, r0: float) -> None:
+        Stop the MQ2 sensor and clear calibration data.
         """
-        Manually set the R0 (clean air resistance).
-        """
-        __use_as_is__ = True
-
-    def get_r0(self) -> float:
-        """
-        Get the current R0 value.
-        """
-        __use_as_is__ = True
-
-    def read_rs(self) -> float:
-        """
-        Read current Rs (sensor resistance in current gas).
-        """
-        __use_as_is__ = True
-
-    def read_ratio(self) -> float:
-        """
-        Return Rs/R0.
-        """
-        __use_as_is__ = True
-
-    def get_ppm(self, a: float, b: float) -> float:
-        """
-        Compute PPM using the formula: ppm = a * (Rs/R0)^b
-        """
-        __use_as_is__ = True
+        __use_as_is__ = False
+        __translation__ = "{0}.close()"
 
     def read(self, debug: bool) -> list[float]:
         """
-        Read all gas concentrations. Debug may print internally.
+        Read all gas concentrations from the sensor.
+
+        Args:
+            debug (bool): If True, prints internal readings via Serial.
+
+        Returns:
+            list[float]: [LPG, CO, Smoke] in ppm.
         """
         __use_as_is__ = False
         __translation__ = "{0}.read({1})"
+        return [0.0, 0.0, 0.0]
 
     def read_lpg(self) -> float:
         """
         Read LPG concentration in ppm.
+
+        Returns:
+            float: LPG concentration.
         """
         __use_as_is__ = False
         __translation__ = "{0}.readLPG()"
+        return 0.0
 
     def read_co(self) -> float:
         """
         Read CO concentration in ppm.
+
+        Returns:
+            float: CO concentration.
         """
         __use_as_is__ = False
         __translation__ = "{0}.readCO()"
+        return 0.0
 
     def read_smoke(self) -> float:
         """
-        Read Smoke concentration in ppm.
+        Read smoke concentration in ppm.
+
+        Returns:
+            float: Smoke concentration.
         """
         __use_as_is__ = False
         __translation__ = "{0}.readSmoke()"
+        return 0.0

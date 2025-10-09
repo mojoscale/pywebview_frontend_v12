@@ -4,7 +4,7 @@ __include_internal_modules__ = "helpers/sensors/TSL2561Helper"
 
 
 class TSL2561Sensor:
-    def __init__(self, address: int):
+    def __init__(self, address: int = 0x39):
         """
         Create a TSL2561 light sensor object.
 
@@ -15,12 +15,9 @@ class TSL2561Sensor:
         __class_actual_type__ = "Adafruit_TSL2561_Unified"
         __translation__ = "({1})"
 
-    def begin(self, address: int) -> bool:
+    def begin(self) -> bool:
         """
-        Initialize the sensor with optional I2C address.
-
-        Args:
-            address (int): I2C address (default 0x39).
+        Initialize the sensor.
 
         Returns:
             bool: True if initialization succeeded.
@@ -31,16 +28,13 @@ class TSL2561Sensor:
     def enable_auto_range(self, enable: bool) -> None:
         """
         Enable or disable automatic gain range adjustment.
-
-        Args:
-            enable (bool): True to enable, False to disable.
         """
         __use_as_is__ = False
         __translation__ = "{0}.enableAutoRange({1})"
 
     def set_integration_time(self, integration_mode: int) -> None:
         """
-        Set the integration time (exposure) for the light sensor.
+        Set the integration time (exposure).
 
         Args:
             integration_mode (int): One of:
@@ -49,17 +43,17 @@ class TSL2561Sensor:
                 2 = 402ms
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setIntegrationTime({1})"
+        __translation__ = "custom_tsl2561_helper_set_integration_time(&{0}, {1})"
 
     def set_gain(self, gain_mode: int) -> None:
         """
-        Set the gain mode of the light sensor.
+        Set gain mode.
 
         Args:
             gain_mode (int): 0 = 1x gain, 1 = 16x gain.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setGain({1})"
+        __translation__ = "custom_tsl2561_helper_set_gain(&{0}, {1})"
 
     def get_luminosity(self) -> list[int]:
         """
@@ -69,7 +63,7 @@ class TSL2561Sensor:
             list[int, int]: (broadband, ir) values.
         """
         __use_as_is__ = False
-        __translation__ = "custom_tsl2561_helper_get_luminosity({0})"
+        __translation__ = "custom_tsl2561_helper_get_luminosity(&{0})"
 
     def calculate_lux(self, broadband: int, ir: int) -> int:
         """

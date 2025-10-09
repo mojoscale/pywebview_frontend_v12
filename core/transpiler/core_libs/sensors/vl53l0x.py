@@ -1,5 +1,6 @@
 __include_modules__ = "Adafruit_VL53L0X"
 __dependencies__ = "adafruit/Adafruit_VL53L0X"
+__include_internal_modules__ = "helpers/sensors/VL53L0XHelper"
 
 
 class VL53L0XSensor:
@@ -132,7 +133,7 @@ class VL53L0XSensor:
         Returns:
             bool: True if configuration successful.
         """
-        __translation__ = "{0}.configSensor({1})"
+        __translation__ = "custom_vl53l0x_helper_config_sensor({0}, {1})"
 
     def set_measurement_timing_budget(self, budget_us: int) -> bool:
         """

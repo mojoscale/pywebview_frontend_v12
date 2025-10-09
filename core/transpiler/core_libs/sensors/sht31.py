@@ -1,46 +1,39 @@
-
-
-
 __dependencies__ = "adafruit/Adafruit SHT31 Library@^2.2.0"
-
 __include_modules__ = "Adafruit_SHT31,Wire"
 __include_internal_modules__ = ""
 
 
-
 class SHT31Sensor:
     """
-    Dummy wrapper for the Adafruit SHT31 temperature and humidity sensor.
-
-    This class is used for Python-to-Arduino transpilation.
+    Wrapper for Adafruit SHT31 temperature/humidity sensor.
+    Used for Python-to-Arduino transpilation.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, address: int = 0x44) -> None:
         """
-        Initializes the I2C sensor with the given address.
+        Initialize SHT31 instance.
 
         Args:
-            address (int): I2C address of the sensor (default is 0x44).
+            address (int): I2C address of the sensor (default 0x44)
         """
-        self.address = address
         __use_as_is__ = False
-
         __class_actual_type__ = "Adafruit_SHT31"
         __translation__ = ""
 
+    def begin(self, address: int = 0x44) -> bool:
+        """
+        Initialize I2C communication with the sensor.
 
-    def begin(self, address:int)-> None:
+        Returns:
+            bool: True if sensor initialized successfully.
+        """
         __use_as_is__ = False
-
         __translation__ = "{0}.begin({1})"
-
+        return True
 
     def read_temperature(self) -> float:
         """
-        Reads the temperature in Celsius.
-
-        Returns:
-            float: Temperature in °C.
+        Read temperature in Celsius.
         """
         __use_as_is__ = False
         __translation__ = "{0}.readTemperature()"
@@ -48,21 +41,22 @@ class SHT31Sensor:
 
     def read_humidity(self) -> float:
         """
-        Reads the relative humidity.
-
-        Returns:
-            float: Humidity in percentage.
+        Read relative humidity in percentage.
         """
         __use_as_is__ = False
         __translation__ = "{0}.readHumidity()"
         return 0.0
 
+    def reset(self) -> None:
+        """
+        Soft-reset the SHT31 sensor.
+        """
+        __use_as_is__ = False
+        __translation__ = "{0}.reset()"
+
     def heater_enabled(self) -> bool:
         """
-        Returns whether the heater is enabled.
-
-        Returns:
-            bool: True if enabled.
+        Check if the internal heater is enabled.
         """
         __use_as_is__ = False
         __translation__ = "{0}.isHeaterEnabled()"
@@ -70,11 +64,7 @@ class SHT31Sensor:
 
     def toggle_heater(self, on: bool) -> None:
         """
-        Enables or disables the sensor's internal heater.
-
-        Args:
-            on (bool): True to enable, False to disable.
+        Enable or disable the internal heater.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.heater({0})"
-        return None
+        __translation__ = "{0}.heater({1})"

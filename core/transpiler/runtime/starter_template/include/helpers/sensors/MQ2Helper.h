@@ -1,51 +1,20 @@
-#ifndef MQ2_H
-#define MQ2_H
-
 #include <Arduino.h>
-#include <math.h>
+#include <MQ2.h>
+#include "PyDict.h"
 
-class MQ2 {
-private:
-    int _pin;
-    float _r0;
-
-public:
-    MQ2(int pin) : _pin(pin), _r0(10.0f) {}
-
-    void calibrate_r0(int samples = 50, int delay_ms = 500) {
-        float rs_sum = 0.0;
-        for (int i = 0; i < samples; i++) {
-            float val = analogRead(_pin);
-            float vrl = val * (5.0f / 1023.0f);
-            float rs = (5.0f - vrl) / vrl * 10.0f;  // RL = 10kΩ
-            rs_sum += rs;
-            delay(delay_ms);
-        }
-        _r0 = rs_sum / samples;
-    }
-
-    void set_r0(float r0) {
-        _r0 = r0;
-    }
-
-    float get_r0() const {
-        return _r0;
-    }
-
-    float read_rs() {
-        float val = analogRead(_pin);
-        float vrl = val * (5.0f / 1023.0f);
-        return (5.0f - vrl) / vrl * 10.0f;
-    }
-
-    float read_ratio() {
-        return read_rs() / _r0;
-    }
-
-    float get_ppm(float a, float b) {
-        float ratio = read_ratio();
-        return a * pow(ratio, b);
-    }
-};
-
-#endif
+/**
+ * Reads LPG, CO, and SMOKE values from the MQ2 sensor
+ * and returns them as a PyDict<float> object.
+ *
+ * @param sensor Reference to an MQ2 instance.
+ * @param print  If true, enables Serial printing inside MQ2::read().
+ * @return PyDict<float> Dictionary-style container with keys "LPG", "CO", "SMOKE".
+ */
+PyDict<float> custom_mq2_helper_read_dict(MQ2& sensor, bool print) {
+    float* values = sensor.read(print);  // [LPG, CO, SMOKE]
+    PyDict<float> result;
+    result.set("LPG", values[0]);
+    result.set("CO", values[1]);
+    result.set("SMOKE", values[2]);
+    return result;
+}

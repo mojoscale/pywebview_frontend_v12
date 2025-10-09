@@ -2109,42 +2109,42 @@
     "classes": [
       {
         "name": "MQ2Sensor",
-        "doc": "No docstring available",
+        "doc": "MQ2 gas sensor abstraction using the Labay11/MQ-2-sensor-library.\n\nProvides methods for reading concentrations of LPG, CO, and Smoke.",
         "methods": [
           {
             "name": "__init__",
             "signature": "(self, pin: int)",
-            "doc": "Initialize the MQ2 sensor.\n\nArgs:\n    pin (int): The analog pin the MQ2 is connected to (e.g., A0 \u2192 0)"
+            "doc": "Initialize the MQ2 sensor.\n\nArgs:\n    pin (int): The analog pin connected to the sensor (e.g., A0 \u2192 0)."
           },
           {
-            "name": "calibrate_r0",
-            "signature": "(self, samples: int, delay_ms: int) -> None",
-            "doc": "Calibrate R0 using clean air.\n\nArgs:\n    samples (int): Number of samples to average.\n    delay_ms (int): Delay between samples."
+            "name": "begin",
+            "signature": "(self) -> None",
+            "doc": "Initialize the MQ2 sensor hardware and calibration routines.\nMust be called before reading data."
           },
           {
-            "name": "set_r0",
-            "signature": "(self, r0: float) -> None",
-            "doc": "Manually set the R0 (clean air resistance)."
+            "name": "close",
+            "signature": "(self) -> None",
+            "doc": "Stop the MQ2 sensor and clear calibration data."
           },
           {
-            "name": "get_r0",
+            "name": "read",
+            "signature": "(self, debug: bool) -> list[float]",
+            "doc": "Read all gas concentrations from the sensor.\n\nArgs:\n    debug (bool): If True, prints internal readings via Serial.\n\nReturns:\n    list[float]: [LPG, CO, Smoke] in ppm."
+          },
+          {
+            "name": "read_lpg",
             "signature": "(self) -> float",
-            "doc": "Get the current R0 value."
+            "doc": "Read LPG concentration in ppm.\n\nReturns:\n    float: LPG concentration."
           },
           {
-            "name": "read_rs",
+            "name": "read_co",
             "signature": "(self) -> float",
-            "doc": "Read current Rs (sensor resistance in current gas)."
+            "doc": "Read CO concentration in ppm.\n\nReturns:\n    float: CO concentration."
           },
           {
-            "name": "read_ratio",
+            "name": "read_smoke",
             "signature": "(self) -> float",
-            "doc": "Return Rs/R0."
-          },
-          {
-            "name": "get_ppm",
-            "signature": "(self, a: float, b: float) -> float",
-            "doc": "Compute PPM using the formula: ppm = a * (Rs/R0)^b"
+            "doc": "Read smoke concentration in ppm.\n\nReturns:\n    float: Smoke concentration."
           }
         ]
       }
@@ -2320,37 +2320,42 @@
     "classes": [
       {
         "name": "SHT31Sensor",
-        "doc": "Dummy wrapper for the Adafruit SHT31 temperature and humidity sensor.\n\nThis class is used for Python-to-Arduino transpilation.",
+        "doc": "Wrapper for Adafruit SHT31 temperature/humidity sensor.\nUsed for Python-to-Arduino transpilation.",
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self) -> None",
-            "doc": "Initializes the I2C sensor with the given address.\n\nArgs:\n    address (int): I2C address of the sensor (default is 0x44)."
+            "signature": "(self, address: int = 68) -> None",
+            "doc": "Initialize SHT31 instance.\n\nArgs:\n    address (int): I2C address of the sensor (default 0x44)"
           },
           {
             "name": "begin",
-            "signature": "(self, address: int) -> None",
-            "doc": "No docstring available"
+            "signature": "(self, address: int = 68) -> bool",
+            "doc": "Initialize I2C communication with the sensor.\n\nReturns:\n    bool: True if sensor initialized successfully."
           },
           {
             "name": "read_temperature",
             "signature": "(self) -> float",
-            "doc": "Reads the temperature in Celsius.\n\nReturns:\n    float: Temperature in \u00b0C."
+            "doc": "Read temperature in Celsius."
           },
           {
             "name": "read_humidity",
             "signature": "(self) -> float",
-            "doc": "Reads the relative humidity.\n\nReturns:\n    float: Humidity in percentage."
+            "doc": "Read relative humidity in percentage."
+          },
+          {
+            "name": "reset",
+            "signature": "(self) -> None",
+            "doc": "Soft-reset the SHT31 sensor."
           },
           {
             "name": "heater_enabled",
             "signature": "(self) -> bool",
-            "doc": "Returns whether the heater is enabled.\n\nReturns:\n    bool: True if enabled."
+            "doc": "Check if the internal heater is enabled."
           },
           {
             "name": "toggle_heater",
             "signature": "(self, on: bool) -> None",
-            "doc": "Enables or disables the sensor's internal heater.\n\nArgs:\n    on (bool): True to enable, False to disable."
+            "doc": "Enable or disable the internal heater."
           }
         ]
       }
@@ -2367,28 +2372,28 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, address: int)",
+            "signature": "(self, address: int = 57)",
             "doc": "Create a TSL2561 light sensor object.\n\nArgs:\n    address (int): I2C address of the sensor (0x29, 0x39, or 0x49)."
           },
           {
             "name": "begin",
-            "signature": "(self, address: int) -> bool",
-            "doc": "Initialize the sensor with optional I2C address.\n\nArgs:\n    address (int): I2C address (default 0x39).\n\nReturns:\n    bool: True if initialization succeeded."
+            "signature": "(self) -> bool",
+            "doc": "Initialize the sensor.\n\nReturns:\n    bool: True if initialization succeeded."
           },
           {
             "name": "enable_auto_range",
             "signature": "(self, enable: bool) -> None",
-            "doc": "Enable or disable automatic gain range adjustment.\n\nArgs:\n    enable (bool): True to enable, False to disable."
+            "doc": "Enable or disable automatic gain range adjustment."
           },
           {
             "name": "set_integration_time",
             "signature": "(self, integration_mode: int) -> None",
-            "doc": "Set the integration time (exposure) for the light sensor.\n\nArgs:\n    integration_mode (int): One of:\n        0 = 13ms,\n        1 = 101ms,\n        2 = 402ms"
+            "doc": "Set the integration time (exposure).\n\nArgs:\n    integration_mode (int): One of:\n        0 = 13ms,\n        1 = 101ms,\n        2 = 402ms"
           },
           {
             "name": "set_gain",
             "signature": "(self, gain_mode: int) -> None",
-            "doc": "Set the gain mode of the light sensor.\n\nArgs:\n    gain_mode (int): 0 = 1x gain, 1 = 16x gain."
+            "doc": "Set gain mode.\n\nArgs:\n    gain_mode (int): 0 = 1x gain, 1 = 16x gain."
           },
           {
             "name": "get_luminosity",
