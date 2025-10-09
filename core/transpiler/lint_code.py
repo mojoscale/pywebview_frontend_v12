@@ -81,6 +81,24 @@ DISALLOWED_NODE_TYPES = [
 ]
 
 
+def has_invalid_chars(s: str) -> bool:
+    """
+    Checks whether the given string contains characters
+    outside the valid ASCII printable range (32–126).
+
+    Args:
+        s (str): Input string.
+
+    Returns:
+        bool: True if the string contains any invalid characters.
+    """
+    for ch in s:
+        code = ord(ch)
+        if code < 32 or code > 126:
+            return True
+    return False
+
+
 class LintCode(ast.NodeVisitor):
     def __init__(
         self,
@@ -951,6 +969,11 @@ class LintCode(ast.NodeVisitor):
 
         # Recurse further (in case of nested attributes)
         self.generic_visit(node)
+
+    def visit_Constant(self, node):
+        if isinstance(node.value, str):
+            if has_invalid_chars(node.value):
+                self.add_error(node, "Special characters are not allowed.")
 
 
 def main(code, sql_conn, platform, path_to_core_libs, module_name="main"):
