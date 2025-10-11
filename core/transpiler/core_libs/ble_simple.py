@@ -38,7 +38,7 @@ ble.on_write("5678", on_write_handler)```
 """
 
 __include_modules__ = "BLESimple"
-__include_internal_modules__ = ""
+__include_internal_modules__ = "helpers/BLESimpleHelper"
 __dependencies__ = ""
 
 
@@ -85,20 +85,6 @@ class BLESimple:
         __translation__ = "{0}.scan({1})"
         return []
 
-    def get_device_info(self) -> dict[str, str]:
-        """
-        Get metadata about this device. All values are strings.
-
-        Returns:
-            dict[str, str]: A dictionary containing:
-                - 'name': Device name
-                - 'mode': 'central' or 'peripheral'
-                - 'connected': 'True' or 'False' (as string)
-        """
-        __use_as_is__ = False
-        __translation__ = "{0}.get_device_info()"
-        return {}
-
     def connect_to(self, name_or_uuid: str) -> bool:
         """
         Connect to a BLE device by name or UUID.
@@ -126,7 +112,7 @@ class BLESimple:
             bool: Connection status.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.is_connected()"
+        __translation__ = "ble_is_connected({0})"
         return False
 
     def add_service(self, uuid: str) -> None:
@@ -256,10 +242,10 @@ class BLESimple:
             list[str]: UUIDs
         """
         __use_as_is__ = False
-        __translation__ = "{0}.get_services()"
+        __translation__ = "get_all_ble_services({0})"
         return []
 
-    def get_characteristics(self, service_uuid: str) -> list[str]:
+    def get_characteristics(self, service_uuid: str) -> dict[str, str]:
         """
         Return characteristics under a given service.
 
@@ -270,5 +256,5 @@ class BLESimple:
             list[str]: Characteristic UUIDs.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.get_characteristics({1})"
+        __translation__ = "get_characteristics_for_service({0}, {1})"
         return []

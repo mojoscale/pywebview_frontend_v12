@@ -891,35 +891,4 @@ def arduino_randomSeed(seed: int) -> None:
     raise NotImplementedError()
 
 
-##################################################################################################3
-
-############Hardware Serial########################################################################
-
-
-class HardwareSerial:
-    def __init__(self, uart_number: int):
-        """
-        Reference a hardware serial interface by UART number.
-
-        On most microcontrollers like the ESP32, multiple hardware serial ports are available.
-        This class allows selecting one of them using its UART number.
-
-        Args:
-            uart_number (int): The UART interface number to use:
-                - 0 → Serial
-                - 1 → Serial1 (recommended for custom serial devices)
-                - 2 → Serial2 (optional, depending on board)
-
-        Notes:
-            - UART0 (Serial) is often used for USB or debug logging.
-            - UART1 and UART2 are free to use for communicating with sensors like MH-Z19.
-            - This stub maps `HardwareSerial(1)` to `Serial1`, and so on.
-            - No new object is created — the stub just tells the transpiler to use the named instance.
-
-        Example:
-            serial = HardwareSerial(1)      # Refers to Serial1
-            sensor = MHZ19Sensor(serial)    # Becomes: create_mhz19(Serial1)
-        """
-        __use_as_is__ = False
-        __class_actual_type__ = "HardwareSerial"
-        __translation__ = "({1})"  # emit raw symbol like Serial1
+##################################################################################################33

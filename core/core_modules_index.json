@@ -278,19 +278,7 @@
         "doc": "Seeds the random number generator with a given seed.\n\nArgs:\n    seed (int): The seed value.\n\nReturns:\n    None"
       }
     ],
-    "classes": [
-      {
-        "name": "HardwareSerial",
-        "doc": "No docstring available",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self, uart_number: int)",
-            "doc": "Reference a hardware serial interface by UART number.\n\nOn most microcontrollers like the ESP32, multiple hardware serial ports are available.\nThis class allows selecting one of them using its UART number.\n\nArgs:\n    uart_number (int): The UART interface number to use:\n        - 0 \u2192 Serial\n        - 1 \u2192 Serial1 (recommended for custom serial devices)\n        - 2 \u2192 Serial2 (optional, depending on board)\n\nNotes:\n    - UART0 (Serial) is often used for USB or debug logging.\n    - UART1 and UART2 are free to use for communicating with sensors like MH-Z19.\n    - This stub maps `HardwareSerial(1)` to `Serial1`, and so on.\n    - No new object is created \u2014 the stub just tells the transpiler to use the named instance.\n\nExample:\n    serial = HardwareSerial(1)      # Refers to Serial1\n    sensor = MHZ19Sensor(serial)    # Becomes: create_mhz19(Serial1)"
-          }
-        ]
-      }
-    ],
+    "classes": [],
     "variables": []
   },
   "async_webserver": {
@@ -386,11 +374,6 @@
             "doc": "Scan for nearby BLE devices (central mode only).\n\nArgs:\n    timeout (int): Scan duration in seconds.\n\nReturns:\n    list[str]: List of device names or IDs."
           },
           {
-            "name": "get_device_info",
-            "signature": "(self) -> dict[str, str]",
-            "doc": "Get metadata about this device. All values are strings.\n\nReturns:\n    dict[str, str]: A dictionary containing:\n        - 'name': Device name\n        - 'mode': 'central' or 'peripheral'\n        - 'connected': 'True' or 'False' (as string)"
-          },
-          {
             "name": "connect_to",
             "signature": "(self, name_or_uuid: str) -> bool",
             "doc": "Connect to a BLE device by name or UUID.\n\nArgs:\n    name_or_uuid (str): Target device ID.\n\nReturns:\n    bool: True if successful."
@@ -457,7 +440,7 @@
           },
           {
             "name": "get_characteristics",
-            "signature": "(self, service_uuid: str) -> list[str]",
+            "signature": "(self, service_uuid: str) -> dict[str, str]",
             "doc": "Return characteristics under a given service.\n\nArgs:\n    service_uuid (str): Service UUID.\n\nReturns:\n    list[str]: Characteristic UUIDs."
           }
         ]

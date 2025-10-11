@@ -139,6 +139,12 @@ class LintCode(ast.NodeVisitor):
             self.add_error(node, f"Use of '{node_type}' is not allowed")
         super().generic_visit(node)
 
+    def _assign_parents(self, tree):
+        """Assign parent references to all AST nodes."""
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                child.parent = node
+
     def add_error(self, node, message):
         """Add error with line and column from AST node."""
         lineno = getattr(node, "lineno", 1)
@@ -164,6 +170,7 @@ class LintCode(ast.NodeVisitor):
 
         try:
             tree = ast.parse(code)
+            self._assign_parents(tree)
             self.visit(tree)
         except SyntaxError as e:
             return {
@@ -813,7 +820,9 @@ class LintCode(ast.NodeVisitor):
                         method_name, module_name=module_name
                     )
 
-                    print(f"method {method_name} is class {is_method_class}")
+                    print(
+                        f"method {method_name} is class {is_method_class} and is in module {module_name}"
+                    )
 
                     if is_method_class:
                         method_metadata = self.dependency_resolver.get_method_metadata(
@@ -949,25 +958,67 @@ class LintCode(ast.NodeVisitor):
 
     def visit_Name(self, node):
         """
-        Handle variable usage and detect undeclared identifiers.
+        Handle variable and function name usage.
+        Ensures that bare function names (without parentheses) are only allowed
+        in valid contexts like arguments or assignments, mimicking C++/Arduino semantics.
+
+        Cases handled:
+        ✅ 1. Function call → allowed
+        ✅ 2. Function name passed as argument → allowed
+        ✅ 3. Function name assigned to variable → allowed
+        ✅ 4. Builtin functions or constants → allowed
+        ❌ 5. Bare function name (not called or used) → error
         """
-        # Only check variables that are *used*, not assigned
+
         if isinstance(node.ctx, ast.Load):
             var_name = node.id
 
-            # Skip builtins
+            # --- Skip Python builtins entirely ---
             if var_name in dir(__builtins__):
                 return
 
-            # Check if variable exists in dependency_resolver
-            var_type = self.dependency_resolver.get_variable_type(var_name, self.scope)
+            # --- Get parent safely ---
+            parent = getattr(node, "parent", None)
 
-            if not var_type:
+            # --- CASE 1: function being *called* (f1()) ---
+            if isinstance(parent, ast.Call) and parent.func == node:
+                return
+
+            # --- CASE 2: function name passed as argument (registerCallback(f1)) ---
+            if isinstance(parent, ast.Call) and node in parent.args:
+                return
+
+            # --- CASE 3: assigned to variable (ptr = f1) ---
+            if isinstance(parent, ast.Assign):
+                return
+
+            # --- CASE 4: part of an attribute (obj.f1) ---
+            if isinstance(parent, ast.Attribute):
+                return
+
+            # --- CASE 5: unpacking or other allowed expressions (rare but safe) ---
+            if isinstance(parent, (ast.Tuple, ast.List, ast.Dict)):
+                return
+
+            # --- Check if variable or function is known ---
+            var_type = self.dependency_resolver.get_variable_type(var_name, self.scope)
+            func_meta = None
+            try:
+                func_meta = self.dependency_resolver.get_method_metadata(var_name)
+            except Exception:
+                pass  # safe fallback
+
+            # --- Bare name check ---
+            if not var_type and not func_meta:
+                # If name corresponds to a function but not in valid context → invalid
+                # This catches bare f1; which is invalid in C++/Arduino
                 self.add_error(
-                    node, f"Variable '{var_name}' is not defined before use."
+                    node,
+                    f"Name '{var_name}' used without call or assignment. "
+                    "Did you mean to call it with parentheses?",
                 )
 
-        # Recurse further (in case of nested attributes)
+        # Continue traversing other nodes
         self.generic_visit(node)
 
     def visit_Constant(self, node):

@@ -461,24 +461,41 @@ class DependencyResolver:
 
     def get_method_metadata(self, method_name, module_name=None, class_name=None):
         methods_table = f"{self.current_id}_methods"
+        print(f"transpiler: {method_name}, {module_name}")
 
         if module_name:
-            query = f"""
-            SELECT method_name, return_type, args
-            FROM {methods_table}
-            WHERE method_name = ? AND module_name = ? AND class_name = ?
-            """
-
-            self.cursor.execute(query, (method_name, module_name, class_name))
+            if class_name:
+                query = f"""
+                SELECT method_name, return_type, args
+                FROM {methods_table}
+                WHERE method_name = ? AND module_name = ? AND class_name = ?
+                """
+                self.cursor.execute(query, (method_name, module_name, class_name))
+            else:
+                query = f"""
+                SELECT method_name, return_type, args
+                FROM {methods_table}
+                WHERE method_name = ? AND module_name = ?
+                """
+                self.cursor.execute(query, (method_name, module_name))
 
         else:
-            query = f"""
-            SELECT method_name, return_type, args
-            FROM {methods_table}
-            WHERE method_name = ? AND  class_name = ?
-            """
+            if class_name:
+                query = f"""
+                SELECT method_name, return_type, args
+                FROM {methods_table}
+                WHERE method_name = ? AND  class_name = ?
+                """
 
-            self.cursor.execute(query, (method_name, class_name))
+                self.cursor.execute(query, (method_name, class_name))
+            else:
+                query = f"""
+                SELECT method_name, return_type, args
+                FROM {methods_table}
+                WHERE method_name = ?
+                """
+
+                self.cursor.execute(query, (method_name,))
 
         row = self.cursor.fetchone()
 
