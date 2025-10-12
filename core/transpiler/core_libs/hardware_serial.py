@@ -122,7 +122,7 @@ class HardwareSerial:
         __translation__ = "{0}.write({1})"
         return 1
 
-    def print(self, value) -> None:
+    def print(self, value: str) -> None:
         """
         Print a value as text to the serial output.
 
@@ -132,7 +132,7 @@ class HardwareSerial:
         __use_as_is__ = False
         __translation__ = "{0}.print({1})"
 
-    def println(self, value) -> None:
+    def println(self, value: str) -> None:
         """
         Print a value followed by a newline.
 

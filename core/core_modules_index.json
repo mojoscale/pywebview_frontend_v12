@@ -312,6 +312,37 @@
         ]
       },
       {
+        "name": "AsyncStaticWebHandler",
+        "doc": "Represents a static file handler returned by `AsyncWebServer.serve_static()`.\n\nThis class allows chaining configuration methods such as\n`set_default_file()`, `set_cache_control()`, `set_last_modified()`,\nand `set_authentication()`.\n\nExample:\n    ```python\n    server.serve_static(\"/\", \"/www\", 86400)               .set_default_file(\"index.html\")               .set_authentication(\"user\", \"pass\")\n    ```",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "This class should not be instantiated directly.\n\nInstances are automatically returned when calling\n`AsyncWebServer.serve_static()`."
+          },
+          {
+            "name": "set_default_file",
+            "signature": "(self, filename: str) -> AsyncStaticWebHandler",
+            "doc": "Sets the default file to serve when a directory is requested.\n\nArgs:\n    filename (str): The file name to serve by default\n        (e.g., \"index.html\").\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining)."
+          },
+          {
+            "name": "set_cache_control",
+            "signature": "(self, cache_seconds: int) -> AsyncStaticWebHandler",
+            "doc": "Sets the cache control duration for static files.\n\nArgs:\n    cache_seconds (int): Number of seconds that the browser\n        should cache the file (e.g., 86400 for one day).\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining).\n\nNotes:\n    Transpiles to:\n        `.setCacheControl(\"max-age=<cache_seconds>\")`"
+          },
+          {
+            "name": "set_last_modified",
+            "signature": "(self, timestamp: int) -> AsyncStaticWebHandler",
+            "doc": "Sets the 'Last-Modified' timestamp header for the served files.\n\nArgs:\n    timestamp (int): UNIX timestamp representing the last\n        modification time.\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining)."
+          },
+          {
+            "name": "set_authentication",
+            "signature": "(self, user: str, password: str) -> AsyncStaticWebHandler",
+            "doc": "Sets basic HTTP authentication credentials for the static route.\n\nArgs:\n    user (str): Username required to access the files.\n    password (str): Corresponding password.\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining)."
+          }
+        ]
+      },
+      {
         "name": "AsyncWebServer",
         "doc": "Dummy for AsyncWebServer.\n\nRepresents the HTTP server for asynchronous request handling.",
         "methods": [
@@ -332,8 +363,8 @@
           },
           {
             "name": "serve_static",
-            "signature": "(self, uri: str, fs, path: str, cache_control: str) -> None",
-            "doc": "Serves static files from the filesystem at a given URI.\n\nArgs:\n    uri (str): The URL path prefix (e.g., \"/static\").\n    fs: Filesystem reference (e.g., LittleFS).\n    path (str): The root directory in the FS.\n    cache_control (str): Cache control header value.\n\nReturns:\n    None"
+            "signature": "(self, uri: str, file_path: str) -> AsyncStaticWebHandler",
+            "doc": "Serves static files from the filesystem at a given URI.\n\nArgs:\n    uri (str): The URL path prefix (e.g., \"/static\").\n    path (str): The root directory in the FS.\n    cache_control (str): Cache control header value.\n\nReturns:\n    None"
           }
         ]
       }
@@ -515,12 +546,12 @@
           },
           {
             "name": "print",
-            "signature": "(self, value) -> None",
+            "signature": "(self, value: str) -> None",
             "doc": "Print a value as text to the serial output.\n\nArgs:\n    value: Any printable type (str, int, float)."
           },
           {
             "name": "println",
-            "signature": "(self, value) -> None",
+            "signature": "(self, value: str) -> None",
             "doc": "Print a value followed by a newline.\n\nArgs:\n    value: Any printable type (str, int, float)."
           },
           {

@@ -1278,7 +1278,7 @@ class DependencyResolver:
             class_actual_type = self._get_dunder_value(
                 ast_node, "__class_actual_type__"
             )
-            pass_as = self._get_dunder_value(ast_node, "__pass_as__") or "reference"
+            pass_as = self._get_dunder_value(ast_node, "__pass_as__") or ""
 
             is_eval = self._get_dunder_value(ast_node, "__is_eval__") or False
 
@@ -2991,10 +2991,16 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 self.dependency_resolver.class_constructor_use_equal_to(class_name)
             )
             actual_cpp_type = self.dependency_resolver.get_actual_class_type(class_name)
+            pass_as = self.dependency_resolver.get_class_pass_as(class_name)
 
             if actual_cpp_type:
                 cpp_type = actual_cpp_type
             if is_reference:
+                cpp_type = f"{cpp_type}&"
+
+            elif pass_as == "pointer":
+                cpp_type = f"{cpp_type}*"
+            elif pass_as == "reference":
                 cpp_type = f"{cpp_type}&"
 
             if construct_with_equal_to:
@@ -3002,6 +3008,14 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
             else:
                 return f"{cpp_type} {lhs_name}{rhs_converted}"
+
+        if not is_python_type:
+            pass_as = self.dependency_resolver.get_class_pass_as(rhs_type)
+
+            if pass_as == "pointer":
+                cpp_type = f"{cpp_type}*"
+            elif pass_as == "reference":
+                cpp_type = f"{cpp_type}&"
 
         return f"{cpp_type} {lhs_name} = {rhs_converted}"
 

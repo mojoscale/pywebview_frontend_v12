@@ -1,7 +1,7 @@
 # __include_modules__ = "ESPAsyncWebServer"
 
 __include_modules__ = {
-    "espressif8266": "ESPAsyncWebServer",
+    "espressif8266": "ESPAsyncWebServer,LITTLEFS",
     "espressif32": "ESPAsyncWebServer,AsyncTCP",
 }
 __include_internal_modules__ = "helpers/AsyncWebServerHelper"
@@ -51,6 +51,7 @@ class AsyncWebServerRequest:
         Returns:
             None
         """
+        __is_pointer__ = True
         __pass_as__ = "pointer"
         __class_actual_type__ = ""
 
@@ -100,6 +101,102 @@ class AsyncWebServerRequest:
         return False
 
 
+class AsyncStaticWebHandler:
+    """
+    Represents a static file handler returned by `AsyncWebServer.serve_static()`.
+
+    This class allows chaining configuration methods such as
+    `set_default_file()`, `set_cache_control()`, `set_last_modified()`,
+    and `set_authentication()`.
+
+    Example:
+        ```python
+        server.serve_static("/", "/www", 86400) \
+              .set_default_file("index.html") \
+              .set_authentication("user", "pass")
+        ```
+    """
+
+    def __init__(self):
+        """
+        This class should not be instantiated directly.
+
+        Instances are automatically returned when calling
+        `AsyncWebServer.serve_static()`.
+        """
+        __use_as_is__ = False
+        __pass_as__ = "pointer"
+        __class_actual_type__ = "AsyncStaticWebHandler"
+
+    def set_default_file(self, filename: str) -> AsyncStaticWebHandler:
+        """
+        Sets the default file to serve when a directory is requested.
+
+        Args:
+            filename (str): The file name to serve by default
+                (e.g., "index.html").
+
+        Returns:
+            AsyncStaticWebHandler: Reference to the same handler (for chaining).
+
+
+
+
+        """
+        __use_as_is__ = False
+        __translation__ = "{0}->setDefaultFile({1}.c_str())"
+        return self
+
+    def set_cache_control(self, cache_seconds: int) -> AsyncStaticWebHandler:
+        """
+        Sets the cache control duration for static files.
+
+        Args:
+            cache_seconds (int): Number of seconds that the browser
+                should cache the file (e.g., 86400 for one day).
+
+        Returns:
+            AsyncStaticWebHandler: Reference to the same handler (for chaining).
+
+        Notes:
+            Transpiles to:
+                `.setCacheControl("max-age=<cache_seconds>")`
+        """
+        __use_as_is__ = False
+        __translation__ = "setCacheControlSeconds({0}, {1})"
+        return self
+
+    def set_last_modified(self, timestamp: int) -> AsyncStaticWebHandler:
+        """
+        Sets the 'Last-Modified' timestamp header for the served files.
+
+        Args:
+            timestamp (int): UNIX timestamp representing the last
+                modification time.
+
+        Returns:
+            AsyncStaticWebHandler: Reference to the same handler (for chaining).
+        """
+        __use_as_is__ = False
+        __translation__ = "{0}->setLastModified({1})"
+        return self
+
+    def set_authentication(self, user: str, password: str) -> AsyncStaticWebHandler:
+        """
+        Sets basic HTTP authentication credentials for the static route.
+
+        Args:
+            user (str): Username required to access the files.
+            password (str): Corresponding password.
+
+        Returns:
+            AsyncStaticWebHandler: Reference to the same handler (for chaining).
+        """
+        __use_as_is__ = False
+        __translation__ = "{0}->setAuthentication({1}.c_str(), {2}.c_str())"
+        return self
+
+
 class AsyncWebServer:
     """
     Dummy for AsyncWebServer.
@@ -118,7 +215,7 @@ class AsyncWebServer:
         __translation__ = "({1})"
         __class_actual_type__ = "AsyncWebServer"
         __construct_with_equal_to__ = False
-        __pass_as__ = "reference"
+
         pass
 
     def on(self, path: str, method: str, handler) -> None:
@@ -148,13 +245,12 @@ class AsyncWebServer:
         __use_as_is__ = True
         pass
 
-    def serve_static(self, uri: str, fs, path: str, cache_control: str) -> None:
+    def serve_static(self, uri: str, file_path: str) -> AsyncStaticWebHandler:
         """
         Serves static files from the filesystem at a given URI.
 
         Args:
             uri (str): The URL path prefix (e.g., "/static").
-            fs: Filesystem reference (e.g., LittleFS).
             path (str): The root directory in the FS.
             cache_control (str): Cache control header value.
 
@@ -162,7 +258,4 @@ class AsyncWebServer:
             None
         """
         __use_as_is__ = False
-        __translation__ = (
-            "custom_serve_static({0}, {1}.c_str(), LITTLEFS, {2}.c_str(), {3})"
-        )
-        pass
+        __translation__ = "custom_serve_static({0}, {1}, {2})"
