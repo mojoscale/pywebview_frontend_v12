@@ -297,6 +297,7 @@ def get_python_builtin_class_method_type(class_name, method_name):
 
 
 def extract_annotation_type(node):
+    print(f"got node {node}")
     if isinstance(node, ast.Name):
         return node.id
 
@@ -350,6 +351,94 @@ def extract_annotation_type(node):
                 return f"callable,{','.join(args)}->{return_type}"
 
     raise ValueError("Unsupported annotation")
+
+
+def _extract_chain(node: ast.Call):
+    """
+    Given an ast.Call node like x.foo().bar().baz(),
+    returns a list of dicts from base to last call.
+
+    Each dict has:
+        - 'value': name of identifier / attribute / call
+        - 'type': 'attr', 'call', or 'const'
+        - 'args': only for calls
+    """
+    result = []
+    current = node  # start from outermost Call
+
+    while True:
+        # Handle Call (like foo() or bar() or baz())
+        if isinstance(current, ast.Call):
+            func = current.func
+            # Add this call node (name or attribute)
+            if isinstance(func, ast.Name):
+                result.append(
+                    {
+                        "value": func.id,
+                        "type": "call",
+                        "args": [a for a in current.args],
+                    }
+                )
+                break
+
+            elif isinstance(func, ast.Attribute):
+                result.append(
+                    {
+                        "value": func.attr,
+                        "type": "call",
+                        "args": [a for a in current.args],
+                    }
+                )
+                # keep walking down
+                current = func.value
+                continue
+
+            else:
+                # Fallback for rare cases (e.g. lambda() or subscript())
+                result.append(
+                    {
+                        "value": ast.dump(func),
+                        "type": type(func).__name__.lower(),
+                        "args": [a for a in current.args],
+                    }
+                )
+                break
+
+        # Handle Attribute (like x.foo)
+        elif isinstance(current, ast.Attribute):
+            result.append({"value": current.attr, "type": "attr", "args": []})
+            current = current.value
+            continue
+
+        # Handle Name (like x)
+        elif isinstance(current, ast.Name):
+            result.append(
+                {
+                    "value": current.id,
+                    "type": "attr",  # base variable/object
+                    "args": [],
+                }
+            )
+            break
+
+        # Handle constants like 123 or "hello"
+        elif isinstance(current, ast.Constant):
+            result.append({"value": repr(current.value), "type": "const", "args": []})
+            break
+
+        else:
+            # unhandled type (e.g., Subscript, etc.)
+            result.append(
+                {
+                    "value": ast.dump(current),
+                    "type": type(current).__name__.lower(),
+                    "args": [],
+                }
+            )
+            break
+
+    # reverse to get [x, foo, bar, baz]
+    return list(reversed(result))
 
 
 class DependencyResolver:
@@ -461,7 +550,13 @@ class DependencyResolver:
 
     def get_method_metadata(self, method_name, module_name=None, class_name=None):
         methods_table = f"{self.current_id}_methods"
-        print(f"transpiler: {method_name}, {module_name}")
+
+        # Deep dive prints - show all inputs clearly
+        print(f"🔍 [get_method_metadata] START")
+        print(
+            f"   📋 Inputs: method_name='{method_name}', module_name='{module_name}', class_name='{class_name}'"
+        )
+        print(f"   🗃️  Table: {methods_table}")
 
         if module_name:
             if class_name:
@@ -471,6 +566,11 @@ class DependencyResolver:
                 WHERE method_name = ? AND module_name = ? AND class_name = ?
                 """
                 self.cursor.execute(query, (method_name, module_name, class_name))
+                print(f"   🎯 Query Type: MODULE + CLASS")
+                print(f"   📝 Query: {query}")
+                print(
+                    f"   🔢 Params: ('{method_name}', '{module_name}', '{class_name}')"
+                )
             else:
                 query = f"""
                 SELECT method_name, return_type, args
@@ -478,39 +578,60 @@ class DependencyResolver:
                 WHERE method_name = ? AND module_name = ?
                 """
                 self.cursor.execute(query, (method_name, module_name))
-
+                print(f"   🎯 Query Type: MODULE ONLY")
+                print(f"   📝 Query: {query}")
+                print(f"   🔢 Params: ('{method_name}', '{module_name}')")
         else:
             if class_name:
                 query = f"""
                 SELECT method_name, return_type, args
                 FROM {methods_table}
-                WHERE method_name = ? AND  class_name = ?
+                WHERE method_name = ? AND class_name = ?
                 """
-
                 self.cursor.execute(query, (method_name, class_name))
+                print(f"   🎯 Query Type: CLASS ONLY")
+                print(f"   📝 Query: {query}")
+                print(f"   🔢 Params: ('{method_name}', '{class_name}')")
             else:
                 query = f"""
                 SELECT method_name, return_type, args
                 FROM {methods_table}
                 WHERE method_name = ?
                 """
-
                 self.cursor.execute(query, (method_name,))
+                print(f"   🎯 Query Type: METHOD ONLY")
+                print(f"   📝 Query: {query}")
+                print(f"   🔢 Params: ('{method_name}',)")
 
         row = self.cursor.fetchone()
+        print(f"   📊 Query Result: {row}")
 
         if row:
             method_name, return_type, args_json = row
+            print(f"   ✅ Row Found:")
+            print(f"      📛 Method: {method_name}")
+            print(f"      🔄 Return Type: {return_type}")
+            print(f"      📦 Args JSON: {args_json}")
+
             try:
                 args = json.loads(args_json) if args_json else []
-            except json.JSONDecodeError:
+                print(f"      🎯 Parsed Args: {args}")
+            except json.JSONDecodeError as e:
+                print(f"      ❌ JSON Decode Error: {e}")
                 args = []
-            return {
+                print(f"      🎯 Using empty args due to error")
+
+            result = {
                 "method_name": method_name,
                 "return_type": return_type,
                 "args": args,
             }
+            print(f"   📤 Returning: {result}")
+            print(f"🔍 [get_method_metadata] END - SUCCESS")
+            return result
 
+        print(f"   ❌ No row found for method '{method_name}'")
+        print(f"🔍 [get_method_metadata] END - NOT FOUND")
         return None
 
     def get_print_method_for_class(self, class_name):
@@ -1234,6 +1355,8 @@ class DependencyResolver:
 
         return_type = None
 
+        print(f"saving method {method_name}")
+
         if ast_node.returns:
             return_type = extract_annotation_type(ast_node.returns)
             # print(f"[DEBUG] Return type: {return_type}")
@@ -1416,6 +1539,17 @@ class DependencyResolver:
         return
 
 
+class TranslatedExpr:
+    """Wrapper to keep translated code and its inferred type for chained calls."""
+
+    def __init__(self, code: str, type_: str = "auto"):
+        self.code = code
+        self.type = type_
+
+    def __str__(self):
+        return self.code
+
+
 class TypeAnalyzer:
     def __init__(
         self,
@@ -1434,7 +1568,140 @@ class TypeAnalyzer:
         self.get_is_inside_loop = get_is_inside_loop
         self.get_loop_vars = get_loop_vars
 
-    def get_node_type(self, node):
+    def _call_type_analyzer(self, call_chain: dict, node):
+        prev_type = None
+        prev_statement = None
+        print(f"processing call chain {call_chain}")
+
+        for called_entity in call_chain:
+            called_entity_type = called_entity["type"]
+            called_entity_value = called_entity["value"]
+            if not prev_type:
+                if called_entity_type == "const":
+                    # basically a call like [1, 2, 3].split()
+                    prev_statement = self.visit(called_entity_value)
+                    prev_type = self.type_analyzer.get_node_type(called_entity_value)
+
+                elif called_entity_type == "attr":
+                    # this is a call like x.foo()
+
+                    # attr can be an imported module
+                    module_name = self.dependency_resolver.get_module_name_from_alias(
+                        self.current_module_name, called_entity_value
+                    )
+
+                    print(f"found module {module_name}")
+
+                    if module_name:
+                        # this is an imported module
+                        prev_type = "module"
+                        prev_statement = module_name
+
+                    else:
+                        # this is a variable
+                        prev_statement = called_entity_value
+                        prev_type = self.dependency_resolver.get_variable_type(
+                            called_entity_value, self.scope
+                        )
+
+                elif called_entity_type == "call":
+                    # this is a global function.
+                    method_name = called_entity_value
+                    args = called_entity["args"]
+                    args = self._visit_function_args(args)
+                    args_type = [self.get_node_type(arg) for arg in node.args]
+                    if is_builtin_function(method_name):
+                        translated_method_name = f"{BUILTIN_FUNC_PREFIX}_{method_name}"
+
+                        prev_statement = f"{translated_method_name}({joined_args})"
+                        prev_type = get_builtin_function_return_type(
+                            method_name, args_type
+                        )
+
+                    else:
+                        # this is a global function that user defined in current module.
+                        # call it as is.
+                        process_joined_args = self._process_func_args(
+                            self.current_module_name, method_name, args
+                        )
+                        prev_statement = f"{method_name}({process_joined_args})"
+                        prev_type = (
+                            self.dependency_resolver.get_global_function_return_type(
+                                method_name, self.current_module_name
+                            )
+                        )
+
+            else:
+                if called_entity_type == "attr":
+                    # not expected yet because core classes do not expose variables
+                    # TBD
+                    pass
+                elif called_entity_type == "call":
+                    method_name = called_entity_value
+                    args = called_entity["args"]
+
+                    if prev_type == "module":
+                        # example
+                        # import lib as l
+                        # l.foo()
+                        # currently going over foo.
+                        print(f"visited args are {args}")
+                        module_name = prev_statement
+
+                        is_module_class = self.dependency_resolver.is_module_class(
+                            method_name, module_name=prev_statement
+                        )
+
+                        if is_module_class:
+                            # current function is actually a class initialization
+                            # l.SomeClass(*args)
+                            called_entity_translation = (
+                                self.dependency_resolver.get_class_init_translation(
+                                    method_name
+                                )
+                            )
+                            # need to add a dummy arg at position to simulate self in class init
+                            args.insert(0, "dummy")
+
+                            prev_type = method_name  # this is class name itself
+                            prev_statement = (
+                                f"{called_entity_translation.format(*args)}"
+                            )
+
+                        else:
+                            called_entity_return_type = (
+                                self.dependency_resolver.get_module_call_return_type(
+                                    prev_statement, method_name
+                                )
+                            )
+
+                            prev_type = called_entity_return_type
+
+                    else:
+                        if prev_type in BUILTIN_TYPES:
+                            cpp_type = get_cpp_python_type(
+                                transformed_core_type, custom_type_str=True
+                            )
+
+                            prev_type = get_python_builtin_class_method_type(
+                                prev_type, method_name
+                            )
+
+                        else:
+                            # here prev_type is class name, prev_statement is class instance
+                            # and entity called is the class method
+
+                            called_entity_type = (
+                                self.dependency_resolver.get_class_method_return_type(
+                                    prev_type, method_name
+                                )
+                            )
+
+                            prev_type = called_entity_type
+
+        return prev_type
+
+    def get_node_type(self, node, prev_translated_expr=None):
         self.scope = self.get_scope()
         self.is_inside_loop = self.get_is_inside_loop()
         self.loop_variables = self.get_loop_vars()
@@ -1485,99 +1752,8 @@ class TypeAnalyzer:
                 return f"dict,{type(k_val).__name__},{type(v_val).__name__}"
 
         elif isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Name):
-                # Case: direct call like foo() or MyClass()
-                method_name = node.func.id
-                args_type = [self.get_node_type(arg) for arg in node.args]
-
-                if is_builtin_function(method_name):
-                    return get_builtin_function_return_type(method_name, args_type)
-
-                # Check if it's a class defined in the current module or imports
-                if self.dependency_resolver.is_module_class(method_name):
-                    return method_name  # class constructor
-
-                # Otherwise it's a global function — resolve return type
-                return self.dependency_resolver.get_global_function_return_type(
-                    method_name, self.current_module_name
-                )
-
-            elif isinstance(node.func, ast.Attribute):
-                method_name = node.func.attr
-                base = node.func.value
-
-                # Case 1: base is a function call (e.g., get_obj().foo())
-                if isinstance(base, ast.Call):
-                    call_type = self.get_node_type(base)
-                    base_type = call_type.split(",")[0]
-                    if base_type in BUILTIN_TYPES:
-                        print(f"call type is {call_type}")
-                        return get_python_builtin_class_method_type(
-                            call_type, method_name
-                        )
-                    else:
-                        return self.dependency_resolver.get_class_method_return_type(
-                            base_type, method_name
-                        )
-
-                # Case 2: base is a Name (e.g., abc.foo())
-                elif isinstance(base, ast.Name):
-                    base_name = base.id
-
-                    # Subcase 2a: base is an imported module
-                    print(f"getting module name for alias {base_name}")
-                    module_name = self.dependency_resolver.get_module_name_from_alias(
-                        self.current_module_name, base_name
-                    )
-                    print(f"got module name {module_name}")
-                    if module_name:
-                        # 👇 This is the missing piece
-                        # Check if the attribute is a class inside the imported module
-                        print(f"checking if the method is a class")
-                        print(f"checking {method_name} in {module_name}")
-                        if self.dependency_resolver.is_module_class(
-                            method_name, module_name=module_name
-                        ):
-                            return method_name  # class constructor call
-
-                        # Otherwise it's a function in that module
-                        return_type = (
-                            self.dependency_resolver.get_module_call_return_type(
-                                module_name, method_name
-                            )
-                        )
-                        print(f"git return type {return_type} for {method_name}")
-
-                        return return_type
-
-                    # Subcase 2b: base is a variable → get its type
-                    variable_type = self.dependency_resolver.get_variable_type(
-                        base_name, self.scope
-                    )
-
-                    if not variable_type:
-                        return "auto"
-                    core_type = variable_type.split(",")[0]
-
-                    if core_type in BUILTIN_TYPES:
-                        return get_python_builtin_class_method_type(
-                            variable_type, method_name
-                        )
-                    else:
-                        return self.dependency_resolver.get_class_method_return_type(
-                            core_type, method_name
-                        )
-
-                # Case 3: base is a constant like "hello".upper()
-                elif isinstance(base, ast.Constant):
-                    const_type = self.type_analyzer.get_node_type(base)
-                    return get_python_builtin_class_method_type(const_type, method_name)
-
-                # Fallback
-                else:
-                    raise NotImplementedError(
-                        f"Unsupported attribute base: {ast.dump(base)}"
-                    )
+            call_chain = _extract_chain(node)
+            return self._call_type_analyzer(call_chain, node)
 
         elif isinstance(node, ast.Subscript):
             value = node.value
@@ -1764,6 +1940,17 @@ class ArduinoTranspiler(ast.NodeVisitor):
             get_is_inside_loop=lambda: self.is_inside_loop,
             get_loop_vars=lambda: self.loop_variables,
         )
+
+    """def visit(self, node, prev_translated_expr=None):
+        
+        method = "visit_" + node.__class__.__name__
+        visitor = getattr(self, method, self.generic_visit)
+        # Call the real visitor method, passing along context if it accepts it
+        try:
+            return visitor(node, prev_translated_expr=prev_translated_expr)
+        except TypeError:
+            # Visitor doesn’t accept translated_expr → call normally
+            return visitor(node)"""
 
     def transpile(self) -> str:
         # tree = ast.parse(self.code)
@@ -2186,6 +2373,193 @@ class ArduinoTranspiler(ast.NodeVisitor):
         return translated_code
 
     def visit_Call(self, node):
+        call_chain = _extract_chain(node)
+
+        analyzed_call = self._call_analyzer(call_chain, node)
+
+        return analyzed_call["translation"]
+
+    def _call_analyzer(self, call_chain: dict, node):
+        prev_type = None
+        prev_statement = None
+        print(f"processing call chain {call_chain}")
+
+        for called_entity in call_chain:
+            called_entity_type = called_entity["type"]
+            called_entity_value = called_entity["value"]
+            if not prev_type:
+                if called_entity_type == "const":
+                    # basically a call like [1, 2, 3].split()
+                    prev_statement = self.visit(called_entity_value)
+                    prev_type = self.type_analyzer.get_node_type(called_entity_value)
+
+                elif called_entity_type == "attr":
+                    # this is a call like x.foo()
+
+                    # attr can be an imported module
+                    module_name = self.dependency_resolver.get_module_name_from_alias(
+                        self.current_module_name, called_entity_value
+                    )
+
+                    print(f"found module {module_name}")
+
+                    if module_name:
+                        # this is an imported module
+                        prev_type = "module"
+                        prev_statement = module_name
+
+                    else:
+                        # this is a variable
+                        prev_statement = called_entity_value
+                        prev_type = self.dependency_resolver.get_variable_type(
+                            called_entity_value, self.scope
+                        )
+
+                elif called_entity_type == "call":
+                    # this is a global function.
+                    method_name = called_entity_value
+                    args = called_entity["args"]
+                    args = self._visit_function_args(args)
+                    args_type = [
+                        self.type_analyzer.get_node_type(arg) for arg in node.args
+                    ]
+                    if is_builtin_function(method_name):
+                        translated_method_name = f"{BUILTIN_FUNC_PREFIX}_{method_name}"
+
+                        prev_statement = f"{translated_method_name}({','.join(args)})"
+                        prev_type = get_builtin_function_return_type(
+                            method_name, args_type
+                        )
+
+                    else:
+                        # this is a global function that user defined in current module.
+                        # call it as is.
+                        process_joined_args = self._process_func_args(
+                            self.current_module_name, method_name, args
+                        )
+                        prev_statement = f"{method_name}({process_joined_args})"
+                        prev_type = (
+                            self.dependency_resolver.get_global_function_return_type(
+                                method_name, self.current_module_name
+                            )
+                        )
+
+            else:
+                if called_entity_type == "attr":
+                    # not expected yet because core classes do not expose variables
+                    # TBD
+                    pass
+                elif called_entity_type == "call":
+                    method_name = called_entity_value
+                    args = called_entity["args"]
+                    args = self._visit_function_args(args)
+
+                    if prev_type == "module":
+                        # example
+                        # import lib as l
+                        # l.foo()
+                        # currently going over foo.
+                        print(f"visited args are {args}")
+                        module_name = prev_statement
+
+                        is_module_class = self.dependency_resolver.is_module_class(
+                            method_name, module_name=prev_statement
+                        )
+
+                        if is_module_class:
+                            # current function is actually a class initialization
+                            # l.SomeClass(*args)
+                            called_entity_translation = (
+                                self.dependency_resolver.get_class_init_translation(
+                                    method_name
+                                )
+                            )
+                            # need to add a dummy arg at position to simulate self in class init
+                            args.insert(0, "dummy")
+
+                            args = self._process_func_args(
+                                module_name, "__init__", ",".join(args)
+                            )
+
+                            print(
+                                f"doing translation for {method_name} module {prev_statement} and args are {args}"
+                            )
+
+                            prev_type = method_name  # this is class name itself
+                            prev_statement = (
+                                f"{called_entity_translation.format(*args)}"
+                            )
+
+                        else:
+                            args = self._process_func_args(
+                                module_name, method_name, ",".join(args)
+                            )
+                            called_entity_translation = (
+                                self.dependency_resolver.get_method_translation(
+                                    method_name, module_name=module_name
+                                )
+                            )
+                            called_entity_return_type = (
+                                self.dependency_resolver.get_module_call_return_type(
+                                    prev_statement, method_name
+                                )
+                            )
+
+                            prev_type = called_entity_return_type
+                            prev_statement = called_entity_translation.format(*args)
+
+                    else:
+                        if prev_type in BUILTIN_TYPES:
+                            cpp_type = get_cpp_python_type(
+                                transformed_core_type, custom_type_str=True
+                            )
+                            if prev_type == "str" and method_name == "isspace":
+                                prev_statement = (
+                                    f"{prev_statement}.py{method_name}({args})"
+                                )
+                            else:
+                                prev_statement = f"{prev_statement}.method_name({args})"
+
+                            prev_type = get_python_builtin_class_method_type(
+                                prev_type, method_name
+                            )
+
+                        else:
+                            # here prev_type is class name, prev_statement is class instance
+                            # and entity called is the class method
+                            print(
+                                f"evaluation for {prev_statement}, {prev_type} and current {method_name}, args are {args}"
+                            )
+
+                            called_entity_translation = (
+                                self.dependency_resolver.get_class_method_translation(
+                                    method_name, prev_type
+                                )
+                            )
+
+                            called_entity_type = (
+                                self.dependency_resolver.get_class_method_return_type(
+                                    prev_type, method_name
+                                )
+                            )
+
+                            args.insert(0, prev_statement)
+
+                            prev_type = called_entity_type
+                            prev_statement = called_entity_translation.format(*args)
+
+        return {"translation": prev_statement, "type": prev_type}
+
+    def _visit_function_args(self, args: list):
+        visited_args = []
+
+        for arg in args:
+            visited_arg = self.visit(arg)
+            visited_args.append(visited_arg)
+
+        return visited_args
+
+    """def visit_Call(self, node, prev_translated_expr: TranslatedExpr):
         positional_args = []
 
         print(f"args are {node.args}")
@@ -2325,8 +2699,12 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 print(
                     f"[DEBUG] Method call on result of another call: {ast.dump(node.func.value)}"
                 )
-                transformed_func = self.visit(node.func.value)
-                transformed_type = self.type_analyzer.get_node_type(node.func.value)
+                transformed_func = self.visit(
+                    node.func.value, prev_translated_expr=prev_translated_expr
+                )
+                transformed_type = self.type_analyzer.get_node_type(
+                    node.func.value, prev_translated_expr=prev_translated_expr
+                )
                 transformed_core_type = transformed_type.split(",")[0]
 
                 if transformed_core_type in BUILTIN_TYPES:
@@ -2375,14 +2753,17 @@ class ArduinoTranspiler(ast.NodeVisitor):
             )
             return f"{method_name}({process_joined_args})"
 
-        print(f"[WARN] visit_Call fell through! Node: {ast.dump(node)}")
+        print(f"[WARN] visit_Call fell through! Node: {ast.dump(node)}")"""
 
     def _process_func_args(self, module_name, method_name, joined_args):
+        print(f"processing for {module_name} and method {method_name}")
         stored_args = self.dependency_resolver.get_method_args(module_name, method_name)
 
         arg_list = joined_args.split(",")
 
         for i in range(len(stored_args)):
+            arg = stored_args[i]
+            print(f"proceeing arg is {arg}")
             arg_type = arg["arg_type"]
 
             if arg and not is_core_python_type(arg_type):
@@ -2394,7 +2775,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 else:
                     arg_list[i] = f"&{arg_list[i]}"
 
-        return ",".join(arg_list)
+        return arg_list
 
     def visit_FunctionDef(self, node):
         func_name = node.name

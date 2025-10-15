@@ -18,7 +18,9 @@ def setup() -> None:
     st.set_default_file("testfile.txt")
     st.set_cache_control(864000)
     st.set_last_modified(100)
-    st.set_authentication("user", "password")
+    x = st.set_authentication("user", "password")
+
+    x.
 
 
 def loop() -> None:

@@ -101,6 +101,172 @@ class AsyncWebServerRequest:
         return False
 
 
+class AsyncWebHandler:
+    """
+    Python representation of the C++ `AsyncWebHandler` class from ESPAsyncWebServer.
+
+    This class acts as an abstract base for web request handlers such as
+    `AsyncStaticWebHandler` or `AsyncCallbackWebHandler`.
+
+    It provides methods for:
+      - Determining whether a handler can process a given request.
+      - Executing the request handler.
+      - Applying authentication and filters.
+      - Controlling handler priority and behavior.
+
+    Note:
+        This class should generally not be instantiated directly.
+        Instead, use subclasses that implement `can_handle()` and `handle_request()`.
+    """
+
+    def __init__(self):
+        """
+        Initialize an AsyncWebHandler instance.
+
+        This constructor sets `__use_as_is__` to False,
+        meaning the transpiler should not instantiate this class directly.
+        """
+        __use_as_is__ = False
+        __pass_as__ = "reference"
+
+    # --- Core Handler Methods ---
+
+    def can_handle(self, request: AsyncWebServerRequest) -> bool:
+        """
+        Determine whether this handler can process the incoming request.
+
+        Args:
+            request (AsyncWebServerRequest): The HTTP request object.
+
+        Returns:
+            bool: True if the handler can handle the request; False otherwise.
+
+        Translation:
+            {0}.canHandle({1})
+        """
+        __translation__ = "{0}.canHandle({1})"
+
+    def handle_request(self, request: AsyncWebServerRequest) -> None:
+        """
+        Handle the incoming web request.
+
+        Args:
+            request (AsyncWebServerRequest): The HTTP request to process.
+
+        Translation:
+            {0}.handleRequest({1})
+        """
+        __translation__ = "{0}.handleRequest({1})"
+
+    def is_request_handler_trivial(self) -> bool:
+        """
+        Check whether this handler performs trivial (lightweight) processing.
+
+        Returns:
+            bool: True if the handler is trivial; False otherwise.
+
+        Translation:
+            {0}.isRequestHandlerTrivial()
+        """
+        __translation__ = "{0}.isRequestHandlerTrivial()"
+
+    # --- Authentication Methods ---
+
+    def set_authentication(self, username: str, password: str) -> AsyncWebHandler:
+        """
+        Protect this handler with basic authentication.
+
+        Args:
+            username (str): The HTTP Basic Auth username.
+            password (str): The HTTP Basic Auth password.
+
+        Returns:
+            AsyncWebHandler: The same handler instance (for chaining).
+
+        Translation:
+            {0}.setAuthentication({1}, {2})
+        """
+        __translation__ = "{0}.setAuthentication({1}, {2})"
+
+    # --- Filtering ---
+
+    def set_filter(self, filter_func) -> AsyncWebHandler:
+        """
+        Assign a filter function that decides if this handler should process a request.
+
+        Args:
+            filter_func (ArRequestFilterFunction): The filtering function.
+
+        Returns:
+            AsyncWebHandler: The same handler instance (for chaining).
+
+        Translation:
+            {0}.setFilter({1})
+        """
+        __translation__ = "{0}.setFilter({1})"
+
+    def filter(self, request: AsyncWebServerRequest) -> bool:
+        """
+        Run the filter function associated with this handler.
+
+        Args:
+            request (AsyncWebServerRequest): The request to evaluate.
+
+        Returns:
+            bool: True if the handler should process this request.
+
+        Translation:
+            {0}.filter({1})
+        """
+        __translation__ = "{0}.filter({1})"
+
+    # --- Priority ---
+
+    def set_priority(self, priority: int) -> AsyncWebHandler:
+        """
+        Assign a priority level to this handler.
+
+        Args:
+            priority (int): The priority value (higher = earlier execution).
+
+        Returns:
+            AsyncWebHandler: The same handler instance (for chaining).
+
+        Translation:
+            {0}.setPriority({1})
+        """
+        __translation__ = "{0}.setPriority({1})"
+
+    def priority(self) -> int:
+        """
+        Get the priority value assigned to this handler.
+
+        Returns:
+            int: The priority level.
+
+        Translation:
+            {0}.priority()
+        """
+        __translation__ = "{0}.priority()"
+
+    # --- Request Callback (Optional) ---
+
+    def on_request(self) -> AsyncWebHandler:
+        """
+        Assign a custom callback to handle incoming requests.
+
+        Args:
+            callback (ArRequestHandlerFunction): The function that processes the request.
+
+        Returns:
+            AsyncWebHandler: The same handler instance (for chaining).
+
+        Translation:
+            {0}.onRequest({1})
+        """
+        __translation__ = "{0}.onRequest({1})"
+
+
 class AsyncStaticWebHandler:
     """
     Represents a static file handler returned by `AsyncWebServer.serve_static()`.
@@ -125,7 +291,7 @@ class AsyncStaticWebHandler:
         `AsyncWebServer.serve_static()`.
         """
         __use_as_is__ = False
-        __pass_as__ = "pointer"
+        __pass_as__ = "reference"
         __class_actual_type__ = "AsyncStaticWebHandler"
 
     def set_default_file(self, filename: str) -> AsyncStaticWebHandler:
@@ -144,7 +310,7 @@ class AsyncStaticWebHandler:
 
         """
         __use_as_is__ = False
-        __translation__ = "{0}->setDefaultFile({1}.c_str())"
+        __translation__ = "{0}.setDefaultFile({1}.c_str())"
         return self
 
     def set_cache_control(self, cache_seconds: int) -> AsyncStaticWebHandler:
@@ -178,10 +344,10 @@ class AsyncStaticWebHandler:
             AsyncStaticWebHandler: Reference to the same handler (for chaining).
         """
         __use_as_is__ = False
-        __translation__ = "{0}->setLastModified({1})"
+        __translation__ = "{0}.setLastModified({1})"
         return self
 
-    def set_authentication(self, user: str, password: str) -> AsyncStaticWebHandler:
+    def set_authentication(self, user: str, password: str) -> AsyncWebHandler:
         """
         Sets basic HTTP authentication credentials for the static route.
 
@@ -193,11 +359,12 @@ class AsyncStaticWebHandler:
             AsyncStaticWebHandler: Reference to the same handler (for chaining).
         """
         __use_as_is__ = False
-        __translation__ = "{0}->setAuthentication({1}.c_str(), {2}.c_str())"
+        __translation__ = "{0}.setAuthentication({1}.c_str(), {2}.c_str())"
         return self
 
 
 class AsyncWebServer:
+
     """
     Dummy for AsyncWebServer.
 
@@ -243,6 +410,7 @@ class AsyncWebServer:
             None
         """
         __use_as_is__ = True
+        __translation__ = "{0}.begin()"
         pass
 
     def serve_static(self, uri: str, file_path: str) -> AsyncStaticWebHandler:

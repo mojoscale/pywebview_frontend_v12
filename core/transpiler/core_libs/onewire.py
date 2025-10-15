@@ -31,7 +31,7 @@ class OneWire:
         __translation__ = "{0}.reset()"
         return True
 
-    def write(self, value: int, power: bool = False) -> None:
+    def write(self, value: int, power: bool) -> None:
         """
         Write a single byte to the OneWire bus.
 
@@ -43,7 +43,7 @@ class OneWire:
         __translation__ = "{0}.write({1}, {2})"
         pass
 
-    def write_bytes(self, data: list[int], power: bool = False) -> None:
+    def write_bytes(self, data: list[int], power: bool) -> None:
         """
         Write multiple bytes to the OneWire bus.
 

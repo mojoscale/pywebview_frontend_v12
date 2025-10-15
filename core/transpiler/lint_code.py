@@ -1009,7 +1009,7 @@ class LintCode(ast.NodeVisitor):
                 pass  # safe fallback
 
             # --- Bare name check ---
-            if not var_type and not func_meta:
+            if not var_type and func_meta:
                 # If name corresponds to a function but not in valid context → invalid
                 # This catches bare f1; which is invalid in C++/Arduino
                 self.add_error(

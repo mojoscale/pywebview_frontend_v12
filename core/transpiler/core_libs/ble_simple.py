@@ -60,6 +60,7 @@ class BLESimple:
         Custom Initializer, call this inside setup.
         """
         __use_as_is__ = True
+        __translation__ = "{0}.init_ble()"
 
     def start(self) -> None:
         """Start BLE advertising or scanning based on the mode."""
