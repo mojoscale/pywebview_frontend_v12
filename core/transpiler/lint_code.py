@@ -777,9 +777,14 @@ class LintCode(ast.NodeVisitor):
                 arg = saved_args[i]
 
                 if arg["arg_type"] != call_args[i]:
-                    errors.append(
-                        f'{arg["name"]} is expected of type {arg["arg_type"]}, but you passed {call_args[i]}'
-                    )
+                    if arg["arg_type"] == "callable":
+                        # this should be an already defined function.
+                        # func_metadata = self.dependency_resolver.get_method_metadata()
+                        print(f"arg looks like {call_args}")
+                    else:
+                        errors.append(
+                            f'{arg["name"]} is expected of type {arg["arg_type"]}, but you passed {call_args[i]}'
+                        )
 
         for error in errors:
             self.add_error(node, error)

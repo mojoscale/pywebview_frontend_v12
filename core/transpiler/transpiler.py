@@ -1608,12 +1608,12 @@ class TypeAnalyzer:
                     # this is a global function.
                     method_name = called_entity_value
                     args = called_entity["args"]
-                    args = self._visit_function_args(args)
+
                     args_type = [self.get_node_type(arg) for arg in node.args]
                     if is_builtin_function(method_name):
                         translated_method_name = f"{BUILTIN_FUNC_PREFIX}_{method_name}"
 
-                        prev_statement = f"{translated_method_name}({joined_args})"
+                        prev_statement = None
                         prev_type = get_builtin_function_return_type(
                             method_name, args_type
                         )
@@ -1621,10 +1621,8 @@ class TypeAnalyzer:
                     else:
                         # this is a global function that user defined in current module.
                         # call it as is.
-                        process_joined_args = self._process_func_args(
-                            self.current_module_name, method_name, args
-                        )
-                        prev_statement = f"{method_name}({process_joined_args})"
+
+                        prev_statement = None
                         prev_type = (
                             self.dependency_resolver.get_global_function_return_type(
                                 method_name, self.current_module_name

@@ -3,6 +3,7 @@
 __include_modules__ = "Wire"
 __dependencies__ = ""
 
+
 def begin(address: int) -> None:
     """
     Initiates the Wire library and joins the I2C bus.
@@ -18,14 +19,15 @@ def begin(address: int) -> None:
     __translation__ = "Wire.begin({0})"
     raise NotImplementedError()
 
-def requestFrom(address: int, quantity: int, stop: bool) -> int:
+
+def request_from(address: int, quantity: int, stop: int) -> int:
     """
     Requests bytes from a slave device.
 
     Args:
         address (int): The 7-bit address of the device to request bytes from.
         quantity (int): The number of bytes to request.
-        stop (bool, optional): Whether to send a stop condition after the request (default is True).
+        stop (int): Whether to send a stop condition after the request (1 for true, 0 for false).
 
     Returns:
         int: The number of bytes returned from the slave device.
@@ -35,7 +37,8 @@ def requestFrom(address: int, quantity: int, stop: bool) -> int:
     __translation__ = "Wire.requestFrom({0}, {1}, {2})"
     raise NotImplementedError()
 
-def beginTransmission(address: int) -> None:
+
+def begin_transmission(address: int) -> None:
     """
     Begins a transmission to the I2C slave device with the given address.
 
@@ -50,7 +53,8 @@ def beginTransmission(address: int) -> None:
     __translation__ = "Wire.beginTransmission({0})"
     raise NotImplementedError()
 
-def endTransmission(stop: bool) -> int:
+
+def end_transmission(stop: bool) -> int:
     """
     Ends a transmission to a slave device and transmits the bytes that were queued.
 
@@ -62,8 +66,9 @@ def endTransmission(stop: bool) -> int:
 
     """
     __use_as_is__ = False
-    __translation__ = "Wire.onRequest({0})"
+    __translation__ = "Wire.endTransmission({0})"
     raise NotImplementedError()
+
 
 def write(data: int) -> int:
     """
@@ -80,6 +85,7 @@ def write(data: int) -> int:
     __translation__ = "Wire.write({0})"
     raise NotImplementedError()
 
+
 def read() -> int:
     """
     Reads a byte that was transmitted from a slave device to a master after a call to requestFrom().
@@ -91,6 +97,7 @@ def read() -> int:
     __use_as_is__ = False
     __translation__ = "Wire.read()"
     raise NotImplementedError()
+
 
 def available() -> int:
     """
@@ -104,7 +111,8 @@ def available() -> int:
     __translation__ = "Wire.available()"
     raise NotImplementedError()
 
-def onReceive(callback: callable) -> None:
+
+def on_receive(callback: callable) -> None:
     """
     Registers a function to be called when a slave device receives data from the master.
 
@@ -126,7 +134,8 @@ def onReceive(callback: callable) -> None:
     __translation__ = "Wire.onReceive({0})"
     raise NotImplementedError()
 
-def onRequest(callback: callable) -> None:
+
+def on_request(callback: callable) -> None:
     """
     Registers a function to be called when a master requests data from this slave device.
 

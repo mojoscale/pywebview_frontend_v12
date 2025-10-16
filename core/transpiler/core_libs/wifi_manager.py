@@ -1,10 +1,7 @@
-
-
 __include_modules__ = "WiFiManager"
 __dependencies__ = "tzapu/WiFiManager"
 
 __include_internal_modules__ = "helpers/WiFiManagerHelper"
-
 
 
 class WiFiManager:
@@ -16,22 +13,23 @@ class WiFiManager:
         __translation__ = ""
         __class_actual_type__ = "WiFiManager"
 
-
-    def setDebugOutput(self, enable: bool) -> None:
+    def set_debug_output(self, enable: bool) -> None:
         """
         Enable or disable debug logging on Serial.
         """
         __use_as_is__ = True
+        __translation__ = "{0}.setDebugOutput({1})"
         pass
 
-    def resetSettings(self) -> None:
+    def reset_settings(self) -> None:
         """
         Clear stored WiFi credentials from flash.
         """
         __use_as_is__ = True
+        __translation__ = "{0}.resetSettings()"
         pass
 
-    def autoConnect(self, ap_name: str, ap_password: str) -> bool:
+    def auto_connect(self, ap_name: str, ap_password: str) -> bool:
         """
         Connect to saved WiFi or start a config portal.
 
@@ -46,7 +44,7 @@ class WiFiManager:
         __translation__ = "custom_wifi_manager_helper_auto_connect({0}, {1}, {2})"
         return False
 
-    def startConfigPortal(self, ap_name: str, ap_password: str) -> bool:
+    def start_config_portal(self, ap_name: str, ap_password: str) -> bool:
         """
         Force start the configuration portal regardless of existing WiFi credentials.
 
@@ -61,23 +59,25 @@ class WiFiManager:
         __translation__ = "custom_wifi_manager_helper_start_wifi_portal({0}, {1}, {2})"
         return False
 
-    def setTimeout(self, seconds: int) -> None:
+    def set_timeout(self, seconds: int) -> None:
         """
         Set timeout for config portal to auto-exit if no connection is made.
         """
         __use_as_is__ = True
+        __translation__ = "{0}.setTimeout({1})"
         pass
 
-    def setConnectTimeout(self, seconds: int) -> None:
+    def set_connect_timeout(self, seconds: int) -> None:
         """
         Set timeout for how long to wait for WiFi connection before failing.
         """
-        pass
+        __translation__ = "{0}.setConnectTimeout({1})"
 
-    def setMinimumSignalQuality(self, quality: int) -> None:
+    def set_minimum_signal_quality(self, quality: int) -> None:
         """
         Only show WiFi networks above this signal quality (in percent).
         """
 
         __use_as_is__ = True
+        __translation__ = "{0}.setMinimumSignalQuality({1})"
         pass
