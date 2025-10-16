@@ -2770,8 +2770,10 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 if arg_pass_as == "pointer":
                     arg_list[i] = f"*{arg_list[i]}"
 
-                else:
+                elif arg_pass_as == "reference":
                     arg_list[i] = f"&{arg_list[i]}"
+                else:
+                    arg_list[i] = f"{arg_list[i]}"
 
         return arg_list
 

@@ -312,6 +312,62 @@
         ]
       },
       {
+        "name": "AsyncWebHandler",
+        "doc": "Python representation of the C++ `AsyncWebHandler` class from ESPAsyncWebServer.\n\nThis class acts as an abstract base for web request handlers such as\n`AsyncStaticWebHandler` or `AsyncCallbackWebHandler`.\n\nIt provides methods for:\n  - Determining whether a handler can process a given request.\n  - Executing the request handler.\n  - Applying authentication and filters.\n  - Controlling handler priority and behavior.\n\nNote:\n    This class should generally not be instantiated directly.\n    Instead, use subclasses that implement `can_handle()` and `handle_request()`.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "Initialize an AsyncWebHandler instance.\n\nThis constructor sets `__use_as_is__` to False,\nmeaning the transpiler should not instantiate this class directly."
+          },
+          {
+            "name": "can_handle",
+            "signature": "(self, request: AsyncWebServerRequest) -> bool",
+            "doc": "Determine whether this handler can process the incoming request.\n\nArgs:\n    request (AsyncWebServerRequest): The HTTP request object.\n\nReturns:\n    bool: True if the handler can handle the request; False otherwise.\n\nTranslation:\n    {0}.canHandle({1})"
+          },
+          {
+            "name": "handle_request",
+            "signature": "(self, request: AsyncWebServerRequest) -> None",
+            "doc": "Handle the incoming web request.\n\nArgs:\n    request (AsyncWebServerRequest): The HTTP request to process.\n\nTranslation:\n    {0}.handleRequest({1})"
+          },
+          {
+            "name": "is_request_handler_trivial",
+            "signature": "(self) -> bool",
+            "doc": "Check whether this handler performs trivial (lightweight) processing.\n\nReturns:\n    bool: True if the handler is trivial; False otherwise.\n\nTranslation:\n    {0}.isRequestHandlerTrivial()"
+          },
+          {
+            "name": "set_authentication",
+            "signature": "(self, username: str, password: str) -> AsyncWebHandler",
+            "doc": "Protect this handler with basic authentication.\n\nArgs:\n    username (str): The HTTP Basic Auth username.\n    password (str): The HTTP Basic Auth password.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setAuthentication({1}, {2})"
+          },
+          {
+            "name": "set_filter",
+            "signature": "(self, filter_func) -> AsyncWebHandler",
+            "doc": "Assign a filter function that decides if this handler should process a request.\n\nArgs:\n    filter_func (ArRequestFilterFunction): The filtering function.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setFilter({1})"
+          },
+          {
+            "name": "filter",
+            "signature": "(self, request: AsyncWebServerRequest) -> bool",
+            "doc": "Run the filter function associated with this handler.\n\nArgs:\n    request (AsyncWebServerRequest): The request to evaluate.\n\nReturns:\n    bool: True if the handler should process this request.\n\nTranslation:\n    {0}.filter({1})"
+          },
+          {
+            "name": "set_priority",
+            "signature": "(self, priority: int) -> AsyncWebHandler",
+            "doc": "Assign a priority level to this handler.\n\nArgs:\n    priority (int): The priority value (higher = earlier execution).\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setPriority({1})"
+          },
+          {
+            "name": "priority",
+            "signature": "(self) -> int",
+            "doc": "Get the priority value assigned to this handler.\n\nReturns:\n    int: The priority level.\n\nTranslation:\n    {0}.priority()"
+          },
+          {
+            "name": "on_request",
+            "signature": "(self) -> AsyncWebHandler",
+            "doc": "Assign a custom callback to handle incoming requests.\n\nArgs:\n    callback (ArRequestHandlerFunction): The function that processes the request.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.onRequest({1})"
+          }
+        ]
+      },
+      {
         "name": "AsyncStaticWebHandler",
         "doc": "Represents a static file handler returned by `AsyncWebServer.serve_static()`.\n\nThis class allows chaining configuration methods such as\n`set_default_file()`, `set_cache_control()`, `set_last_modified()`,\nand `set_authentication()`.\n\nExample:\n    ```python\n    server.serve_static(\"/\", \"/www\", 86400)               .set_default_file(\"index.html\")               .set_authentication(\"user\", \"pass\")\n    ```",
         "methods": [
@@ -337,7 +393,7 @@
           },
           {
             "name": "set_authentication",
-            "signature": "(self, user: str, password: str) -> AsyncStaticWebHandler",
+            "signature": "(self, user: str, password: str) -> AsyncWebHandler",
             "doc": "Sets basic HTTP authentication credentials for the static route.\n\nArgs:\n    user (str): Username required to access the files.\n    password (str): Corresponding password.\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining)."
           }
         ]
@@ -758,17 +814,17 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, wifi_client) -> None",
+            "signature": "(self, wifi_client: WiFiClient) -> None",
             "doc": "Initialize with a WiFiClient instance.\n\nArgs:\n    wifi_client: A WiFiClient instance (TCP transport layer)"
           },
           {
-            "name": "setServer",
+            "name": "set_server",
             "signature": "(self, host: str, port: int) -> None",
             "doc": "Set the MQTT broker address and port."
           },
           {
-            "name": "setCallback",
-            "signature": "(self, callback_func: str) -> None",
+            "name": "set_callback",
+            "signature": "(self, callback_func: callable) -> None",
             "doc": "Set the callback function for received MQTT messages."
           },
           {
@@ -832,7 +888,7 @@
             "doc": "Handle incoming messages and maintain connection.\nMust be called regularly in `loop()`."
           },
           {
-            "name": "setKeepAlive",
+            "name": "set_keep_alive",
             "signature": "(self, keepalive_secs: int) -> None",
             "doc": "Set MQTT keep-alive interval (seconds)."
           },
@@ -842,24 +898,14 @@
             "doc": "Set socket timeout in seconds."
           },
           {
-            "name": "setBufferSize",
+            "name": "set_buffer_size",
             "signature": "(self, size: int) -> None",
             "doc": "Set internal MQTT buffer size (bytes)."
           },
           {
-            "name": "setCleanSession",
+            "name": "set_clean_session",
             "signature": "(self, clean: bool) -> None",
             "doc": "Set clean session flag (true = no persistent session)."
-          },
-          {
-            "name": "getServerIP",
-            "signature": "(self) -> str",
-            "doc": "Return IP of connected MQTT server."
-          },
-          {
-            "name": "getServerPort",
-            "signature": "(self) -> int",
-            "doc": "Return port of connected MQTT server."
           }
         ]
       }
@@ -886,12 +932,12 @@
           },
           {
             "name": "write",
-            "signature": "(self, value: int, power: bool = False) -> None",
+            "signature": "(self, value: int, power: bool) -> None",
             "doc": "Write a single byte to the OneWire bus.\n\nArgs:\n    value (int): Byte to write.\n    power (bool): If True, enables strong pull-up for power."
           },
           {
             "name": "write_bytes",
-            "signature": "(self, data: list[int], power: bool = False) -> None",
+            "signature": "(self, data: list[int], power: bool) -> None",
             "doc": "Write multiple bytes to the OneWire bus.\n\nArgs:\n    data (list[int]): List of bytes to write.\n    power (bool): If True, enables strong pull-up for power."
           },
           {
@@ -967,7 +1013,7 @@
       },
       {
         "name": "spiffs_open",
-        "signature": "(path: str, mode: str)",
+        "signature": "(path: str, mode: str) -> None",
         "doc": "Opens a file in the SPIFFS filesystem.\n\nArgs:\n    path (str): Path to the file.\n    mode (str): File mode (e.g., 'r', 'w', 'a').\n\nReturns:\n    File object or None: File handle if successful, None otherwise."
       },
       {
@@ -1014,11 +1060,6 @@
         "name": "spiffs_info",
         "signature": "() -> dict[str, str]",
         "doc": "Prints or returns general information about the SPIFFS filesystem.\n(Custom implementation required)"
-      },
-      {
-        "name": "spiffs_gc",
-        "signature": "()",
-        "doc": "Performs garbage collection or internal cleanup on the SPIFFS filesystem.\n(Custom implementation required)"
       }
     ],
     "classes": [],
@@ -1083,8 +1124,8 @@
           },
           {
             "name": "on",
-            "signature": "(self, path: str, method, handler) -> WebServer",
-            "doc": "Registers a handler function for the given URL path.\n\nArgs:\n    path (str): The URL endpoint (e.g., \"/status\").\n    handler (function): A function with no parameters that handles the request.\n\nExample:\n    server.on(\"/hello\", handle_hello)"
+            "signature": "(self, path: str, method: str, handler: callable) -> WebServer",
+            "doc": "Registers a handler function for the given URL path.\n\nArgs:\n    path (str): The URL endpoint (e.g., \"/status\").\n    method (str): \"HTTP_GET\" or \"HTTP_POST\"\n    handler (callable): A function with no parameters that handles the request.\n\nExample:\n    server.on(\"/hello\", handle_hello)"
           },
           {
             "name": "begin",
@@ -1092,7 +1133,7 @@
             "doc": "Starts the web server. Must be called after all routes are registered."
           },
           {
-            "name": "handleClient",
+            "name": "handle_client",
             "signature": "(self) -> WebServer",
             "doc": "Processes incoming client requests. Should be called repeatedly in loop()."
           },
@@ -1192,23 +1233,23 @@
           },
           {
             "name": "read",
-            "signature": "(self) -> str",
-            "doc": "Read a single byte/char.\n\nReturns:\n    str: One byte as string."
+            "signature": "(self) -> int",
+            "doc": "Read a single byte/char.\n\nReturns:\n    int: One byte as int."
           },
           {
-            "name": "readBytes",
+            "name": "read_bytes",
             "signature": "(self, buffer: str, length: int) -> int",
             "doc": "Read a fixed number of bytes into the provided buffer.\n\nArgs:\n    buffer (str): A string variable name that acts as the target buffer in generated code.\n    length (int): Number of bytes to read.\n\nReturns:\n    int: Number of bytes read."
           },
           {
-            "name": "readString",
+            "name": "read_string",
             "signature": "(self) -> str",
             "doc": "Read all available bytes as a string.\n\nReturns:\n    str: Entire stream as string."
           },
           {
             "name": "peek",
-            "signature": "(self) -> str",
-            "doc": "Peek at next byte without removing.\n\nReturns:\n    str: Next byte as string."
+            "signature": "(self) -> int",
+            "doc": "Peek at next byte without removing.\n\nReturns:\n    int: Next byte as int."
           },
           {
             "name": "flush",
@@ -1244,37 +1285,37 @@
             "doc": "No docstring available"
           },
           {
-            "name": "setDebugOutput",
+            "name": "set_debug_output",
             "signature": "(self, enable: bool) -> None",
             "doc": "Enable or disable debug logging on Serial."
           },
           {
-            "name": "resetSettings",
+            "name": "reset_settings",
             "signature": "(self) -> None",
             "doc": "Clear stored WiFi credentials from flash."
           },
           {
-            "name": "autoConnect",
+            "name": "auto_connect",
             "signature": "(self, ap_name: str, ap_password: str) -> bool",
             "doc": "Connect to saved WiFi or start a config portal.\n\nArgs:\n    ap_name (str): The SSID for the access point in config mode.\n    ap_password (str): Password for the access point.\n\nReturns:\n    bool: True if WiFi connection was successful."
           },
           {
-            "name": "startConfigPortal",
+            "name": "start_config_portal",
             "signature": "(self, ap_name: str, ap_password: str) -> bool",
             "doc": "Force start the configuration portal regardless of existing WiFi credentials.\n\nArgs:\n    ap_name (str): The SSID for the access point.\n    ap_password (str): Password for the access point.\n\nReturns:\n    bool: True if WiFi connected successfully."
           },
           {
-            "name": "setTimeout",
+            "name": "set_timeout",
             "signature": "(self, seconds: int) -> None",
             "doc": "Set timeout for config portal to auto-exit if no connection is made."
           },
           {
-            "name": "setConnectTimeout",
+            "name": "set_connect_timeout",
             "signature": "(self, seconds: int) -> None",
             "doc": "Set timeout for how long to wait for WiFi connection before failing."
           },
           {
-            "name": "setMinimumSignalQuality",
+            "name": "set_minimum_signal_quality",
             "signature": "(self, quality: int) -> None",
             "doc": "Only show WiFi networks above this signal quality (in percent)."
           }
@@ -1292,17 +1333,17 @@
         "doc": "Initiates the Wire library and joins the I2C bus.\n\nArgs:\n    address (int, optional): If provided, sets the device as a slave with this address.\n\nReturns:\n    None"
       },
       {
-        "name": "requestFrom",
-        "signature": "(address: int, quantity: int, stop: bool) -> int",
-        "doc": "Requests bytes from a slave device.\n\nArgs:\n    address (int): The 7-bit address of the device to request bytes from.\n    quantity (int): The number of bytes to request.\n    stop (bool, optional): Whether to send a stop condition after the request (default is True).\n\nReturns:\n    int: The number of bytes returned from the slave device."
+        "name": "request_from",
+        "signature": "(address: int, quantity: int, stop: int) -> int",
+        "doc": "Requests bytes from a slave device.\n\nArgs:\n    address (int): The 7-bit address of the device to request bytes from.\n    quantity (int): The number of bytes to request.\n    stop (int): Whether to send a stop condition after the request (1 for true, 0 for false).\n\nReturns:\n    int: The number of bytes returned from the slave device."
       },
       {
-        "name": "beginTransmission",
+        "name": "begin_transmission",
         "signature": "(address: int) -> None",
         "doc": "Begins a transmission to the I2C slave device with the given address.\n\nArgs:\n    address (int): The 7-bit address of the device to transmit to.\n\nReturns:\n    None"
       },
       {
-        "name": "endTransmission",
+        "name": "end_transmission",
         "signature": "(stop: bool) -> int",
         "doc": "Ends a transmission to a slave device and transmits the bytes that were queued.\n\nArgs:\n    stop (bool, optional): Whether to send a stop condition after the transmission (default is True).\n\nReturns:\n    int: 0 if successful, or an error code."
       },
@@ -1322,12 +1363,12 @@
         "doc": "Returns the number of bytes available for retrieval with read().\n\nReturns:\n    int: Number of bytes available to read."
       },
       {
-        "name": "onReceive",
+        "name": "on_receive",
         "signature": "(callback: callable) -> None",
         "doc": "Registers a function to be called when a slave device receives data from the master.\n\nArgs:\n    callback (Callable): A function that takes exactly **one integer argument** \u2014 the number of bytes received.\n        Signature:\n            def callback(num_bytes: int) -> None\n\n        Example:\n            def receive_handler(num_bytes):\n                # Read 'num_bytes' from Wire.read()\n                pass\n\nReturns:\n    None"
       },
       {
-        "name": "onRequest",
+        "name": "on_request",
         "signature": "(callback: callable) -> None",
         "doc": "Registers a function to be called when a master requests data from this slave device.\n\nArgs:\n    callback (Callable): A function that takes **no arguments** and returns nothing.\n        Signature:\n            def callback() -> None\n\n        Example:\n            def request_handler():\n                # Use Wire.write(...) to send data\n                pass\n\nReturns:\n    None"
       }

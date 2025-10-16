@@ -1,17 +1,11 @@
-
-
-__include_modules__ =  {"espressif8266":"FS,SPIFFS", 
-"espressif32":"FS"}
-__include_internal_modules__ = {"espressif8266":"helpers/SPIFFSHelperESP8266", 
-"espressif32":"helpers/SPIFFSHelperESP32,SPIFFS"}
-
+__include_modules__ = {"espressif8266": "FS,SPIFFS", "espressif32": "FS"}
+__include_internal_modules__ = {
+    "espressif8266": "helpers/SPIFFSHelper",
+    "espressif32": "helpers/SPIFFSHelper,SPIFFS",
+}
 
 
 __dependencies__ = ""
-
-
-
-
 
 
 def spiffs_begin(format_on_fail: bool, base_path: str, max_files: int) -> bool:
@@ -52,7 +46,7 @@ def spiffs_format() -> bool:
     return False
 
 
-def spiffs_open(path: str, mode: str):
+def spiffs_open(path: str, mode: str) -> None:
     """
     Opens a file in the SPIFFS filesystem.
 
@@ -176,25 +170,15 @@ def spiffs_free_bytes() -> int:
         int: Number of free bytes available.
     """
     __use_as_is__ = False
-    __translation__ = "SPIFFS.totalBytes() - SPIFFS.usedBytes()"
+    __translation__ = "(SPIFFS.totalBytes() - SPIFFS.usedBytes())"
     return 0
 
 
-def spiffs_info()->dict[str, str]:
+def spiffs_info() -> dict[str, str]:
     """
     Prints or returns general information about the SPIFFS filesystem.
     (Custom implementation required)
     """
     __use_as_is__ = False
     __translation__ = "custom_spiffs_helper_get_spiffs_info()"
-    return None
-
-
-def spiffs_gc():
-    """
-    Performs garbage collection or internal cleanup on the SPIFFS filesystem.
-    (Custom implementation required)
-    """
-    __use_as_is__ = True
-    #__translation__ = "custom_spiffs_gc()"
     return None
