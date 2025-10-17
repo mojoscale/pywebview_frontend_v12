@@ -901,11 +901,6 @@
             "name": "set_buffer_size",
             "signature": "(self, size: int) -> None",
             "doc": "Set internal MQTT buffer size (bytes)."
-          },
-          {
-            "name": "set_clean_session",
-            "signature": "(self, clean: bool) -> None",
-            "doc": "Set clean session flag (true = no persistent session)."
           }
         ]
       }

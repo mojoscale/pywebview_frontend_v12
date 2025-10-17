@@ -31,7 +31,6 @@ def setup() -> None:
     psc.set_keep_alive(10)
     psc.setSocketTimeout(10)
     psc.set_buffer_size(10)
-    psc.set_clean_session(True)
 
     psc.disconnect()
 
