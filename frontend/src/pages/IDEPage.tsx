@@ -32,7 +32,7 @@ interface Project {
 
 interface CompletionItem {
   label: string;
-  kind: number;
+  kind: number | string;
   insertText?: string;
   documentation?: string;
   detail?: string;
@@ -50,6 +50,12 @@ const IDEPage: React.FC = () => {
   const monacoRef = useRef<typeof monaco | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const completionProviderRef = useRef<monaco.IDisposable | null>(null);
+  
+  // ✅ Completion caching and request deduplication
+  const completionCacheRef = useRef<Map<string, CompletionItem[]>>(new Map());
+  const pendingRequestRef = useRef<Promise<CompletionItem[]> | null>(null);
+  const lastRequestKeyRef = useRef<string>("");
+  const COMPLETION_CACHE_SIZE = 50;
 
   // ✅ Wait for pywebview API
   useEffect(() => {
@@ -128,7 +134,7 @@ const IDEPage: React.FC = () => {
         setErrors([]);
       }
     },
-    [project, isApiReady]
+    [project, isApiReady, projectId]
   );
 
   useEffect(() => {
@@ -139,50 +145,167 @@ const IDEPage: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [project, lintCode, isApiReady]);
 
-  // ✅ Improved autocomplete provider
-  const registerCompletionProvider = useCallback((monacoInstance: typeof monaco) => {
-    if (completionProviderRef.current) {
-      completionProviderRef.current.dispose();
+  // ✅ Helper function to map kind strings to Monaco kind enums
+  const getMonacoKind = (monacoInstance: typeof monaco, kind?: number | string): number => {
+    if (typeof kind === "number") {
+      return kind;
     }
 
-    completionProviderRef.current = monacoInstance.languages.registerCompletionItemProvider("python", {
-      triggerCharacters: [".", "(", "[", '"', "'", " ", ","],
-      provideCompletionItems: async (model, position) => {
-        try {
-          if (!window.pywebview?.api?.get_completions) {
-            console.warn("Autocomplete API not available");
-            return { suggestions: [] };
-          }
+    const kindMap: Record<string, number> = {
+      function: monacoInstance.languages.CompletionItemKind.Function,
+      class: monacoInstance.languages.CompletionItemKind.Class,
+      variable: monacoInstance.languages.CompletionItemKind.Variable,
+      module: monacoInstance.languages.CompletionItemKind.Module,
+      keyword: monacoInstance.languages.CompletionItemKind.Keyword,
+      method: monacoInstance.languages.CompletionItemKind.Method,
+      property: monacoInstance.languages.CompletionItemKind.Property,
+      enum: monacoInstance.languages.CompletionItemKind.Enum,
+      interface: monacoInstance.languages.CompletionItemKind.Interface,
+      text: monacoInstance.languages.CompletionItemKind.Text,
+    };
 
-          const code = model.getValue();
-          const line = position.lineNumber - 1;
-          const column = position.column - 1;
+    return kindMap[String(kind).toLowerCase()] || monacoInstance.languages.CompletionItemKind.Text;
+  };
 
-          const response = await window.pywebview.api.get_completions(code, line, column);
-          if (!Array.isArray(response)) return { suggestions: [] };
+  // ✅ FIXED: Helper function to get/deduplicate completions
+  const getCompletionsWithCache = useCallback(
+    async (code: string, line: number, column: number): Promise<CompletionItem[]> => {
+      console.log('🔍 getCompletionsWithCache called:', { line, column });
+      
+      // Create cache key from request parameters
+      const cacheKey = `${code.length}:${line}:${column}`;
 
-          const suggestions = response.map((item: CompletionItem) => ({
-            label: item.label,
-            kind: item.kind || monacoInstance.languages.CompletionItemKind.Function,
-            insertText: item.insertText || item.label,
-            documentation: item.documentation,
-            detail: item.detail,
-            range: {
-              startLineNumber: position.lineNumber,
-              endLineNumber: position.lineNumber,
-              startColumn: position.column,
-              endColumn: position.column,
-            },
-          }));
+      // Return cached result if available
+      if (completionCacheRef.current.has(cacheKey)) {
+        console.log('✅ Returning cached completions');
+        return completionCacheRef.current.get(cacheKey) || [];
+      }
 
-          return { suggestions };
-        } catch (err) {
-          console.error("[ERROR] Autocomplete request failed:", err);
-          return { suggestions: [] };
+      // If there's a pending request with the same key, reuse it
+      if (lastRequestKeyRef.current === cacheKey && pendingRequestRef.current) {
+        console.log('🔄 Reusing pending request');
+        return pendingRequestRef.current;
+      }
+
+      // Make new request
+      lastRequestKeyRef.current = cacheKey;
+      if (!isApiReady || !projectId || !window.pywebview?.api) {
+        console.log('❌ API not ready');
+        return [];
+      }
+
+      console.log('📡 Making new completion request to Python API');
+      pendingRequestRef.current = window.pywebview.api.get_completions(projectId, code, line, column);
+
+      try {
+        const result = await pendingRequestRef.current;
+        pendingRequestRef.current = null;
+
+        console.log('📦 API response:', result);
+
+        if (!Array.isArray(result)) {
+          console.log('❌ API returned non-array:', typeof result);
+          return [];
         }
-      },
-    });
-  }, []);
+
+        // Cache the result
+        completionCacheRef.current.set(cacheKey, result);
+        console.log('💾 Cached completions, cache size:', completionCacheRef.current.size);
+
+        // Simple LRU: keep cache size under limit
+        if (completionCacheRef.current.size > COMPLETION_CACHE_SIZE) {
+          const firstKey = completionCacheRef.current.keys().next().value;
+          if (firstKey) {
+            console.log('🗑️ Removing oldest cache entry:', firstKey);
+            completionCacheRef.current.delete(firstKey);
+          }
+        }
+
+        return result;
+      } catch (err) {
+        console.error("[ERROR] Failed to get completions:", err);
+        pendingRequestRef.current = null;
+        return [];
+      }
+    },
+    [isApiReady, projectId]
+  );
+
+  // ✅ FIXED: Autocomplete provider with proper word boundary handling
+  const registerCompletionProvider = useCallback(
+    (monacoInstance: typeof monaco) => {
+      if (completionProviderRef.current) {
+        completionProviderRef.current.dispose();
+      }
+
+      completionProviderRef.current = monacoInstance.languages.registerCompletionItemProvider(
+        "python",
+        {
+          // ✅ Reduced trigger characters (removed space and comma)
+          triggerCharacters: [".", "(", "["],
+          provideCompletionItems: async (model, position, context) => {
+            console.log('🎯 Completion triggered at:', {
+              line: position.lineNumber,
+              column: position.column,
+              triggerCharacter: context.triggerCharacter
+            });
+
+            try {
+              if (!window.pywebview?.api?.get_completions) {
+                console.warn("Autocomplete API not available");
+                return { suggestions: [] };
+              }
+
+              const code = model.getValue();
+              const line = position.lineNumber - 1; // Convert to 0-indexed for Python
+              const column = position.column - 1;   // Convert to 0-indexed for Python
+
+              // ✅ Use cached/deduplicated completions
+              const response = await getCompletionsWithCache(code, line, column);
+
+              console.log('📋 Received completions:', response?.length);
+
+              if (!Array.isArray(response) || response.length === 0) {
+                console.log('ℹ️ No completions available');
+                return { suggestions: [] };
+              }
+
+              // ✅ Calculate proper word boundary for replacement
+              const wordInfo = model.getWordUntilPosition(position);
+              //const currentWord = model.getWordAtPosition(position);
+              
+              const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: wordInfo.startColumn,
+                endColumn: wordInfo.endColumn,
+              };
+
+              const suggestions = response.map((item: CompletionItem, index) => ({
+                label: item.label,
+                kind: getMonacoKind(monacoInstance, item.kind),
+                insertText: item.insertText || item.label,
+                documentation: item.documentation ? { value: item.documentation } : undefined,
+                detail: item.detail,
+                // ✅ FIXED: Range now replaces from word start to cursor
+                range: range,
+                sortText: index.toString().padStart(4, '0'), // Ensure stable ordering
+              }));
+
+              console.log('✅ Returning suggestions:', suggestions.length);
+              return { suggestions };
+            } catch (err) {
+              console.error("[ERROR] Autocomplete request failed:", err);
+              return { suggestions: [] };
+            }
+          },
+        }
+      );
+
+      console.log('✅ Completion provider registered');
+    },
+    [getCompletionsWithCache]
+  );
 
   const handleEditorDidMount = (
     editor: monaco.editor.IStandaloneCodeEditor,
@@ -207,7 +330,10 @@ const IDEPage: React.FC = () => {
       acceptSuggestionOnEnter: "on",
       tabCompletion: "on",
       wordBasedSuggestions: "allDocuments",
+      parameterHints: { enabled: true },
     });
+
+    console.log('✅ Editor mounted and completion provider ready');
   };
 
   useEffect(() => {
@@ -223,10 +349,13 @@ const IDEPage: React.FC = () => {
         editorRef.current = null;
       }
       monacoRef.current = null;
+      // ✅ Clear caches on unmount
+      completionCacheRef.current.clear();
+      pendingRequestRef.current = null;
     };
   }, []);
 
-  // ---------- save (updated to lint after save) ----------
+  // ---------- save ----------
   const handleSaveProject = async () => {
     if (!window.pywebview?.api || !isApiReady || !projectId) return;
     try {
@@ -270,7 +399,14 @@ const IDEPage: React.FC = () => {
 
   if (!isApiReady) {
     return (
-      <Layout style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
+      <Layout
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
         <Spin size="large" tip="Initializing IDE..." />
       </Layout>
     );
@@ -295,12 +431,26 @@ const IDEPage: React.FC = () => {
         </Sider>
 
         <Layout style={{ background: "#fff" }}>
-          <Content style={{ padding: "12px", display: "flex", flexDirection: "column", height: "100vh" }}>
+          <Content
+            style={{
+              padding: "12px",
+              display: "flex",
+              flexDirection: "column",
+              height: "100vh",
+            }}
+          >
             <Card size="small" style={{ marginBottom: 12 }} bodyStyle={{ padding: "12px" }}>
               {loading ? (
                 <Spin size="small" />
               ) : (
-                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    alignItems: "flex-start",
+                  }}
+                >
                   <div style={{ flex: 1 }}>
                     <Title level={5} style={{ margin: 0, lineHeight: 1.2 }}>
                       <CodeOutlined style={{ marginRight: 8, color: "#1890ff" }} />
@@ -311,13 +461,28 @@ const IDEPage: React.FC = () => {
                     </Text>
                   </div>
                   <Space>
-                    <Button size="small" icon={<BugOutlined />} onClick={() => lintCode(code)} style={{ borderRadius: 6 }}>
+                    <Button
+                      size="small"
+                      icon={<BugOutlined />}
+                      onClick={() => lintCode(code)}
+                      style={{ borderRadius: 6 }}
+                    >
                       Run Lint
                     </Button>
-                    <Button size="small" icon={<SaveOutlined />} onClick={handleSaveProject} style={{ borderRadius: 6 }}>
+                    <Button
+                      size="small"
+                      icon={<SaveOutlined />}
+                      onClick={handleSaveProject}
+                      style={{ borderRadius: 6 }}
+                    >
                       Save
                     </Button>
-                    <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={handleCompile}>
+                    <Button
+                      size="small"
+                      type="primary"
+                      icon={<PlayCircleOutlined />}
+                      onClick={handleCompile}
+                    >
                       <Space size={4}>
                         <UploadOutlined />
                         Compile / Upload
@@ -329,10 +494,30 @@ const IDEPage: React.FC = () => {
             </Card>
 
             <Card
-              style={{ flex: 1, display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" }}
-              bodyStyle={{ padding: 0, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                padding: 0,
+                overflow: "hidden",
+              }}
+              bodyStyle={{
+                padding: 0,
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+              }}
             >
-              <div ref={containerRef} style={{ flex: 1, minHeight: 0, position: "relative", overflow: "hidden" }}>
+              <div
+                ref={containerRef}
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
                 <MonacoEditor
                   language="python"
                   value={code}
@@ -367,12 +552,20 @@ const IDEPage: React.FC = () => {
                   size="small"
                   bordered
                   dataSource={errors}
-                  style={{ marginTop: 8, maxHeight: 120, overflow: "auto", flexShrink: 0 }}
+                  style={{
+                    marginTop: 8,
+                    maxHeight: 120,
+                    overflow: "auto",
+                    flexShrink: 0,
+                  }}
                   renderItem={(err: any) => (
                     <List.Item
                       onClick={() => {
                         editorRef.current?.revealLineInCenter(err.line);
-                        editorRef.current?.setPosition({ lineNumber: err.line, column: err.column || 1 });
+                        editorRef.current?.setPosition({
+                          lineNumber: err.line,
+                          column: err.column || 1,
+                        });
                         editorRef.current?.focus();
                       }}
                       style={{ cursor: "pointer", padding: "4px 12px" }}

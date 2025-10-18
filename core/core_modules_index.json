@@ -1060,50 +1060,6 @@
     "classes": [],
     "variables": []
   },
-  "tests": {
-    "doc": "No module docstring available",
-    "functions": [
-      {
-        "name": "test_function",
-        "signature": "(a: int, c: str) -> str",
-        "doc": "No docstring available"
-      },
-      {
-        "name": "return_list_func",
-        "signature": "() -> list[str]",
-        "doc": "No docstring available"
-      }
-    ],
-    "classes": [
-      {
-        "name": "TestClass",
-        "doc": "No docstring available",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self, arg1: int, arg2: str)",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "method1",
-            "signature": "(self, some_arg: str)",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "method2",
-            "signature": "(self, some_arg: str, some_other_arg: int)",
-            "doc": "No docstring available"
-          }
-        ]
-      }
-    ],
-    "variables": [
-      {
-        "name": "testvar_4",
-        "value": "10"
-      }
-    ]
-  },
   "webserver": {
     "doc": "No module docstring available",
     "functions": [],

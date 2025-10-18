@@ -44,14 +44,19 @@ from core.env_manager import (
 )
 
 from core.core_modules_index_generator import main as docs_generator
+from core.completions import get_python_completions
+
+# Detect packaged app
+if getattr(sys, "frozen", False):
+    # Running as packaged executable (Nuitka/PyInstaller)
+    BASE_DIR = Path(sys.executable).parent
+else:
+    # Running as normal Python
+    BASE_DIR = Path(__file__).parent
 
 
-CORE_LIBS_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "core", "transpiler", "core_libs"
-)
-CORE_STUBS_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "core", "transpiler", "core_stubs"
-)
+CORE_LIBS_PATH = os.path.join(BASE_DIR, "core", "transpiler", "core_libs")
+CORE_STUBS_PATH = os.path.join(BASE_DIR, "core", "transpiler", "core_stubs")
 
 
 class Api:
@@ -134,31 +139,73 @@ class Api:
         return errors
 
     def get_completions(
-        self, code: str, line: int, column: int, stub_path: str = CORE_STUBS_PATH
+        self,
+        code: str = None,
+        line: int = None,
+        column: int = None,
+        stub_path: str = CORE_STUBS_PATH,
     ):
         try:
-            stub_path = str(Path(stub_path).resolve())
+            # Parameter validation and correction
+            if isinstance(line, str) and "\n" in line:
+                # line parameter actually contains code - parameters are shifted
+                actual_code = line
+                actual_line = column
+                actual_column = stub_path
+                actual_stub_path = CORE_STUBS_PATH
 
-            # Extend sys.path with your stub folder
-            extended_sys_path = [stub_path, *sys.path]
+                # Update the variables
+                code = actual_code
+                line = actual_line
+                column = actual_column
+                stub_path = actual_stub_path
 
-            project = jedi.Project(path=Path.cwd(), sys_path=extended_sys_path)
+            # Safe conversion with extensive error handling
+            try:
+                if line is None:
+                    line_num = 0
+                elif isinstance(line, int):
+                    line_num = line
+                elif isinstance(line, str) and line.strip().isdigit():
+                    line_num = int(line.strip())
+                else:
+                    line_num = 0
+            except (TypeError, ValueError) as e:
+                line_num = 0
 
-            script = jedi.Script(code, path="script.py", project=project)
-            completions = script.complete(line + 1, column)
+            try:
+                if column is None:
+                    col_num = 0
+                elif isinstance(column, int):
+                    col_num = column
+                elif isinstance(column, str) and column.strip().isdigit():
+                    col_num = int(column.strip())
+                else:
+                    col_num = 0
+            except (TypeError, ValueError) as e:
+                col_num = 0
 
-            return [
-                {
-                    "label": c.name,
-                    "kind": c.type,
-                    "detail": c.description,
-                    "documentation": c.docstring(),
-                    "insertText": c.name,
-                }
-                for c in completions
-            ]
+            # Validate code
+            if not code or not isinstance(code, str):
+                return []
+
+            # Pass the converted integers to get_python_completions
+            result = get_python_completions(
+                code, line_num, col_num, stub_path=stub_path
+            )
+
+            return result
+
         except Exception as e:
-            return {"error": str(e)}
+            import traceback
+
+            print(f"❌ get_completions ERROR: {type(e).__name__}: {str(e)}")
+            print("📋 Full traceback:")
+            tb_lines = traceback.format_exc().split("\n")
+            for line in tb_lines:
+                if line.strip():
+                    print(f"   {line}")
+            return []
 
     # ------------------------
     # Project files
@@ -239,8 +286,7 @@ class Api:
             finally:
                 self.compile_queue.task_done
 
-        # ------------------------
-
+    # ------------------------
     # Environment Variables
     # ------------------------
     def get_all_env(self):

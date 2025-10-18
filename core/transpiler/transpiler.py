@@ -1016,7 +1016,7 @@ class DependencyResolver:
 
     def get_class_method_translation(
         self, method_name: str, class_name: str, module_name: str = None
-    ) -> str | None:
+    ) -> str:
         methods_table = f"{self.current_id}_methods"
 
         if module_name:
