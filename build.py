@@ -143,9 +143,6 @@ def build():
         "--include-package=jedi",
         "--include-package=parso",
         "--include-package=core.transpiler.core_libs",
-        # Include all package data
-        "--include-package-data=jedi",
-        "--include-package-data=parso",
         # Disable console for Windows TBD
     ]
 

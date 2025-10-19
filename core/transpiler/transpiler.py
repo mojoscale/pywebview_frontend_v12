@@ -104,8 +104,8 @@ def get_builtin_function_return_type(method_name: str, args: list):
 
     elif method_name == "list":
         arg_type1 = args[0]
-        if arg_type1 == "str":
-            return "list,str"
+        if arg_type1 in ("str", "float", "int", "bool"):
+            return f"list,{arg_type1}"
 
     elif method_name in ("pow", "sorted"):
         arg_type1 = args[0]
@@ -1756,15 +1756,19 @@ class TypeAnalyzer:
                 return f"dict,{type(k_val).__name__},{type(v_val).__name__}"
 
         elif isinstance(node, ast.Call):
+            print(f"evaluating call chain {call_chain}")
             call_chain = _extract_chain(node)
             return self._call_type_analyzer(call_chain, node)
 
         elif isinstance(node, ast.Subscript):
             value = node.value
 
+            print(f"getting type for {value}")
+
             value_type = self.get_node_type(value)
 
             value_type_split = value_type.split(",")
+            print(f"value type split is {value_type_split}")
             core_type = value_type_split[0]
 
             if core_type == "str":
@@ -1773,18 +1777,24 @@ class TypeAnalyzer:
 
             elif core_type == "list":
                 element_type = value_type_split[1]
+                print(f"element type is {element_type}")
                 if isinstance(node.slice, ast.Constant):
                     # user has called an index list[i]
                     # return self.dependency_resolver.get_list_element_type(value.id, self.scope)
                     # return self._get_list_element_type(value.elts)
+                    print(f"found slice constant.")
                     if isinstance(value, ast.Name):
                         # this is a defined variable
                         return element_type
                         # return self.dependency_resolver.get_list_element_type(value.id, self.scope)
                     elif isinstance(value, ast.List):
                         return self._get_list_element_type(value.elts)
+
+                    else:
+                        return element_type
+
                 else:
-                    # this is slize
+                    # this is slice
                     # list[i:j]
                     return value_type
 
@@ -1860,18 +1870,21 @@ class TypeAnalyzer:
     def _get_list_element_type(self, elements):
         for elt in elements:
             if not isinstance(elt, ast.Constant):
-                raise NotImplementedError(
+                """raise NotImplementedError(
                     f"Only flat constant lists are supported. Found: {type(elt).__name__}"
-                )
+                )"""
 
-            py_val = elt.value
+                val_type = self.get_node_type(elt)
 
-            if type(py_val) not in LIST_ALLOWED_TYPES:
+            else:
+                val_type = type(elt.value).__name__
+
+            if type(val_type) not in LIST_ALLOWED_TYPES:
                 raise NotImplementedError(
-                    f"Unsupported constant type in list: {type(py_val).__name__}"
+                    f"Unsupported constant type in list: {type(elt.value).__name__}"
                 )
 
-            return type(py_val).__name__
+            return val_type
 
         return "auto"
 
