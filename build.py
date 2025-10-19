@@ -67,6 +67,49 @@ def copy_transpiler_files_post_build():
     return success
 
 
+def setup_jedi_environment_in_build():
+    """
+    Setup Jedi environment files in the build directory to prevent
+    it from trying to spawn Python subprocesses.
+    """
+    dist_dir = Path("build") / "app.dist"
+
+    if not dist_dir.exists():
+        print(f"⚠️  {dist_dir} not found")
+        return False
+
+    try:
+        # Create a fake environment info file for Jedi
+        jedi_cache_dir = dist_dir / "jedi_cache"
+        jedi_cache_dir.mkdir(exist_ok=True)
+
+        # Get current Python version info
+        import sys
+
+        version_info = sys.version_info
+
+        # Create environment info that Jedi would normally get by spawning python
+        env_info = {
+            "version_info": list(version_info),
+            "executable": sys.executable,
+            "sys_path": sys.path,
+        }
+
+        # Write this to a file that our patched Jedi will read
+        import json
+
+        env_file = jedi_cache_dir / "environment_info.json"
+        with open(env_file, "w") as f:
+            json.dump(env_info, f)
+
+        print("✓ Created Jedi environment info file")
+        return True
+
+    except Exception as e:
+        print(f"❌ Error setting up Jedi environment: {e}")
+        return False
+
+
 def build():
     # Ensure frontend build exists
     if not FRONTEND_DIST.exists():
@@ -90,15 +133,24 @@ def build():
         f"--output-dir=build",
         f"--include-data-files=core/core_modules_index.json=core/core_modules_index.json",
         f"--include-data-files=core/available_boards.json=core/available_boards.json",
+        f"--include-data-dir=core/transpiler=core/transpiler",
         f"--remove-output",
         f"--assume-yes-for-downloads",
         "--nofollow-import-to=tkinter",
         "--nofollow-import-to=PyQt5",
         "--nofollow-import-to=PySide6",
+        # Include packages explicitly
+        "--include-package=jedi",
+        "--include-package=parso",
+        "--include-package=core.transpiler.core_libs",
+        # Include all package data
+        "--include-package-data=jedi",
+        "--include-package-data=parso",
+        # Disable console for Windows TBD
     ]
 
-    # Include the package so Nuitka knows to process core.transpiler
-    options.append("--include-package=core.transpiler.core_libs")
+    # Remove empty strings
+    options = [opt for opt in options if opt]
 
     system = platform.system()
 
@@ -115,7 +167,16 @@ def build():
     print("\n>>> PHASE 2: Post-Build File Copying\n")
     print("(Copying .py and .pyi files that Nuitka filtered out)\n")
 
-    if copy_transpiler_files_post_build():
+    build_success = True
+
+    if not copy_transpiler_files_post_build():
+        build_success = False
+
+    print("\n>>> PHASE 3: Setting up Jedi Environment\n")
+    if not setup_jedi_environment_in_build():
+        build_success = False
+
+    if build_success:
         print("\n" + "=" * 60)
         print("✓ Build completed successfully!")
         print("=" * 60)

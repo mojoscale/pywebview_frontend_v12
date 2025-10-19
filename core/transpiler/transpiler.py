@@ -178,10 +178,15 @@ def get_cpp_python_type(python_type, custom_type_str=False):
     elif len(python_type_list) > 1:
         if python_type == "list":
             python_type_element = python_type_list[1]
+
         elif python_type == "dict":
             python_type_element = python_type_list[2]
 
-        return f"{type_map[python_type]}<{type_map[python_type_element]}>"
+        converted_element_type = get_cpp_python_type(
+            python_type_element, custom_type_str=False
+        )  # inside values stay core type.
+
+        return f"{type_map[python_type]}<{converted_element_type}>"
 
     return "auto"
 
@@ -1579,8 +1584,8 @@ class TypeAnalyzer:
             if not prev_type:
                 if called_entity_type == "const":
                     # basically a call like [1, 2, 3].split()
-                    prev_statement = self.visit(called_entity_value)
-                    prev_type = self.type_analyzer.get_node_type(called_entity_value)
+                    # prev_statement = self.visit(called_entity_value)
+                    prev_type = self.get_node_type(called_entity_value) or "str"
 
                 elif called_entity_type == "attr":
                     # this is a call like x.foo()
@@ -1676,7 +1681,8 @@ class TypeAnalyzer:
                             prev_type = called_entity_return_type
 
                     else:
-                        if prev_type in BUILTIN_TYPES:
+                        transformed_core_type = prev_type.split(",")[0]
+                        if transformed_core_type in BUILTIN_TYPES:
                             cpp_type = get_cpp_python_type(
                                 transformed_core_type, custom_type_str=True
                             )
@@ -1704,7 +1710,7 @@ class TypeAnalyzer:
         self.is_inside_loop = self.get_is_inside_loop()
         self.loop_variables = self.get_loop_vars()
         if isinstance(node, ast.Constant):
-            return type(node.value).__name__
+            return type(node.value).__name__ or "str"
 
         elif isinstance(node, ast.List):
             element_type = self._get_list_element_type(node.elts)
@@ -2388,8 +2394,11 @@ class ArduinoTranspiler(ast.NodeVisitor):
             if not prev_type:
                 if called_entity_type == "const":
                     # basically a call like [1, 2, 3].split()
-                    prev_statement = self.visit(called_entity_value)
-                    prev_type = self.type_analyzer.get_node_type(called_entity_value)
+                    prev_statement = called_entity_value
+                    prev_type = (
+                        self.type_analyzer.get_node_type(called_entity_value) or "str"
+                    )
+                    print(f"found {called_entity_value} type {prev_type}")
 
                 elif called_entity_type == "attr":
                     # this is a call like x.foo()
@@ -2476,7 +2485,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                             args.insert(0, "dummy")
 
                             args = self._process_func_args(
-                                module_name, "__init__", ",".join(args)
+                                module_name, "__init__", args
                             )
 
                             print(
@@ -2490,7 +2499,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
                         else:
                             args = self._process_func_args(
-                                module_name, method_name, ",".join(args)
+                                module_name, method_name, args
                             )
                             called_entity_translation = (
                                 self.dependency_resolver.get_method_translation(
@@ -2507,16 +2516,18 @@ class ArduinoTranspiler(ast.NodeVisitor):
                             prev_statement = called_entity_translation.format(*args)
 
                     else:
-                        if prev_type in BUILTIN_TYPES:
+                        transformed_core_type = prev_type.split(",")[0]
+                        if transformed_core_type in BUILTIN_TYPES:
                             cpp_type = get_cpp_python_type(
                                 transformed_core_type, custom_type_str=True
                             )
+
+                            joined_args = ",".join(args)
+
                             if prev_type == "str" and method_name == "isspace":
-                                prev_statement = (
-                                    f"{prev_statement}.py{method_name}({args})"
-                                )
+                                prev_statement = f"{cpp_type}({prev_statement}).py{method_name}({joined_args})"
                             else:
-                                prev_statement = f"{prev_statement}.method_name({args})"
+                                prev_statement = f"{cpp_type}({prev_statement}).{method_name}({joined_args})"
 
                             prev_type = get_python_builtin_class_method_type(
                                 prev_type, method_name
@@ -2753,11 +2764,9 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
         print(f"[WARN] visit_Call fell through! Node: {ast.dump(node)}")"""
 
-    def _process_func_args(self, module_name, method_name, joined_args):
+    def _process_func_args(self, module_name, method_name, args_list):
         print(f"processing for {module_name} and method {method_name}")
         stored_args = self.dependency_resolver.get_method_args(module_name, method_name)
-
-        arg_list = joined_args.split(",")
 
         for i in range(len(stored_args)):
             arg = stored_args[i]
@@ -3352,11 +3361,11 @@ class ArduinoTranspiler(ast.NodeVisitor):
         print(f"node value is {node.value}")
 
         rhs_type = self.type_analyzer.get_node_type(node.value)
-        print(f"var {lhs_name} is declared {rhs_type}")
 
         is_python_type = is_core_python_type(rhs_type)
+        print(f"var {lhs_name} is declared {rhs_type} of type {is_python_type}")
 
-        cpp_type = get_cpp_python_type(rhs_type)
+        cpp_type = get_cpp_python_type(rhs_type, custom_type_str=True)
 
         self.dependency_resolver.insert_variable(
             lhs_name, rhs_type, self.current_module_name, "user"

@@ -14,13 +14,25 @@ private:
 public:
     PyString() : data("") {}
     PyString(const char* s) : data(s) {}
+    PyString(char c) : data(String(c)) {}  // ✅ Handle single char
     PyString(const String& s) : data(s) {}
 
-    // ✅ Copy constructor
+    // ✅ Copy constructor - handles const PyString&
     PyString(const PyString& other) : data(other.data) {}
 
-    // ✅ Copy assignment
+    // ✅ Non-const copy constructor - handles PyString&
+    PyString(PyString& other) : data(other.data) {}
+
+    // ✅ Copy assignment - handles const PyString&
     PyString& operator=(const PyString& other) {
+        if (this != &other) {
+            data = other.data;
+        }
+        return *this;
+    }
+
+    // ✅ Non-const copy assignment - handles PyString&
+    PyString& operator=(PyString& other) {
         if (this != &other) {
             data = other.data;
         }
@@ -374,10 +386,53 @@ public:
         return parts;
     }
 
+    // ✅ Original join - for PyList<String>
     String join(const PyList<String>& parts) const {
         String result = "";
         for (int i = 0; i < parts.size(); ++i) {
             result += parts[i];
+            if (i < parts.size() - 1) result += data;
+        }
+        return result;
+    }
+
+    // ✅ Extended join - for PyList<int>
+    String join(const PyList<int>& parts) const {
+        String result = "";
+        for (int i = 0; i < parts.size(); ++i) {
+            result += String(parts[i]);
+            if (i < parts.size() - 1) result += data;
+        }
+        return result;
+    }
+
+    // ✅ Extended join - for PyList<float>
+    String join(const PyList<float>& parts) const {
+        String result = "";
+        for (int i = 0; i < parts.size(); ++i) {
+            result += String(parts[i]);
+            if (i < parts.size() - 1) result += data;
+        }
+        return result;
+    }
+
+    // ✅ Extended join - for PyList<bool>
+    String join(const PyList<bool>& parts) const {
+        String result = "";
+        for (int i = 0; i < parts.size(); ++i) {
+            result += (parts[i] ? "True" : "False");
+            if (i < parts.size() - 1) result += data;
+        }
+        return result;
+    }
+
+    // ✅ Universal join template - for any PyList type
+    template<typename T>
+    String join(const PyList<T>& parts) const {
+        String result = "";
+        for (int i = 0; i < parts.size(); ++i) {
+            // Handles custom types with str() method
+            result += parts[i].str();
             if (i < parts.size() - 1) result += data;
         }
         return result;
