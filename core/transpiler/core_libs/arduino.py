@@ -37,6 +37,7 @@ def pinMode(pin: int, mode: int) -> None:
         None
     """
     __use_as_is__: bool = True
+    __translation__ = "pinMode({0}, {1})"
     raise NotImplementedError("pinMode is not implemented")
 
 
@@ -52,6 +53,7 @@ def digitalWrite(pin: int, val: int) -> None:
         None
     """
     __use_as_is__: bool = True
+    __translation__ = "digitalWrite({0}, {1})"
     raise NotImplementedError("digitalWrite is not implemented")
 
 
@@ -66,6 +68,7 @@ def digitalRead(pin: int) -> int:
         int: The value read from the pin — HIGH (1) or LOW (0).
     """
     __use_as_is__: bool = True
+    __translation__ = "digitalRead({0})"
     raise NotImplementedError("digitalRead is not implemented")
 
 
@@ -81,6 +84,7 @@ def analogRead(pin: int) -> int:
              or up to 4095 (12-bit) on some boards like ESP32.
     """
     __use_as_is__: bool = True
+    __translation__ = "analogRead({0})"
     raise NotImplementedError("analogRead is not implemented")
 
 
@@ -96,6 +100,7 @@ def analogWrite(pin: int, val: int) -> None:
         None
     """
     __use_as_is__: bool = True
+    __translation__ = "analogWrite({0}, {1})"
     raise NotImplementedError("analogWrite is not implemented")
 
 
@@ -110,6 +115,7 @@ def delay(ms: int) -> None:
         None
     """
     __use_as_is__: bool = True
+    __translation__ = "delay({0})"
     raise NotImplementedError("delay is not implemented")
 
 
@@ -124,6 +130,7 @@ def delayMicroseconds(us: int) -> None:
         None
     """
     __use_as_is__: bool = True
+    __translation__ = "delayMicroseconds({0})"
     raise NotImplementedError("delayMicroseconds is not implemented")
 
 
@@ -134,6 +141,8 @@ def millis() -> int:
     Returns:
         int: Elapsed time in milliseconds.
     """
+    __use_as_is__: bool = True
+    __translation__ = "millis()"
     raise NotImplementedError("millis is not implemented")
 
 
@@ -145,6 +154,7 @@ def micros() -> int:
         int: Elapsed time in microseconds.
     """
     __use_as_is__: bool = True
+    __translation__ = "micros()"
     raise NotImplementedError("micros is not implemented")
 
 
@@ -162,6 +172,7 @@ def shiftOut(dataPin: int, clockPin: int, bitOrder: int, val: int) -> None:
         None
     """
     __use_as_is__: bool = True
+    __translation__ = "shiftOut({0}, {1}, {2}, {3})"
     raise NotImplementedError("shiftOut is not implemented")
 
 
@@ -178,6 +189,7 @@ def shiftIn(dataPin: int, clockPin: int, bitOrder: int) -> int:
         int: The byte of data read.
     """
     __use_as_is__: bool = True
+    __translation__ = "shiftIn({0}, {1}, {2})"
     raise NotImplementedError("shiftIn is not implemented")
 
 
@@ -194,6 +206,7 @@ def pulseIn(pin: int, state: int, timeout: int = 1000000) -> int:
         int: The length of the pulse in microseconds (or 0 if timeout).
     """
     __use_as_is__: bool = True
+    __translation__ = "pulseIn({0}, {1}, {2})"
     raise NotImplementedError("pulseIn is not implemented")
 
 
@@ -210,6 +223,7 @@ def tone(pin: int, frequency: int, duration: int = 0) -> None:
         None
     """
     __use_as_is__: bool = True
+    __translation__ = "tone({0}, {1}, {2})"
     raise NotImplementedError("tone is not implemented")
 
 
@@ -224,6 +238,7 @@ def noTone(pin: int) -> None:
         None
     """
     __use_as_is__: bool = True
+    __translation__ = "noTone({0})"
     raise NotImplementedError("noTone is not implemented")
 
 
@@ -238,6 +253,7 @@ def noInterrupts() -> None:
         None
     """
     __use_as_is__: bool = True
+    __translation__ = "noInterrupts()"
     raise NotImplementedError("noInterrupts is not implemented")
 
 
@@ -251,13 +267,14 @@ def interrupts() -> None:
         None
     """
     __use_as_is__: bool = True
+    __translation__ = "interrupts()"
     raise NotImplementedError("interrupts is not implemented")
 
 
 from typing import Callable
 
 
-def attachInterrupt(pin: int, ISR: Callable[[], None], mode: int) -> None:
+def attachInterrupt(pin: int, ISR: callable, mode: int) -> None:
     """
     Attaches an interrupt to a pin, triggered on a particular mode.
 
@@ -270,6 +287,7 @@ def attachInterrupt(pin: int, ISR: Callable[[], None], mode: int) -> None:
         None
     """
     __use_as_is__: bool = True
+    __translation__ = "attachInterrupt({0}, {1}, {2})"
     raise NotImplementedError("attachInterrupt is not implemented")
 
 
@@ -284,6 +302,7 @@ def detachInterrupt(pin: int) -> None:
         None
     """
     __use_as_is__: bool = True
+    __translation__ = "detachInterrupt({0})"
     raise NotImplementedError("detachInterrupt is not implemented")
 
 

@@ -84,7 +84,7 @@
       },
       {
         "name": "attachInterrupt",
-        "signature": "(pin: int, ISR: Callable[[], None], mode: int) -> None",
+        "signature": "(pin: int, ISR: callable, mode: int) -> None",
         "doc": "Attaches an interrupt to a pin, triggered on a particular mode.\n\nArgs:\n    pin (int): The pin to attach the interrupt to.\n    ISR (Callable): A function to call when the interrupt is triggered.\n    mode (int): The condition to trigger the interrupt (RISING, FALLING, or CHANGE).\n\nReturns:\n    None"
       },
       {

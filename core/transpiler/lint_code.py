@@ -261,8 +261,8 @@ class LintCode(ast.NodeVisitor):
 
     def visit_List(self, node: ast.List):
         """Validate literal lists: all elements same type, and of allowed scalar types."""
-        ALLOWED_TYPES = (ast.Constant,)
-        ALLOWED_VALUE_TYPES = (str, int, float, bool)
+        # ALLOWED_TYPES = (ast.Constant,)
+        ALLOWED_VALUE_TYPES = ("str", "int", "float", "bool")
 
         # Empty list is allowed, but warn if empty
         if not node.elts:
@@ -272,7 +272,17 @@ class LintCode(ast.NodeVisitor):
         element_types = []
 
         for elt in node.elts:
-            if not isinstance(elt, ALLOWED_TYPES):
+            # val = elt.value
+            val_type = self.type_analyzer.get_node_type(elt)
+            if val_type not in ALLOWED_VALUE_TYPES:
+                self.add_error(
+                    node,
+                    f"List elements must be literal constants (int, str, float, bool). Found: {val_type}",
+                )
+                continue
+            element_types.append(val_type)
+
+            """if not isinstance(elt, ALLOWED_TYPES):
                 self.add_error(
                     node,
                     f"List elements must be literal constants (int, str, float, bool). Found: {type(elt).__name__}",
@@ -287,7 +297,7 @@ class LintCode(ast.NodeVisitor):
                 )
                 continue
 
-            element_types.append(type(val).__name__)
+            element_types.append(type(val).__name__)"""
 
         # Check uniformity
         if element_types:
@@ -302,7 +312,7 @@ class LintCode(ast.NodeVisitor):
 
     def visit_Dict(self, node: ast.Dict):
         """Validate literal dicts: key/value type restrictions and uniformity."""
-        ALLOWED_VALUE_TYPES = (str, int, float, bool)
+        ALLOWED_VALUE_TYPES = ("str", "int", "float", "bool")
 
         if not node.keys or not node.values:
             self.add_error(node, "Empty dictionaries are not allowed.")
@@ -313,27 +323,23 @@ class LintCode(ast.NodeVisitor):
 
         for key, val in zip(node.keys, node.values):
             # Key must be a constant string
-            if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
-                self.add_error(
-                    node,
-                    f"Invalid key type '{type(key).__name__}'. Dict keys must be string literals.",
-                )
-            else:
-                key_types.append(type(key.value).__name__)
 
-            # Value type check
-            if not isinstance(val, ast.Constant):
+            key_type = self.type_analyzer.get_node_type(key)
+            value_type = self.type_analyzer.get_node_type(val)
+
+            key_types.append(key_type)
+            val_types.append(value_type)
+
+            if key_type != "str":
                 self.add_error(
                     node,
-                    f"Dict values must be literal constants (int, str, float, bool). Found: {type(val).__name__}",
+                    f"Dict keys must be of type str. Found: {key_type}",
                 )
-            elif not isinstance(val.value, ALLOWED_VALUE_TYPES):
+            if value_type not in ALLOWED_VALUE_TYPES:
                 self.add_error(
                     node,
-                    f"Invalid dict value type: {type(val.value).__name__}. Allowed: int, str, float, bool.",
+                    f"Dict values must be literal constants (int, str, float, bool). Found: {value_type}",
                 )
-            else:
-                val_types.append(type(val.value).__name__)
 
         # Check uniformity of keys and values
         if key_types:
@@ -721,7 +727,6 @@ class LintCode(ast.NodeVisitor):
             self.add_error(node, "'for' can be only called within a function body.")
 
         # cannot be called on global scope in arduino
-
         if self.scope == "global":
             self.add_error(node, "'if' can be only called within a function body.")
 
@@ -736,10 +741,19 @@ class LintCode(ast.NodeVisitor):
             element_type = loop_var_type.split(",")[1]
             self.loop_variables[loop_var] = element_type
         elif loop_type == "dict_items":
-            _, key_type, value_type = loop_var_type.split(",")
-            self.loop_variables[key_var] = key_type
-            self.loop_variables[val_var] = value_type
-
+            # Extract key and value variables from the loop target
+            if isinstance(loop_var, ast.Tuple) and len(loop_var.elts) == 2:
+                key_var = loop_var.elts[0]
+                val_var = loop_var.elts[1]
+                _, key_type, value_type = loop_var_type.split(",")
+                self.loop_variables[key_var] = key_type
+                self.loop_variables[val_var] = value_type
+            else:
+                # Handle error case where loop target is not a tuple of two variables
+                self.add_error(
+                    node,
+                    "dict_items iteration requires unpacking into key, value variables",
+                )
         elif loop_type == "str":
             self.loop_variables[loop_var] = "str"
 
@@ -963,67 +977,46 @@ class LintCode(ast.NodeVisitor):
 
     def visit_Name(self, node):
         """
-        Handle variable and function name usage.
-        Ensures that bare function names (without parentheses) are only allowed
-        in valid contexts like arguments or assignments, mimicking C++/Arduino semantics.
-
-        Cases handled:
-        ✅ 1. Function call → allowed
-        ✅ 2. Function name passed as argument → allowed
-        ✅ 3. Function name assigned to variable → allowed
-        ✅ 4. Builtin functions or constants → allowed
-        ❌ 5. Bare function name (not called or used) → error
+        Check if a bare function name is used illegally (not called, not passed as arg, not assigned).
+        Only check right-hand side since LHS is likely being defined.
         """
-
-        if isinstance(node.ctx, ast.Load):
+        if isinstance(node.ctx, ast.Load):  # Right-hand side (being read)
             var_name = node.id
 
-            # --- Skip Python builtins entirely ---
+            # Skip Python builtins
             if var_name in dir(__builtins__):
                 return
 
-            # --- Get parent safely ---
+            # Check if this is a bare function name (not in a call, not in args, etc.)
             parent = getattr(node, "parent", None)
 
-            # --- CASE 1: function being *called* (f1()) ---
-            if isinstance(parent, ast.Call) and parent.func == node:
-                return
-
-            # --- CASE 2: function name passed as argument (registerCallback(f1)) ---
-            if isinstance(parent, ast.Call) and node in parent.args:
-                return
-
-            # --- CASE 3: assigned to variable (ptr = f1) ---
-            if isinstance(parent, ast.Assign):
-                return
-
-            # --- CASE 4: part of an attribute (obj.f1) ---
+            # Allowed contexts: being called, passed as arg, or inside attribute
+            if isinstance(parent, ast.Call):
+                return  # Being called: f() or passed as arg: g(f)
             if isinstance(parent, ast.Attribute):
+                attr_name = parent.attr  # This is 'var'
+                obj_name = parent.value.id
+                func_meta = self.dependency_resolver.get_method_metadata(attr_name)
+                if func_meta:
+                    self.add_error(
+                        node,
+                        f"Bare function name '{attr_name}' not allowed. "
+                        f"Did you mean to call it with parentheses?",
+                    )
                 return
 
-            # --- CASE 5: unpacking or other allowed expressions (rare but safe) ---
             if isinstance(parent, (ast.Tuple, ast.List, ast.Dict)):
-                return
+                return  # Inside container
 
-            # --- Check if variable or function is known ---
-            var_type = self.dependency_resolver.get_variable_type(var_name, self.scope)
-            func_meta = None
-            try:
-                func_meta = self.dependency_resolver.get_method_metadata(var_name)
-            except Exception:
-                pass  # safe fallback
-
-            # --- Bare name check ---
-            if not var_type and func_meta:
-                # If name corresponds to a function but not in valid context → invalid
-                # This catches bare f1; which is invalid in C++/Arduino
+            # If we get here, it's a bare name. Check if it's a function.
+            func_meta = self.dependency_resolver.get_method_metadata(var_name)
+            if func_meta:
                 self.add_error(
                     node,
-                    f"Name '{var_name}' used without call or assignment. "
-                    "Did you mean to call it with parentheses?",
+                    f"Bare function name '{var_name}' not allowed. "
+                    f"Did you mean to call it with parentheses?",
                 )
 
-        # Continue traversing other nodes
         self.generic_visit(node)
 
     def visit_Constant(self, node):

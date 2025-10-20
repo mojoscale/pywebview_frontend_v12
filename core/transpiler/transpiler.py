@@ -216,12 +216,14 @@ def get_python_builtin_class_method_type(class_name, method_name):
             return "int"
 
     elif core_class == "dict":
+        print(f"analyzing dict")
         key_type = class_name_split[1] if len(class_name_split) > 1 else "any"
         value_type = class_name_split[2] if len(class_name_split) > 2 else "any"
 
         if method_name == "keys":
             return f"list,{key_type}"
         elif method_name == "values":
+            print(f"returning type {value_type}")
             return f"list,{value_type}"
         elif method_name == "items":
             return f"dict_items,{key_type},{value_type}"
@@ -1667,9 +1669,6 @@ class TypeAnalyzer:
                             args.insert(0, "dummy")
 
                             prev_type = method_name  # this is class name itself
-                            prev_statement = (
-                                f"{called_entity_translation.format(*args)}"
-                            )
 
                         else:
                             called_entity_return_type = (
@@ -1746,18 +1745,22 @@ class TypeAnalyzer:
             values = node.values
 
             for k, v in zip(keys, values):
-                if not (isinstance(k, ast.Constant) and isinstance(v, ast.Constant)):
+                key_type = self.get_node_type(k)
+                value_type = self.get_node_type(v)
+                return f"dict,{key_type},{value_type}"
+
+                """if not (isinstance(k, ast.Constant) and isinstance(v, ast.Constant)):
                     json_parts.append("/* unsupported */")
                     continue
 
                 k_val = k.value
                 v_val = v.value
 
-                return f"dict,{type(k_val).__name__},{type(v_val).__name__}"
+                return f"dict,{type(k_val).__name__},{type(v_val).__name__}"""
 
         elif isinstance(node, ast.Call):
-            print(f"evaluating call chain {call_chain}")
             call_chain = _extract_chain(node)
+            print(f"evaluating call chain {call_chain}")
             return self._call_type_analyzer(call_chain, node)
 
         elif isinstance(node, ast.Subscript):
@@ -1798,12 +1801,12 @@ class TypeAnalyzer:
                     # list[i:j]
                     return value_type
 
-            elif value_type == "dict":
-                dict_info = self.dependency_resolver.get_dict_key_value_type(
+            elif core_type == "dict":
+                """dict_info = self.dependency_resolver.get_dict_key_value_type(
                     value.id, self.scope
-                )
+                )"""
 
-                return dict_info["value_type"]
+                return value_type_split[2]
 
         elif isinstance(node, ast.BinOp):
             print("starting type extraction")
@@ -2297,7 +2300,14 @@ class ArduinoTranspiler(ast.NodeVisitor):
         inferred_type = None
 
         for k, v in zip(keys, values):
-            if not (isinstance(k, ast.Constant) and isinstance(v, ast.Constant)):
+            key = self.visit(k)
+            value = self.visit(v)
+            value_type = self.type_analyzer.get_node_type(v)
+            json_parts.append(f"{key}: {value}")
+            inferred_type = get_cpp_python_type(value_type)
+            print(f"value type is {value_type} and inferred_type {inferred_type}")
+
+            """if not (isinstance(k, ast.Constant) and isinstance(v, ast.Constant)):
                 json_parts.append("/* unsupported */")
                 continue
 
@@ -2329,7 +2339,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
             else:
                 value_str = "/* unsupported */"
 
-            json_parts.append(f"{key_str}: {value_str}")
+            json_parts.append(f"{key_str}: {value_str}")"""
 
         json_str = "{ " + ", ".join(json_parts) + " }"
         c_string_literal = json_str.replace(
@@ -2402,6 +2412,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
         print(f"processing call chain {call_chain}")
 
         for called_entity in call_chain:
+            print(f"prev_statement after processing: '{prev_statement}'")
             called_entity_type = called_entity["type"]
             called_entity_value = called_entity["value"]
             if not prev_type:
@@ -2446,7 +2457,9 @@ class ArduinoTranspiler(ast.NodeVisitor):
                     if is_builtin_function(method_name):
                         translated_method_name = f"{BUILTIN_FUNC_PREFIX}_{method_name}"
 
-                        prev_statement = f"{translated_method_name}({','.join(args)})"
+                        joined_args = ",".join(args)
+
+                        prev_statement = f"{translated_method_name}({joined_args})"
                         prev_type = get_builtin_function_return_type(
                             method_name, args_type
                         )
@@ -2454,10 +2467,11 @@ class ArduinoTranspiler(ast.NodeVisitor):
                     else:
                         # this is a global function that user defined in current module.
                         # call it as is.
-                        process_joined_args = self._process_func_args(
+                        processed_args = self._process_func_args(
                             self.current_module_name, method_name, args
                         )
-                        prev_statement = f"{method_name}({process_joined_args})"
+                        joined_args = ",".join(processed_args)
+                        prev_statement = f"{method_name}({joined_args})"
                         prev_type = (
                             self.dependency_resolver.get_global_function_return_type(
                                 method_name, self.current_module_name
@@ -2526,6 +2540,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                             )
 
                             prev_type = called_entity_return_type
+                            print(f"found args {args}")
                             prev_statement = called_entity_translation.format(*args)
 
                     else:
@@ -2540,7 +2555,10 @@ class ArduinoTranspiler(ast.NodeVisitor):
                             if prev_type == "str" and method_name == "isspace":
                                 prev_statement = f"{cpp_type}({prev_statement}).py{method_name}({joined_args})"
                             else:
+                                print(f"got prev statement {prev_statement}")
                                 prev_statement = f"{cpp_type}({prev_statement}).{method_name}({joined_args})"
+
+                                print(f"now prev statement is {prev_statement}")
 
                             prev_type = get_python_builtin_class_method_type(
                                 prev_type, method_name
@@ -2576,7 +2594,9 @@ class ArduinoTranspiler(ast.NodeVisitor):
         visited_args = []
 
         for arg in args:
+            print(f"Visiting arg: {ast.dump(arg)}")  # Add this
             visited_arg = self.visit(arg)
+            print(f"Result: '{visited_arg}'")  # Add this
             visited_args.append(visited_arg)
 
         return visited_args
@@ -2790,14 +2810,14 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 arg_pass_as = self.dependency_resolver.get_class_pass_as(arg_type)
 
                 if arg_pass_as == "pointer":
-                    arg_list[i] = f"*{arg_list[i]}"
+                    args_list[i] = f"*{args_list[i]}"
 
                 elif arg_pass_as == "reference":
-                    arg_list[i] = f"&{arg_list[i]}"
+                    args_list[i] = f"&{args_list[i]}"
                 else:
-                    arg_list[i] = f"{arg_list[i]}"
+                    args_list[i] = f"{args_list[i]}"
 
-        return arg_list
+        return args_list
 
     def visit_FunctionDef(self, node):
         func_name = node.name
@@ -2826,6 +2846,8 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
             if cpp_base_type in {"int", "float", "bool", "str", "String"}:
                 cpp_type = f"{cpp_base_type}"
+            elif arg_type.split(",")[0] in ("list", "dict"):
+                cpp_type = f"{cpp_base_type}"  # these shud just be passed as values.
             else:
                 pass_as = self.dependency_resolver.get_class_pass_as(arg_type)
 
