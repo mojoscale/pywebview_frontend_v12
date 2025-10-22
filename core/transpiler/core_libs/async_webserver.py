@@ -5,7 +5,12 @@ __include_modules__ = {
     "espressif32": "ESPAsyncWebServer,AsyncTCP",
 }
 __include_internal_modules__ = "helpers/AsyncWebServerHelper"
-__dependencies__ = "me-no-dev/ESPAsyncWebServer,me-no-dev/AsyncTCP"
+
+
+__dependencies__ = {
+    "espressif8266": "me-no-dev/ESPAsyncWebServer,me-no-dev/ESPAsyncTCP",
+    "espressif32": "me-no-dev/ESPAsyncWebServer,me-no-dev/AsyncTCP",
+}
 
 
 class AsyncWebServerRequest:

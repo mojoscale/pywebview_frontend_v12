@@ -1,4 +1,4 @@
-__include_modules__ = "WiFi"
+__include_modules__ = {"espressif32": "WiFi", "espressif8266": "ESP8266WiFi"}
 __include_internal_modules__ = "helpers/WiFiHelper"
 __dependencies__ = ""
 

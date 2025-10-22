@@ -323,6 +323,8 @@ class Api:
 # ------------------------
 if __name__ == "__main__":
     check_or_create_app_dir()
+    generate_pyi_stubs(CORE_LIBS)
+    docs_generator()
 
     DEV = "--dev" in sys.argv
     api = Api()
@@ -331,8 +333,7 @@ if __name__ == "__main__":
 
     if DEV:
         window_url = "http://localhost:5173"
-        generate_pyi_stubs(CORE_LIBS)
-        docs_generator()
+
     else:
         frontend_path = Path(__file__).parent / "frontend" / "dist" / "index.html"
         window_url = frontend_path.as_uri()

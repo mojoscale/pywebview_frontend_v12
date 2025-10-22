@@ -1,4 +1,4 @@
-__include_modules__ = "WiFi,PubSubClient"
+__include_modules__ = "PubSubClient"
 __include_internal_modules__ = "helpers/MQTTHelper"
 __dependencies__ = "knolleary/PubSubClient"
 

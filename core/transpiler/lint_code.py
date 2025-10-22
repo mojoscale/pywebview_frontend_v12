@@ -769,6 +769,13 @@ class LintCode(ast.NodeVisitor):
 
     def visit_Assign(self, node):
         lhs_name = node.targets[0].id
+
+        is_lhs_function_name = self.dependency_resolver.get_method_metadata(lhs_name)
+        if is_lhs_function_name:
+            self.add_error(
+                node,
+                f"'{lhs_name}' is a an defined or imported method name. Please rename this variable.",
+            )
         rhs_type = self.type_analyzer.get_node_type(node.value)
 
         self.dependency_resolver.insert_variable(

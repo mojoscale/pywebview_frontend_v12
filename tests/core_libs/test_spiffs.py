@@ -2,7 +2,7 @@ import spiffs as sp
 
 
 def setup() -> None:
-    sp_begin = sp.spiffs_begin(True, "/", 3)
+    sp_begin = sp.spiffs_begin()
 
     sp.spiffs_end()
 
@@ -10,7 +10,7 @@ def setup() -> None:
 
     sp.spiffs_open("/", "r")
 
-    does_spiffs_exist = sp.spiffs_exist("/")
+    does_spiffs_exist = sp.spiffs_exists("/")
 
     was_removed = sp.spiffs_remove("/test")
 
@@ -26,7 +26,7 @@ def setup() -> None:
 
     free_bytes = sp.spiffs_free_bytes()
 
-    spiffs_info = sp.spiffs_info()
+    spiffs_infor = sp.spiffs_info()
 
 
 def loop() -> None:

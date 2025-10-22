@@ -2389,13 +2389,14 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
         translated_code = ""
 
+        # ensure that internal includes are typed before the module include.
+        for i in set(internal_imports):
+            translated_code += f'#include "{i}.h"' + "\n"
+
         for i in set(imports):
             if i not in self.added_imports:
                 translated_code += f"#include <{i}.h>" + "\n"
                 self.added_imports.append(i)
-
-        for i in set(internal_imports):
-            translated_code += f'#include "{i}.h"' + "\n"
 
         return translated_code
 

@@ -24,6 +24,7 @@ class DS18B20Sensor:
         Begin communication with the DS18B20 sensor.
         """
         __use_as_is__ = True
+        __translation__ = "{0}.begin()"
         pass
 
     def request_temperature(self) -> None:

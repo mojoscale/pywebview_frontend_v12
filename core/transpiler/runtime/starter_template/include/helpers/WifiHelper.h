@@ -1,26 +1,42 @@
-#include <WiFi.h>  // For ESP32; use <ESP8266WiFi.h> for ESP8266
+#ifdef ESP32
+  #include <WiFi.h>
+#elif defined(ESP8266)
+  #include <ESP8266WiFi.h>
+#else
+  #error "This code is only compatible with ESP32 or ESP8266"
+#endif
+
 #include "../PyList.h"
 
 // Scans for available WiFi networks and returns them as PyList<String>
 PyList<String> custom_wifi_helper_scan_wifi_networks() {
     PyList<String> ssid_list;
-
     Serial.println("🔍 Scanning for WiFi networks...");
-    int n = WiFi.scanNetworks();
-
+    
+    #ifdef ESP32
+        int n = WiFi.scanNetworks();
+    #elif defined(ESP8266)
+        int n = WiFi.scanNetworks(false, false);  // async=false, show_hidden=false
+    #endif
+    
     if (n == 0) {
         Serial.println("⚠️  No networks found.");
         return ssid_list;  // return empty list
     }
-
+    
     for (int i = 0; i < n; ++i) {
         String ssid = WiFi.SSID(i);
         ssid_list.append(ssid);
     }
-
+    
     Serial.print("✅ Found ");
     Serial.print(n);
     Serial.println(" networks.");
+    
+    #ifdef ESP8266
+        WiFi.scanDelete();  // Clean up scan results on ESP8266
+    #endif
+    
     return ssid_list;
 }
 
@@ -46,24 +62,20 @@ int custom_wifi_client_helper_println(WiFiClient& client, const String& data) {
     return client.println(data);
 }
 
+// ---- readBytes(String buffer_string, int length) ----
 int custom_wifi_client_helper_readBytes(WiFiClient& client, const String& buffer_string, int length) {
     char* buffer = new char[length + 1];  // +1 for null terminator (safe)
     buffer_string.toCharArray(buffer, length + 1);
-
     int bytes_read = client.readBytes(buffer, length);
-
     // Optional: you can do something with buffer here
-
     delete[] buffer;  // prevent memory leak
     return bytes_read;
 }
 
+// ---- local_ip_to_string() ----
 String custom_wifi_helper_local_ip_to_string() {
     IPAddress ip = WiFi.localIP();
     char buf[16];
     sprintf(buf, "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
     return String(buf);
 }
-
-
-

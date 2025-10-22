@@ -1,6 +1,6 @@
 BLOCKED = "🚫"
 CHECKMARK = "✅"
-WORK_IN_PROGRESS = ""
+WORK_IN_PROGRESS = "🔄"
 
 
 
@@ -13,3 +13,8 @@ to do:
 - args passing incorrectly -- ✅
 - list and dict shud be passed as reference.✅
 - no linting error when function is called without brackets ✅
+- [completions] Jedi .complete() failed: [WinError 3] The system cannot find the path specified: 'C:\\PROGRA~2\\MOJOSC~1\\jedi\\third_party\\typeshed\\stdlib' 🚫
+
+
+- linter not able to identify the type of the iterator in for loop. 
+- add the platform level eligiblity to the linter check of imported modules. 

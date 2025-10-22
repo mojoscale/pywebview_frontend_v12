@@ -20,7 +20,7 @@ def setup() -> None:
     st.set_last_modified(100)
     x = st.set_authentication("user", "password")
 
-    x.
+    # x.
 
 
 def loop() -> None:
