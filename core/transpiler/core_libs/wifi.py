@@ -1,6 +1,7 @@
-__include_modules__ = "WiFi"
+__include_modules__ = {"espressif32": "WiFi", "espressif8266": "ESP8266WiFi"}
 __include_internal_modules__ = "helpers/WiFiHelper"
 __dependencies__ = ""
+
 
 def wifi_connect(ssid: str, password: str, timeout: int) -> None:
     """
@@ -20,7 +21,8 @@ def wifi_connect(ssid: str, password: str, timeout: int) -> None:
     __translation__ = "WiFi.begin({0}, {1}); // Add timeout logic"
     raise NotImplementedError("wifi_connect is not implemented")
 
-def wifi_begin(ssid:str, password:str)-> None:
+
+def wifi_begin(ssid: str, password: str) -> None:
     __use_as_is__ = False
     __translation__ = "WiFi.begin({0}, {1}); // Add timeout logic"
 
@@ -43,6 +45,7 @@ def wifi_localIP() -> str:
     __use_as_is__ = False
     __translation__ = "custom_wifi_helper_local_ip_to_string()"
 
+
 def wifi_get_ip() -> str:
     """
     Retrieves the IP address assigned to the board.
@@ -55,6 +58,7 @@ def wifi_get_ip() -> str:
     __return_type__ = "str"
     __translation__ = "WiFi.localIP().toString()"
     raise NotImplementedError("wifi_get_ip is not implemented")
+
 
 def wifi_disconnect() -> None:
     """
@@ -81,9 +85,8 @@ def scan_network() -> list[str]:
         - This method will call a native function: custom_wifi_helper_scan_wifi_networks().
         - It may block briefly while scanning completes.
     """
-    __use_as_is__ = False 
+    __use_as_is__ = False
     __translation__ = "custom_wifi_helper_scan_wifi_networks()"
-
 
 
 class WiFiClient:
@@ -97,8 +100,8 @@ class WiFiClient:
         """
         __use_as_is__ = False
         __class_actual_type__ = "WiFiClient"
-        __translation__=""
-        
+        __translation__ = ""
+
         pass
 
     def connect(self, host: str, port: int) -> bool:
@@ -114,7 +117,7 @@ class WiFiClient:
         """
         __use_as_is__ = False
         __translation__ = "custom_wifi_client_helper_connect({0}, {1}, {2})"
-        
+
         return False
 
     def write(self, data: str) -> int:
@@ -127,9 +130,9 @@ class WiFiClient:
         Returns:
             int: Bytes written.
         """
-        __use_as_is__ = False 
+        __use_as_is__ = False
         __translation__ = "custom_wifi_client_helper_write({0}, {1})"
-        
+
         return 0
 
     def print(self, data: str) -> int:
@@ -144,7 +147,7 @@ class WiFiClient:
         """
         __use_as_is__ = False
         __translation__ = "custom_wifi_client_helper_print({0}, {1})"
-        
+
         return 0
 
     def println(self, data: str) -> int:
@@ -159,7 +162,7 @@ class WiFiClient:
         """
         __use_as_is__ = False
         __translation__ = "custom_wifi_client_helper_println({0}, {1})"
-        
+
         return 0
 
     def available(self) -> int:
@@ -170,21 +173,23 @@ class WiFiClient:
             int: Available byte count.
         """
         __use_as_is__ = True
-        
+        __translation__ = "{0}.available()"
+
         return 0
 
-    def read(self) -> str:
+    def read(self) -> int:
         """
         Read a single byte/char.
 
         Returns:
-            str: One byte as string.
+            int: One byte as int.
         """
         __use_as_is__ = True
-        
+        __translation__ = "{0}.read()"
+
         return ""
 
-    def readBytes(self, buffer: str, length: int) -> int:
+    def read_bytes(self, buffer: str, length: int) -> int:
         """
         Read a fixed number of bytes into the provided buffer.
 
@@ -199,8 +204,7 @@ class WiFiClient:
         __translation__ = "custom_wifi_client_helper_readBytes({0}, {1}, {2})"
         return 0
 
-
-    def readString(self) -> str:
+    def read_string(self) -> str:
         """
         Read all available bytes as a string.
 
@@ -208,18 +212,20 @@ class WiFiClient:
             str: Entire stream as string.
         """
         __use_as_is__ = True
-        
+        __translation__ = "{0}.readString()"
+
         return ""
 
-    def peek(self) -> str:
+    def peek(self) -> int:
         """
         Peek at next byte without removing.
 
         Returns:
-            str: Next byte as string.
+            int: Next byte as int.
         """
         __use_as_is__ = True
-        
+        __translation__ = "{0}.peek()"
+
         return ""
 
     def flush(self) -> None:
@@ -227,7 +233,8 @@ class WiFiClient:
         Wait for outgoing data to be sent.
         """
         __use_as_is__ = True
-        
+        __translation__ = "{0}.flush()"
+
         pass
 
     def stop(self) -> None:
@@ -235,7 +242,8 @@ class WiFiClient:
         Close the TCP connection.
         """
         __use_as_is__ = True
-        
+        __translation__ = "{0}.stop()"
+
         pass
 
     def connected(self) -> bool:
@@ -246,7 +254,6 @@ class WiFiClient:
             bool: True if connected.
         """
         __use_as_is__ = True
-        
+        __translation__ = "{0}.connected()"
+
         return False
-
-

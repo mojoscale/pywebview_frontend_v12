@@ -1,18 +1,17 @@
 __include_modules__ = "GP2Y0A21YK"
-__dependencies__ = "volty98/GP2Y0A21YK_lib"
+__dependencies__ = ""
+__include_internal_modules__ = ""
 
 
 class GP2Y0A21YKSensor:
-    def __init__(self, analog_pin: int):
+    def __init__(self):
         """
         Infrared analog distance sensor (Sharp GP2Y0A21YK).
-
-        Args:
-            analog_pin (int): Analog pin used for reading the voltage (default A3, i.e., 17).
+        analog_pin defaults to 36 in ESP32 and A0 in ESP8266.
         """
         __use_as_is__ = False
         __class_actual_type__ = "GP2Y0A21YK"
-        __translation__ = "({1})"
+        __translation__ = ""
 
     def distance(self) -> float:
         """

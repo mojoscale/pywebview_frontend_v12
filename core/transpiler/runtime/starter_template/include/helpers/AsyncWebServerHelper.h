@@ -49,7 +49,7 @@ inline void async_server_on(
 // -------------------------------------------------------------------
 // ✅ Universal custom_serve_static()
 // -------------------------------------------------------------------
-inline AsyncStaticWebHandler* custom_serve_static(
+inline AsyncStaticWebHandler& custom_serve_static(
     AsyncWebServer& server,
     const String& uri,
     const String& path,
@@ -58,41 +58,45 @@ inline AsyncStaticWebHandler* custom_serve_static(
 #if defined(ESP8266)
     Serial.println("🔄 Mounting LittleFS for ESP8266...");
     if (!LittleFS.begin()) {
-        Serial.println("❌ LittleFS mount failed");
-        return nullptr;
+        Serial.println("❌ LittleFS mount failed — returning dummy handler");
+        static AsyncStaticWebHandler dummy("/", LittleFS, "/", "");
+        return dummy;  // can't return nullptr for a reference
     }
 
     Serial.println("✅ LittleFS mounted successfully");
-    auto* handler = &server.serveStatic(uri.c_str(), LittleFS, path.c_str());
+    AsyncStaticWebHandler& handler = server.serveStatic(uri.c_str(), LittleFS, path.c_str());
     String cacheHeader = "max-age=" + String(cache_seconds);
-    handler->setCacheControl(cacheHeader.c_str());
+    handler.setCacheControl(cacheHeader.c_str());
     return handler;
 
 #elif defined(ESP32)
     Serial.println("🔄 Mounting SPIFFS for ESP32...");
     if (!SPIFFS.begin(true)) {
-        Serial.println("❌ SPIFFS mount failed");
-        return nullptr;
+        Serial.println("❌ SPIFFS mount failed — returning dummy handler");
+        static AsyncStaticWebHandler dummy("/", SPIFFS, "/", "");
+        return dummy;
     }
 
     Serial.println("✅ SPIFFS mounted successfully");
-    auto* handler = &server.serveStatic(uri.c_str(), SPIFFS, path.c_str());
+    AsyncStaticWebHandler& handler = server.serveStatic(uri.c_str(), SPIFFS, path.c_str());
     String cacheHeader = "max-age=" + String(cache_seconds);
-    handler->setCacheControl(cacheHeader.c_str());
+    handler.setCacheControl(cacheHeader.c_str());
     return handler;
+
+#else
+    #error "This helper supports only ESP8266 and ESP32"
 #endif
 }
+
+
 
 // -------------------------------------------------------------------
 // ✅ Helper: Set Cache-Control with seconds safely
 // -------------------------------------------------------------------
-inline void setCacheControlSeconds(AsyncStaticWebHandler* handler, int cache_seconds = 3600) {
-    if (!handler) {
-        Serial.println("⚠️ setCacheControlSeconds: null handler pointer");
-        return;
-    }
-
+inline AsyncStaticWebHandler& setCacheControlSeconds(AsyncStaticWebHandler& handler, int cache_seconds = 3600) {
     String cacheHeader = "max-age=" + String(cache_seconds);
-    handler->setCacheControl(cacheHeader.c_str());
+    handler.setCacheControl(cacheHeader.c_str());
     Serial.printf("✅ Cache-Control set to '%s'\n", cacheHeader.c_str());
+    return handler;  // Return the handler reference for chaining
 }
+

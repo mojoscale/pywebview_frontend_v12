@@ -29,3 +29,13 @@ PyList<int> custom_onewire_helper_search(OneWire& wire) {
     }
     return rom;
 }
+
+void custom_write_bytes(OneWire& oneWire, PyList<int>& data, bool power, int powerPin = -1) {
+    for (int i = 0; i < data.size(); i++) {
+        oneWire.write(data[i]);
+    }
+    
+    if (power && powerPin != -1) {
+        digitalWrite(powerPin, HIGH);
+    }
+}

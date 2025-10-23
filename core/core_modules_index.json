@@ -84,7 +84,7 @@
       },
       {
         "name": "attachInterrupt",
-        "signature": "(pin: int, ISR: Callable[[], None], mode: int) -> None",
+        "signature": "(pin: int, ISR: callable, mode: int) -> None",
         "doc": "Attaches an interrupt to a pin, triggered on a particular mode.\n\nArgs:\n    pin (int): The pin to attach the interrupt to.\n    ISR (Callable): A function to call when the interrupt is triggered.\n    mode (int): The condition to trigger the interrupt (RISING, FALLING, or CHANGE).\n\nReturns:\n    None"
       },
       {
@@ -312,6 +312,62 @@
         ]
       },
       {
+        "name": "AsyncWebHandler",
+        "doc": "Python representation of the C++ `AsyncWebHandler` class from ESPAsyncWebServer.\n\nThis class acts as an abstract base for web request handlers such as\n`AsyncStaticWebHandler` or `AsyncCallbackWebHandler`.\n\nIt provides methods for:\n  - Determining whether a handler can process a given request.\n  - Executing the request handler.\n  - Applying authentication and filters.\n  - Controlling handler priority and behavior.\n\nNote:\n    This class should generally not be instantiated directly.\n    Instead, use subclasses that implement `can_handle()` and `handle_request()`.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "Initialize an AsyncWebHandler instance.\n\nThis constructor sets `__use_as_is__` to False,\nmeaning the transpiler should not instantiate this class directly."
+          },
+          {
+            "name": "can_handle",
+            "signature": "(self, request: AsyncWebServerRequest) -> bool",
+            "doc": "Determine whether this handler can process the incoming request.\n\nArgs:\n    request (AsyncWebServerRequest): The HTTP request object.\n\nReturns:\n    bool: True if the handler can handle the request; False otherwise.\n\nTranslation:\n    {0}.canHandle({1})"
+          },
+          {
+            "name": "handle_request",
+            "signature": "(self, request: AsyncWebServerRequest) -> None",
+            "doc": "Handle the incoming web request.\n\nArgs:\n    request (AsyncWebServerRequest): The HTTP request to process.\n\nTranslation:\n    {0}.handleRequest({1})"
+          },
+          {
+            "name": "is_request_handler_trivial",
+            "signature": "(self) -> bool",
+            "doc": "Check whether this handler performs trivial (lightweight) processing.\n\nReturns:\n    bool: True if the handler is trivial; False otherwise.\n\nTranslation:\n    {0}.isRequestHandlerTrivial()"
+          },
+          {
+            "name": "set_authentication",
+            "signature": "(self, username: str, password: str) -> AsyncWebHandler",
+            "doc": "Protect this handler with basic authentication.\n\nArgs:\n    username (str): The HTTP Basic Auth username.\n    password (str): The HTTP Basic Auth password.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setAuthentication({1}, {2})"
+          },
+          {
+            "name": "set_filter",
+            "signature": "(self, filter_func) -> AsyncWebHandler",
+            "doc": "Assign a filter function that decides if this handler should process a request.\n\nArgs:\n    filter_func (ArRequestFilterFunction): The filtering function.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setFilter({1})"
+          },
+          {
+            "name": "filter",
+            "signature": "(self, request: AsyncWebServerRequest) -> bool",
+            "doc": "Run the filter function associated with this handler.\n\nArgs:\n    request (AsyncWebServerRequest): The request to evaluate.\n\nReturns:\n    bool: True if the handler should process this request.\n\nTranslation:\n    {0}.filter({1})"
+          },
+          {
+            "name": "set_priority",
+            "signature": "(self, priority: int) -> AsyncWebHandler",
+            "doc": "Assign a priority level to this handler.\n\nArgs:\n    priority (int): The priority value (higher = earlier execution).\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setPriority({1})"
+          },
+          {
+            "name": "priority",
+            "signature": "(self) -> int",
+            "doc": "Get the priority value assigned to this handler.\n\nReturns:\n    int: The priority level.\n\nTranslation:\n    {0}.priority()"
+          },
+          {
+            "name": "on_request",
+            "signature": "(self) -> AsyncWebHandler",
+            "doc": "Assign a custom callback to handle incoming requests.\n\nArgs:\n    callback (ArRequestHandlerFunction): The function that processes the request.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.onRequest({1})"
+          }
+        ]
+      },
+      {
         "name": "AsyncStaticWebHandler",
         "doc": "Represents a static file handler returned by `AsyncWebServer.serve_static()`.\n\nThis class allows chaining configuration methods such as\n`set_default_file()`, `set_cache_control()`, `set_last_modified()`,\nand `set_authentication()`.\n\nExample:\n    ```python\n    server.serve_static(\"/\", \"/www\", 86400)               .set_default_file(\"index.html\")               .set_authentication(\"user\", \"pass\")\n    ```",
         "methods": [
@@ -337,7 +393,7 @@
           },
           {
             "name": "set_authentication",
-            "signature": "(self, user: str, password: str) -> AsyncStaticWebHandler",
+            "signature": "(self, user: str, password: str) -> AsyncWebHandler",
             "doc": "Sets basic HTTP authentication credentials for the static route.\n\nArgs:\n    user (str): Username required to access the files.\n    password (str): Corresponding password.\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining)."
           }
         ]
@@ -491,263 +547,6 @@
     "classes": [],
     "variables": []
   },
-  "hardware_serial": {
-    "doc": "HardwareSerial core stub for Arduino-compatible boards (AVR, ESP8266, ESP32, RP2040).\n\nThis class represents a hardware UART interface used for serial communication.\nIt provides methods to configure baud rate, read and write data, and manage\nthe serial buffer.\n\nCompatible with the built-in Arduino `Serial`, `Serial1`, `Serial2`, etc.",
-    "functions": [],
-    "classes": [
-      {
-        "name": "HardwareSerial",
-        "doc": "Stub representation of Arduino's HardwareSerial class.\nUsed for serial communication with external devices or debug consoles.",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self, port_id: int = 0)",
-            "doc": "Initialize a HardwareSerial interface.\n\nArgs:\n    port_id (int): UART port index (0 for Serial, 1 for Serial1, etc.)."
-          },
-          {
-            "name": "begin",
-            "signature": "(self, baud: int, config: int = 6) -> None",
-            "doc": "Begin serial communication with the specified baud rate and configuration.\n\nArgs:\n    baud (int): Baud rate (e.g., 9600, 115200).\n    config (int): Serial configuration constant (e.g., SERIAL_8N1 = 0x06).\n\nExample:\n    ```python\n    serial = HardwareSerial(1)\n    serial.begin(115200)\n    ```"
-          },
-          {
-            "name": "end",
-            "signature": "(self) -> None",
-            "doc": "Stop serial communication."
-          },
-          {
-            "name": "available",
-            "signature": "(self) -> int",
-            "doc": "Get number of bytes available to read from the buffer.\n\nReturns:\n    int: Number of available bytes."
-          },
-          {
-            "name": "available_for_write",
-            "signature": "(self) -> int",
-            "doc": "Get number of bytes available for writing to the transmit buffer.\n\nReturns:\n    int: Number of writable bytes."
-          },
-          {
-            "name": "read",
-            "signature": "(self) -> int",
-            "doc": "Read one byte from the serial buffer.\n\nReturns:\n    int: The next byte, or -1 if no data is available."
-          },
-          {
-            "name": "peek",
-            "signature": "(self) -> int",
-            "doc": "Return the next byte without removing it from the buffer.\n\nReturns:\n    int: Next byte, or -1 if none."
-          },
-          {
-            "name": "flush",
-            "signature": "(self) -> None",
-            "doc": "Wait for outgoing data to be transmitted."
-          },
-          {
-            "name": "write",
-            "signature": "(self, value: int) -> int",
-            "doc": "Write a single byte to the serial output.\n\nArgs:\n    value (int): Byte value to send (0\u2013255).\n\nReturns:\n    int: Number of bytes written (usually 1)."
-          },
-          {
-            "name": "print",
-            "signature": "(self, value: str) -> None",
-            "doc": "Print a value as text to the serial output.\n\nArgs:\n    value: Any printable type (str, int, float)."
-          },
-          {
-            "name": "println",
-            "signature": "(self, value: str) -> None",
-            "doc": "Print a value followed by a newline.\n\nArgs:\n    value: Any printable type (str, int, float)."
-          },
-          {
-            "name": "set_timeout",
-            "signature": "(self, timeout_ms: int) -> None",
-            "doc": "Set read timeout (used by readBytes, readString, etc.).\n\nArgs:\n    timeout_ms (int): Timeout in milliseconds."
-          }
-        ]
-      }
-    ],
-    "variables": []
-  },
-  "littlefs": {
-    "doc": "No module docstring available",
-    "functions": [
-      {
-        "name": "littlefs_begin",
-        "signature": "(format_on_fail: bool) -> bool",
-        "doc": "Mounts the LittleFS filesystem.\n\nArgs:\n    format_on_fail (bool): Whether to format the FS if mounting fails.\n\nReturns:\n    bool: True if successful. (works only on ESP32)"
-      },
-      {
-        "name": "littlefs_end",
-        "signature": "() -> None",
-        "doc": "Unmounts the filesystem and releases resources."
-      },
-      {
-        "name": "littlefs_format",
-        "signature": "() -> bool",
-        "doc": "Formats the filesystem.\n\nReturns:\n    bool: True if successful."
-      },
-      {
-        "name": "littlefs_open",
-        "signature": "(path: str, mode: str) -> File",
-        "doc": "Opens a file.\n\nArgs:\n    path (str): Path to file.\n    mode (str): Access mode (e.g., 'r', 'w').\n\nReturns:\n    File or None"
-      },
-      {
-        "name": "littlefs_exists",
-        "signature": "(path: str) -> bool",
-        "doc": "Checks whether a path exists.\n\nReturns:\n    bool"
-      },
-      {
-        "name": "littlefs_remove",
-        "signature": "(path: str) -> bool",
-        "doc": "Deletes a file.\n\nReturns:\n    bool"
-      },
-      {
-        "name": "littlefs_rename",
-        "signature": "(src: str, dest: str) -> bool",
-        "doc": "Renames or moves a file.\n\nReturns:\n    bool"
-      },
-      {
-        "name": "littlefs_mkdir",
-        "signature": "(path: str) -> bool",
-        "doc": "Creates a directory.\n\nReturns:\n    bool"
-      },
-      {
-        "name": "littlefs_rmdir",
-        "signature": "(path: str) -> bool",
-        "doc": "Removes a directory.\n\nReturns:\n    bool"
-      },
-      {
-        "name": "littlefs_total_bytes",
-        "signature": "() -> int",
-        "doc": "Returns total FS size in bytes.\n\nReturns:\n    int"
-      },
-      {
-        "name": "littlefs_used_bytes",
-        "signature": "() -> int",
-        "doc": "Returns used FS size in bytes.\n\nReturns:\n    int"
-      },
-      {
-        "name": "littlefs_free_bytes",
-        "signature": "() -> int",
-        "doc": "Returns free space in bytes.\n\nReturns:\n    int"
-      },
-      {
-        "name": "littlefs_info",
-        "signature": "() -> dict[str, str]",
-        "doc": "Returns filesystem info.\n\nReturns:\n    dict with status, used, total, free"
-      }
-    ],
-    "classes": [
-      {
-        "name": "File",
-        "doc": "A file object used for reading from and writing to a filesystem.",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self) -> None",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "__print__",
-            "signature": "(self)",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "write",
-            "signature": "(self, data: str) -> int",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "print",
-            "signature": "(self, data: str) -> int",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "println",
-            "signature": "(self, data: str) -> int",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "read",
-            "signature": "(self) -> str",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "readString",
-            "signature": "(self) -> str",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "readBytes",
-            "signature": "(self, length: int) -> str",
-            "doc": "Read a fixed number of bytes from the file.\n\nReturns:\n    str: Data read."
-          },
-          {
-            "name": "readBytesUntil",
-            "signature": "(self, terminator: str, length: int) -> str",
-            "doc": "Read bytes until a terminator or length is reached.\n\nReturns:\n    str: Data read."
-          },
-          {
-            "name": "peek",
-            "signature": "(self) -> str",
-            "doc": "Peek at the next byte without moving the file pointer."
-          },
-          {
-            "name": "available",
-            "signature": "(self) -> int",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "seek",
-            "signature": "(self, pos: int) -> bool",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "position",
-            "signature": "(self) -> int",
-            "doc": "Get the current position of the file pointer."
-          },
-          {
-            "name": "flush",
-            "signature": "(self) -> None",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "close",
-            "signature": "(self) -> None",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "isDirectory",
-            "signature": "(self) -> bool",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "name",
-            "signature": "(self) -> str",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "size",
-            "signature": "(self) -> int",
-            "doc": "Get the size of the file in bytes."
-          },
-          {
-            "name": "getWriteError",
-            "signature": "(self) -> bool",
-            "doc": "Return True if a write error occurred."
-          },
-          {
-            "name": "clearWriteError",
-            "signature": "(self) -> None",
-            "doc": "Clear any write error flags."
-          },
-          {
-            "name": "openNextFile",
-            "signature": "(self) -> File",
-            "doc": "Return the next file in a directory (if this is a directory)."
-          }
-        ]
-      }
-    ],
-    "variables": []
-  },
   "mqtt": {
     "doc": "No module docstring available",
     "functions": [],
@@ -758,17 +557,17 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, wifi_client) -> None",
+            "signature": "(self, wifi_client: WiFiClient) -> None",
             "doc": "Initialize with a WiFiClient instance.\n\nArgs:\n    wifi_client: A WiFiClient instance (TCP transport layer)"
           },
           {
-            "name": "setServer",
+            "name": "set_server",
             "signature": "(self, host: str, port: int) -> None",
             "doc": "Set the MQTT broker address and port."
           },
           {
-            "name": "setCallback",
-            "signature": "(self, callback_func: str) -> None",
+            "name": "set_callback",
+            "signature": "(self, callback_func: callable) -> None",
             "doc": "Set the callback function for received MQTT messages."
           },
           {
@@ -832,7 +631,7 @@
             "doc": "Handle incoming messages and maintain connection.\nMust be called regularly in `loop()`."
           },
           {
-            "name": "setKeepAlive",
+            "name": "set_keep_alive",
             "signature": "(self, keepalive_secs: int) -> None",
             "doc": "Set MQTT keep-alive interval (seconds)."
           },
@@ -842,105 +641,9 @@
             "doc": "Set socket timeout in seconds."
           },
           {
-            "name": "setBufferSize",
+            "name": "set_buffer_size",
             "signature": "(self, size: int) -> None",
             "doc": "Set internal MQTT buffer size (bytes)."
-          },
-          {
-            "name": "setCleanSession",
-            "signature": "(self, clean: bool) -> None",
-            "doc": "Set clean session flag (true = no persistent session)."
-          },
-          {
-            "name": "getServerIP",
-            "signature": "(self) -> str",
-            "doc": "Return IP of connected MQTT server."
-          },
-          {
-            "name": "getServerPort",
-            "signature": "(self) -> int",
-            "doc": "Return port of connected MQTT server."
-          }
-        ]
-      }
-    ],
-    "variables": []
-  },
-  "onewire": {
-    "doc": "No module docstring available",
-    "functions": [],
-    "classes": [
-      {
-        "name": "OneWire",
-        "doc": "A Python-like abstraction for the OneWire communication protocol.\nSupports devices like DS18B20 and other 1-wire sensors.",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self, pin: int) -> None",
-            "doc": "Initialize the OneWire bus on a specific GPIO pin.\n\nArgs:\n    pin (int): GPIO pin number."
-          },
-          {
-            "name": "reset",
-            "signature": "(self) -> bool",
-            "doc": "Reset all devices on the OneWire bus.\n\nReturns:\n    bool: True if devices respond, False otherwise."
-          },
-          {
-            "name": "write",
-            "signature": "(self, value: int, power: bool = False) -> None",
-            "doc": "Write a single byte to the OneWire bus.\n\nArgs:\n    value (int): Byte to write.\n    power (bool): If True, enables strong pull-up for power."
-          },
-          {
-            "name": "write_bytes",
-            "signature": "(self, data: list[int], power: bool = False) -> None",
-            "doc": "Write multiple bytes to the OneWire bus.\n\nArgs:\n    data (list[int]): List of bytes to write.\n    power (bool): If True, enables strong pull-up for power."
-          },
-          {
-            "name": "read",
-            "signature": "(self) -> int",
-            "doc": "Read a single byte from the OneWire bus.\n\nReturns:\n    int: Byte read."
-          },
-          {
-            "name": "read_bytes",
-            "signature": "(self, count: int) -> list[int]",
-            "doc": "Read multiple bytes from the OneWire bus.\n\nArgs:\n    count (int): Number of bytes to read.\n\nReturns:\n    list[int]: Bytes read."
-          },
-          {
-            "name": "select",
-            "signature": "(self, rom_code: list[int]) -> None",
-            "doc": "Select a specific device on the bus using its ROM address.\n\nArgs:\n    rom_code (list[int]): 8-byte unique ROM address."
-          },
-          {
-            "name": "skip",
-            "signature": "(self) -> None",
-            "doc": "Skip ROM selection and address all devices."
-          },
-          {
-            "name": "reset_search",
-            "signature": "(self) -> None",
-            "doc": "Reset the internal state used by search()."
-          },
-          {
-            "name": "search",
-            "signature": "(self) -> list[int]",
-            "doc": "Search for the next device on the OneWire bus.\n\nReturns:\n    list[int] or None: ROM address (8-byte) or None if no more devices."
-          }
-        ]
-      }
-    ],
-    "variables": []
-  },
-  "software_serial": {
-    "doc": "No module docstring available",
-    "functions": [],
-    "classes": [
-      {
-        "name": "SoftwareSerial",
-        "doc": "No docstring available",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self, rx: int, tx: int)",
-            "doc": "Create a software serial interface on given GPIO pins.\n\nArgs:\n    rx (int): GPIO pin for RX\n    tx (int): GPIO pin for TX"
           }
         ]
       }
@@ -952,8 +655,8 @@
     "functions": [
       {
         "name": "spiffs_begin",
-        "signature": "(format_on_fail: bool, base_path: str, max_files: int) -> bool",
-        "doc": "Mounts the SPIFFS filesystem.\n\nArgs:\n    format_on_fail (bool): If True, formats the SPIFFS partition if mounting fails.\n    base_path (str): Mount path for the filesystem.\n    max_files (int): Maximum number of open files allowed.\n\nReturns:\n    bool: True if the filesystem is successfully mounted, False otherwise."
+        "signature": "() -> bool",
+        "doc": "Mounts the SPIFFS filesystem.\n\nReturns:\n    bool: True if the filesystem is successfully mounted, False otherwise."
       },
       {
         "name": "spiffs_end",
@@ -967,7 +670,7 @@
       },
       {
         "name": "spiffs_open",
-        "signature": "(path: str, mode: str)",
+        "signature": "(path: str, mode: str) -> None",
         "doc": "Opens a file in the SPIFFS filesystem.\n\nArgs:\n    path (str): Path to the file.\n    mode (str): File mode (e.g., 'r', 'w', 'a').\n\nReturns:\n    File object or None: File handle if successful, None otherwise."
       },
       {
@@ -1014,59 +717,10 @@
         "name": "spiffs_info",
         "signature": "() -> dict[str, str]",
         "doc": "Prints or returns general information about the SPIFFS filesystem.\n(Custom implementation required)"
-      },
-      {
-        "name": "spiffs_gc",
-        "signature": "()",
-        "doc": "Performs garbage collection or internal cleanup on the SPIFFS filesystem.\n(Custom implementation required)"
       }
     ],
     "classes": [],
     "variables": []
-  },
-  "tests": {
-    "doc": "No module docstring available",
-    "functions": [
-      {
-        "name": "test_function",
-        "signature": "(a: int, c: str) -> str",
-        "doc": "No docstring available"
-      },
-      {
-        "name": "return_list_func",
-        "signature": "() -> list[str]",
-        "doc": "No docstring available"
-      }
-    ],
-    "classes": [
-      {
-        "name": "TestClass",
-        "doc": "No docstring available",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self, arg1: int, arg2: str)",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "method1",
-            "signature": "(self, some_arg: str)",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "method2",
-            "signature": "(self, some_arg: str, some_other_arg: int)",
-            "doc": "No docstring available"
-          }
-        ]
-      }
-    ],
-    "variables": [
-      {
-        "name": "testvar_4",
-        "value": "10"
-      }
-    ]
   },
   "webserver": {
     "doc": "No module docstring available",
@@ -1083,8 +737,8 @@
           },
           {
             "name": "on",
-            "signature": "(self, path: str, method, handler) -> WebServer",
-            "doc": "Registers a handler function for the given URL path.\n\nArgs:\n    path (str): The URL endpoint (e.g., \"/status\").\n    handler (function): A function with no parameters that handles the request.\n\nExample:\n    server.on(\"/hello\", handle_hello)"
+            "signature": "(self, path: str, method: str, handler: callable) -> WebServer",
+            "doc": "Registers a handler function for the given URL path.\n\nArgs:\n    path (str): The URL endpoint (e.g., \"/status\").\n    method (str): \"HTTP_GET\" or \"HTTP_POST\"\n    handler (callable): A function with no parameters that handles the request.\n\nExample:\n    server.on(\"/hello\", handle_hello)"
           },
           {
             "name": "begin",
@@ -1092,7 +746,7 @@
             "doc": "Starts the web server. Must be called after all routes are registered."
           },
           {
-            "name": "handleClient",
+            "name": "handle_client",
             "signature": "(self) -> WebServer",
             "doc": "Processes incoming client requests. Should be called repeatedly in loop()."
           },
@@ -1192,23 +846,23 @@
           },
           {
             "name": "read",
-            "signature": "(self) -> str",
-            "doc": "Read a single byte/char.\n\nReturns:\n    str: One byte as string."
+            "signature": "(self) -> int",
+            "doc": "Read a single byte/char.\n\nReturns:\n    int: One byte as int."
           },
           {
-            "name": "readBytes",
+            "name": "read_bytes",
             "signature": "(self, buffer: str, length: int) -> int",
             "doc": "Read a fixed number of bytes into the provided buffer.\n\nArgs:\n    buffer (str): A string variable name that acts as the target buffer in generated code.\n    length (int): Number of bytes to read.\n\nReturns:\n    int: Number of bytes read."
           },
           {
-            "name": "readString",
+            "name": "read_string",
             "signature": "(self) -> str",
             "doc": "Read all available bytes as a string.\n\nReturns:\n    str: Entire stream as string."
           },
           {
             "name": "peek",
-            "signature": "(self) -> str",
-            "doc": "Peek at next byte without removing.\n\nReturns:\n    str: Next byte as string."
+            "signature": "(self) -> int",
+            "doc": "Peek at next byte without removing.\n\nReturns:\n    int: Next byte as int."
           },
           {
             "name": "flush",
@@ -1244,37 +898,37 @@
             "doc": "No docstring available"
           },
           {
-            "name": "setDebugOutput",
+            "name": "set_debug_output",
             "signature": "(self, enable: bool) -> None",
             "doc": "Enable or disable debug logging on Serial."
           },
           {
-            "name": "resetSettings",
+            "name": "reset_settings",
             "signature": "(self) -> None",
             "doc": "Clear stored WiFi credentials from flash."
           },
           {
-            "name": "autoConnect",
+            "name": "auto_connect",
             "signature": "(self, ap_name: str, ap_password: str) -> bool",
             "doc": "Connect to saved WiFi or start a config portal.\n\nArgs:\n    ap_name (str): The SSID for the access point in config mode.\n    ap_password (str): Password for the access point.\n\nReturns:\n    bool: True if WiFi connection was successful."
           },
           {
-            "name": "startConfigPortal",
+            "name": "start_config_portal",
             "signature": "(self, ap_name: str, ap_password: str) -> bool",
             "doc": "Force start the configuration portal regardless of existing WiFi credentials.\n\nArgs:\n    ap_name (str): The SSID for the access point.\n    ap_password (str): Password for the access point.\n\nReturns:\n    bool: True if WiFi connected successfully."
           },
           {
-            "name": "setTimeout",
+            "name": "set_timeout",
             "signature": "(self, seconds: int) -> None",
             "doc": "Set timeout for config portal to auto-exit if no connection is made."
           },
           {
-            "name": "setConnectTimeout",
+            "name": "set_connect_timeout",
             "signature": "(self, seconds: int) -> None",
             "doc": "Set timeout for how long to wait for WiFi connection before failing."
           },
           {
-            "name": "setMinimumSignalQuality",
+            "name": "set_minimum_signal_quality",
             "signature": "(self, quality: int) -> None",
             "doc": "Only show WiFi networks above this signal quality (in percent)."
           }
@@ -1283,59 +937,377 @@
     ],
     "variables": []
   },
-  "wire": {
+  "__init__": {
     "doc": "No module docstring available",
-    "functions": [
-      {
-        "name": "begin",
-        "signature": "(address: int) -> None",
-        "doc": "Initiates the Wire library and joins the I2C bus.\n\nArgs:\n    address (int, optional): If provided, sets the device as a slave with this address.\n\nReturns:\n    None"
-      },
-      {
-        "name": "requestFrom",
-        "signature": "(address: int, quantity: int, stop: bool) -> int",
-        "doc": "Requests bytes from a slave device.\n\nArgs:\n    address (int): The 7-bit address of the device to request bytes from.\n    quantity (int): The number of bytes to request.\n    stop (bool, optional): Whether to send a stop condition after the request (default is True).\n\nReturns:\n    int: The number of bytes returned from the slave device."
-      },
-      {
-        "name": "beginTransmission",
-        "signature": "(address: int) -> None",
-        "doc": "Begins a transmission to the I2C slave device with the given address.\n\nArgs:\n    address (int): The 7-bit address of the device to transmit to.\n\nReturns:\n    None"
-      },
-      {
-        "name": "endTransmission",
-        "signature": "(stop: bool) -> int",
-        "doc": "Ends a transmission to a slave device and transmits the bytes that were queued.\n\nArgs:\n    stop (bool, optional): Whether to send a stop condition after the transmission (default is True).\n\nReturns:\n    int: 0 if successful, or an error code."
-      },
-      {
-        "name": "write",
-        "signature": "(data: int) -> int",
-        "doc": "Sends data to a slave device.\n\nArgs:\n    data (int): The byte to send (0-255).\n\nReturns:\n    int: The number of bytes written (should be 1 if successful)."
-      },
-      {
-        "name": "read",
-        "signature": "() -> int",
-        "doc": "Reads a byte that was transmitted from a slave device to a master after a call to requestFrom().\n\nReturns:\n    int: The next byte received."
-      },
-      {
-        "name": "available",
-        "signature": "() -> int",
-        "doc": "Returns the number of bytes available for retrieval with read().\n\nReturns:\n    int: Number of bytes available to read."
-      },
-      {
-        "name": "onReceive",
-        "signature": "(callback: callable) -> None",
-        "doc": "Registers a function to be called when a slave device receives data from the master.\n\nArgs:\n    callback (Callable): A function that takes exactly **one integer argument** \u2014 the number of bytes received.\n        Signature:\n            def callback(num_bytes: int) -> None\n\n        Example:\n            def receive_handler(num_bytes):\n                # Read 'num_bytes' from Wire.read()\n                pass\n\nReturns:\n    None"
-      },
-      {
-        "name": "onRequest",
-        "signature": "(callback: callable) -> None",
-        "doc": "Registers a function to be called when a master requests data from this slave device.\n\nArgs:\n    callback (Callable): A function that takes **no arguments** and returns nothing.\n        Signature:\n            def callback() -> None\n\n        Example:\n            def request_handler():\n                # Use Wire.write(...) to send data\n                pass\n\nReturns:\n    None"
-      }
-    ],
+    "functions": [],
     "classes": [],
     "variables": []
   },
-  "__init__": {
+  "actuators.fast_accel_stepper": {
+    "doc": "FastAccelStepper Python Wrapper for ESP32 and Arduino boards.\n\nA high-speed stepper motor control library providing acceleration/deceleration,\nnon-blocking movement, and multi-motor support. This wrapper provides a Pythonic\ninterface to the underlying C++ FastAccelStepper library.\n\nClasses:\n    FastAccelStepperEngine: Factory and resource manager for stepper motors\n    FastAccelStepper: Individual stepper motor controller\n\nExample:\n    Basic usage with blocking movement:\n    \n    >>> engine = FastAccelStepperEngine()\n    >>> engine.init()\n    >>> stepper = engine.stepper_connect_to_pin(9)\n    >>> if stepper:\n    ...     stepper.set_direction_pin(5)\n    ...     stepper.set_enable_pin(6)\n    ...     stepper.set_speed_hz(500)\n    ...     stepper.set_acceleration(100)\n    ...     stepper.move_to(1000, True)  # Blocking move\n\n    Non-blocking movement with status polling:\n    \n    >>> stepper.move_to(5000)  # Start non-blocking move\n    >>> while stepper.is_running():\n    ...     # Do other work\n    ...     pass",
+    "functions": [],
+    "classes": [
+      {
+        "name": "FastAccelStepperEngine",
+        "doc": "Factory and resource manager for stepper motors.\n\nThe engine manages hardware resources (timers, modules, interrupts) and\ncoordinates multiple stepper motors. It handles platform-specific complexity\nand ensures efficient resource allocation.\n\nOn ESP32: Manages MCPWM, RMT, and pulse counter modules\nOn AVR: Manages timer allocation\nOn Pico: Manages PIO state machines\n\nAttributes:\n    None (engine manages resources internally)",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "Initialize the FastAccelStepperEngine factory.\n\nCreates an engine instance. Must call init() before connecting steppers.\n\nReturns:\n    FastAccelStepperEngine: New engine instance"
+          },
+          {
+            "name": "init",
+            "signature": "(self) -> None",
+            "doc": "Initialize the stepper engine and allocate hardware resources.\n\nSets up interrupt handlers, timers, and tasks needed for stepper control.\nMust be called in setup() before connecting any steppers.\n\nOn ESP32, the stepper task runs on the default core. This method is\nblocking only for setup duration.\n\nArgs:\n    None\n\nReturns:\n    None\n\nRaises:\n    RuntimeError: If hardware resources are unavailable\n\nExample:\n    >>> engine = FastAccelStepperEngine()\n    >>> engine.init()"
+          },
+          {
+            "name": "stepper_connect_to_pin",
+            "signature": "(self, step_pin: int) -> FastAccelStepper",
+            "doc": "Create and connect a new stepper to a step pin.\n\nAllocates hardware resources (timer/module) and creates a FastAccelStepper\ninstance for control. Returns None if the pin cannot be used or no\nresources are available.\n\nStep pin restrictions vary by platform:\n- AVR Nano/Uno: Pins 9, 10\n- AVR Mega2560: Pins 6, 7, 8\n- ESP32: Any GPIO pin\n- Pico: Any GPIO up to 31\n\nArgs:\n    step_pin (int): GPIO pin number for step signal\n\nReturns:\n    FastAccelStepper: New stepper instance, or None if allocation failed\n\nExample:\n    >>> stepper = engine.stepper_connect_to_pin(9)\n    >>> if stepper:\n    ...     stepper.set_direction_pin(5)"
+          }
+        ]
+      },
+      {
+        "name": "FastAccelStepper",
+        "doc": "Individual stepper motor controller with acceleration support.\n\nManages a single stepper motor including speed, acceleration, and position.\nThe controller is fully non-blocking - no periodic function calls required\nin the main loop. All timing is interrupt-driven.\n\nAttributes:\n    None (state managed internally by C++ driver)\n\nNote:\n    Do not instantiate directly. Use FastAccelStepperEngine.stepper_connect_to_pin()",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "set_direction_pin",
+            "signature": "(self, pin: int) -> None",
+            "doc": "Configure the direction control pin.\n\nSets the GPIO pin used to control stepper direction. Direction signal\ntransitions should allow adequate settling time (see set_direction_delay).\nBy default, HIGH counts up and LOW counts down.\n\nArgs:\n    pin (int): GPIO pin number for direction control\n\nReturns:\n    None\n\nExample:\n    >>> stepper.set_direction_pin(5)"
+          },
+          {
+            "name": "get_direction_pin",
+            "signature": "(self) -> int",
+            "doc": "Get the configured direction pin.\n\nReturns the GPIO pin number that was set for direction control.\n\nArgs:\n    None\n\nReturns:\n    int: GPIO pin number for direction control\n\nExample:\n    >>> pin = stepper.get_direction_pin()"
+          },
+          {
+            "name": "direction_pin_high_counts_up",
+            "signature": "(self) -> bool",
+            "doc": "Get the direction pin polarity setting.\n\nReturns whether HIGH on the direction pin counts up (True) or down (False).\n\nArgs:\n    None\n\nReturns:\n    bool: True if HIGH counts up, False if HIGH counts down\n\nExample:\n    >>> if stepper.direction_pin_high_counts_up():\n    ...     print(\"HIGH = forward\")"
+          },
+          {
+            "name": "set_enable_pin",
+            "signature": "(self, pin: int, low_active: bool = True) -> None",
+            "doc": "Configure the motor enable pin.\n\nSets the GPIO pin used to enable/disable the stepper driver. By default,\nLOW activates the driver.\n\nArgs:\n    pin (int): GPIO pin number for enable control\n    low_active (bool): If True (default), LOW enables driver.\n                      If False, HIGH enables driver.\n\nReturns:\n    None\n\nExample:\n    >>> stepper.set_enable_pin(6)\n    >>> stepper.set_enable_pin(6, False)  # HIGH enables"
+          },
+          {
+            "name": "get_enable_pin_low_active",
+            "signature": "(self) -> int",
+            "doc": "Get the low-active enable pin number.\n\nReturns the GPIO pin configured for low-active enable (if any).\n\nArgs:\n    None\n\nReturns:\n    int: GPIO pin number or 0 if not configured\n\nExample:\n    >>> pin = stepper.get_enable_pin_low_active()"
+          },
+          {
+            "name": "get_enable_pin_high_active",
+            "signature": "(self) -> int",
+            "doc": "Get the high-active enable pin number.\n\nReturns the GPIO pin configured for high-active enable (if any).\n\nArgs:\n    None\n\nReturns:\n    int: GPIO pin number or 0 if not configured\n\nExample:\n    >>> pin = stepper.get_enable_pin_high_active()"
+          },
+          {
+            "name": "set_auto_enable",
+            "signature": "(self, enable: bool) -> None",
+            "doc": "Enable automatic motor enable/disable with movement.\n\nWhen enabled, the motor is automatically powered on when movement starts\nand powers off when movement completes. Reduces power dissipation and\nheat generation during idle periods.\n\nArgs:\n    enable (bool): True to enable auto enable/disable, False for manual control\n\nReturns:\n    None\n\nExample:\n    >>> stepper.set_auto_enable(True)"
+          },
+          {
+            "name": "set_delay_to_enable",
+            "signature": "(self, delay_us: int) -> int",
+            "doc": "Set delay between enable and first step.\n\nSpecifies the time the motor driver has to stabilize after being enabled\nbefore the first step pulse is issued.\n\nArgs:\n    delay_us (int): Delay in microseconds (max ~120ms on ESP32)\n\nReturns:\n    int: DelayResultCode (0 = DELAY_OK, -1 = out of range)\n\nExample:\n    >>> stepper.set_delay_to_enable(500)  # 500 microseconds"
+          },
+          {
+            "name": "set_delay_to_disable",
+            "signature": "(self, delay_ms: int) -> None",
+            "doc": "Set delay between last step and disable.\n\nSpecifies the time to wait after the last step before disabling the motor.\n\nArgs:\n    delay_ms (int): Delay in milliseconds\n\nReturns:\n    None\n\nExample:\n    >>> stepper.set_delay_to_disable(5)  # 5 milliseconds"
+          },
+          {
+            "name": "set_speed_hz",
+            "signature": "(self, speed_hz: int) -> int",
+            "doc": "Set stepper speed in steps per second.\n\nSets the target speed for movement. Speed is applied to the next\nmove/moveTo/runForward/runBackward call. Changes to a running motor\nrequire calling move() again to take effect.\n\nValid range: ~244 Hz (minimum) to hardware maximum (~92kHz on ESP32).\nHardware maximum depends on CPU frequency and driver module.\n\nArgs:\n    speed_hz (int): Target speed in steps per second (Hz)\n\nReturns:\n    int: 0 on success, -1 if speed exceeds hardware limits\n\nExample:\n    >>> result = stepper.set_speed_hz(500)\n    >>> if result == 0:\n    ...     print(\"Speed set successfully\")"
+          },
+          {
+            "name": "set_speed_us",
+            "signature": "(self, step_us: int) -> int",
+            "doc": "Set stepper speed in microseconds per step.\n\nAlternative to set_speed_hz() using microsecond resolution.\nUseful for very precise speed control or when working with timing constants.\n\nArgs:\n    step_us (int): Minimum time between steps in microseconds\n\nReturns:\n    int: 0 on success, -1 if speed is invalid\n\nExample:\n    >>> stepper.set_speed_us(2000)  # 2ms per step = 500 Hz"
+          },
+          {
+            "name": "set_speed_ticks",
+            "signature": "(self, step_ticks: int) -> int",
+            "doc": "Set stepper speed in CPU ticks per step.\n\nLow-level API for experienced users. Ticks depend on CPU frequency.\nAt 16MHz: 1 tick = 62.5ns, at 240MHz (ESP32): 1 tick = 4.17ns.\n\nArgs:\n    step_ticks (int): Minimum ticks between steps\n\nReturns:\n    int: 0 on success, -1 if speed is invalid\n\nExample:\n    >>> stepper.set_speed_ticks(3200)"
+          },
+          {
+            "name": "set_speed_millihz",
+            "signature": "(self, speed_millihz: int) -> int",
+            "doc": "Set stepper speed in millihertz (steps per 1000 seconds).\n\nFor very slow speeds. Useful for applications requiring sub-Hz control\nlike automated plant waterers or time-lapse mechanisms.\n\nArgs:\n    speed_millihz (int): Speed in millihertz\n\nReturns:\n    int: 0 on success, -1 if speed is invalid\n\nExample:\n    >>> stepper.set_speed_millihz(100)  # 0.1 steps per second"
+          },
+          {
+            "name": "get_speed_us",
+            "signature": "(self) -> int",
+            "doc": "Get configured speed in microseconds per step.\n\nReturns the speed that was set, not accounting for acceleration.\n\nArgs:\n    None\n\nReturns:\n    int: Speed in microseconds per step\n\nExample:\n    >>> speed_us = stepper.get_speed_us()"
+          },
+          {
+            "name": "get_speed_ticks",
+            "signature": "(self) -> int",
+            "doc": "Get configured speed in CPU ticks per step.\n\nReturns the speed that was set in ticks.\n\nArgs:\n    None\n\nReturns:\n    int: Speed in ticks per step\n\nExample:\n    >>> speed_ticks = stepper.get_speed_ticks()"
+          },
+          {
+            "name": "get_speed_millihz",
+            "signature": "(self) -> int",
+            "doc": "Get configured speed in millihertz.\n\nReturns the speed that was set in millihertz.\n\nArgs:\n    None\n\nReturns:\n    int: Speed in millihertz\n\nExample:\n    >>> speed_mhz = stepper.get_speed_millihz()"
+          },
+          {
+            "name": "get_current_speed_us",
+            "signature": "(self) -> int",
+            "doc": "Get actual current speed in microseconds per step.\n\nReturns the actual speed being executed, accounting for acceleration.\nDuring ramp-up/down, this changes over time. Returns negative during\nbackward movement.\n\nArgs:\n    None\n\nReturns:\n    int: Current speed in microseconds per step (negative = backward)\n\nExample:\n    >>> current_speed = stepper.get_current_speed_us()"
+          },
+          {
+            "name": "get_current_speed_millihz",
+            "signature": "(self) -> int",
+            "doc": "Get actual current speed in millihertz.\n\nReturns the actual speed being executed, accounting for acceleration.\n\nArgs:\n    None\n\nReturns:\n    int: Current speed in millihertz (negative = backward)\n\nExample:\n    >>> current_speed = stepper.get_current_speed_millihz()"
+          },
+          {
+            "name": "get_max_speed_hz",
+            "signature": "(self) -> int",
+            "doc": "Get hardware maximum speed in Hz.\n\nReturns the maximum achievable speed on this hardware.\n\nArgs:\n    None\n\nReturns:\n    int: Maximum speed in Hz\n\nExample:\n    >>> max_hz = stepper.get_max_speed_hz()"
+          },
+          {
+            "name": "get_max_speed_us",
+            "signature": "(self) -> int",
+            "doc": "Get hardware maximum speed in microseconds per step.\n\nReturns the maximum achievable speed on this hardware.\n\nArgs:\n    None\n\nReturns:\n    int: Minimum microseconds per step\n\nExample:\n    >>> max_speed_us = stepper.get_max_speed_us()"
+          },
+          {
+            "name": "get_max_speed_ticks",
+            "signature": "(self) -> int",
+            "doc": "Get hardware maximum speed in CPU ticks per step.\n\nReturns the maximum achievable speed on this hardware.\n\nArgs:\n    None\n\nReturns:\n    int: Minimum ticks per step\n\nExample:\n    >>> max_speed_ticks = stepper.get_max_speed_ticks()"
+          },
+          {
+            "name": "get_max_speed_millihz",
+            "signature": "(self) -> int",
+            "doc": "Get hardware maximum speed in millihertz.\n\nReturns the maximum achievable speed on this hardware.\n\nArgs:\n    None\n\nReturns:\n    int: Maximum speed in millihertz\n\nExample:\n    >>> max_speed_mhz = stepper.get_max_speed_millihz()"
+          },
+          {
+            "name": "set_acceleration",
+            "signature": "(self, acceleration: int) -> int",
+            "doc": "Set acceleration in steps per second squared.\n\nControls how quickly the motor ramps between speeds. Higher values\nmean faster acceleration but may lose steps if too aggressive.\n\nValid range: > 0\n\nArgs:\n    acceleration (int): Acceleration in steps/second\u00b2\n\nReturns:\n    int: 0 on success, -1 if acceleration <= 0\n\nExample:\n    >>> stepper.set_acceleration(500)  # Ramp up 500 steps/s each second"
+          },
+          {
+            "name": "get_acceleration",
+            "signature": "(self) -> int",
+            "doc": "Get configured acceleration.\n\nReturns the acceleration value that was set.\n\nArgs:\n    None\n\nReturns:\n    int: Acceleration in steps/second\u00b2\n\nExample:\n    >>> accel = stepper.get_acceleration()"
+          },
+          {
+            "name": "get_current_acceleration",
+            "signature": "(self) -> int",
+            "doc": "Get current acceleration being applied.\n\nReturns the actual acceleration during ramping, or 0 when idle/coasting.\nPositive = accelerating forward, Negative = accelerating backward.\n\nArgs:\n    None\n\nReturns:\n    int: Current acceleration in steps/second\u00b2 (0 = not accelerating)\n\nExample:\n    >>> current_accel = stepper.get_current_acceleration()"
+          },
+          {
+            "name": "set_linear_acceleration",
+            "signature": "(self, linear_accel_steps: int) -> None",
+            "doc": "Set linear acceleration ramp-in.\n\nCreates a smooth transition into constant acceleration. Reduces mechanical\nstress by ramping acceleration linearly up from zero.\n\nArgs:\n    linear_accel_steps (int): Number of steps over which to ramp in acceleration\n\nReturns:\n    None\n\nExample:\n    >>> stepper.set_linear_acceleration(100)  # Ramp over 100 steps"
+          },
+          {
+            "name": "set_jump_start",
+            "signature": "(self, jump_step: int) -> None",
+            "doc": "Set jump start step for smoother motion from standstill.\n\nAllows starting from a non-zero ramp step, providing smoother initial\nacceleration from rest.\n\nArgs:\n    jump_step (int): Ramp step to start from\n\nReturns:\n    None\n\nExample:\n    >>> stepper.set_jump_start(10)"
+          },
+          {
+            "name": "apply_speed_acceleration",
+            "signature": "(self) -> None",
+            "doc": "Apply new speed and acceleration values to current movement.\n\nUpdates running motor with new speed/acceleration parameters without\nstopping. Useful for real-time speed adjustments.\n\nArgs:\n    None\n\nReturns:\n    None\n\nExample:\n    >>> stepper.set_speed_hz(1000)\n    >>> stepper.apply_speed_acceleration()"
+          },
+          {
+            "name": "move",
+            "signature": "(self, steps: int, blocking: bool) -> dict[str, int]",
+            "doc": "Move stepper by relative number of steps.\n\nIf motor is running, updates the target relative to current target.\nDoes not allow reversing direction of ongoing movement.\n\nArgs:\n    steps (int): Number of steps (positive = forward, negative = backward)\n    blocking (bool): If True, wait for command to complete\n\nReturns:\n    int: MoveResultCode (0 = MOVE_OK, other values = error)\n\nExample:\n    >>> stepper.move(500)  # Move 500 steps forward\n    >>> stepper.move(-100)  # Move 100 steps backward"
+          },
+          {
+            "name": "move_to",
+            "signature": "(self, position: int, blocking: bool) -> dict[str, int]",
+            "doc": "Move stepper to absolute position.\n\nSets target position for the motor. Motor will accelerate/decelerate\nas needed to reach target.\n\nArgs:\n    position (int): Target absolute position\n    blocking (bool): If True, wait for command to complete\n\nReturns:\n    int: MoveResultCode (0 = MOVE_OK, other values = error)\n\nExample:\n    >>> stepper.move_to(5000)  # Move to position 5000"
+          },
+          {
+            "name": "run_forward",
+            "signature": "(self) -> dict[str, int]",
+            "doc": "Run motor continuously forward.\n\nMotor will accelerate to set speed and continue until stopped.\n\nArgs:\n    None\n\nReturns:\n    int: MoveResultCode (0 = MOVE_OK, other values = error)\n\nExample:\n    >>> stepper.run_forward()\n    >>> # ... later ...\n    >>> stepper.stop_move()"
+          },
+          {
+            "name": "run_backward",
+            "signature": "(self) -> dict[str, int]",
+            "doc": "Run motor continuously backward.\n\nMotor will accelerate to set speed and continue until stopped.\nRequires direction pin to be configured.\n\nArgs:\n    None\n\nReturns:\n    int: MoveResultCode (0 = MOVE_OK, other values = error)\n\nExample:\n    >>> stepper.run_backward()\n    >>> # ... later ...\n    >>> stepper.stop_move()"
+          },
+          {
+            "name": "keep_running",
+            "signature": "(self) -> None",
+            "doc": "Keep running in current direction.\n\nPrevents motor from stopping; maintains current direction and acceleration.\n\nArgs:\n    None\n\nReturns:\n    None\n\nExample:\n    >>> stepper.keep_running()"
+          },
+          {
+            "name": "is_running_continuously",
+            "signature": "(self) -> bool",
+            "doc": "Check if motor is set to run continuously.\n\nReturns True if in continuous run mode (runForward/runBackward).\n\nArgs:\n    None\n\nReturns:\n    bool: True if running continuously\n\nExample:\n    >>> if stepper.is_running_continuously():\n    ...     print(\"Motor is in continuous run mode\")"
+          },
+          {
+            "name": "forward_step",
+            "signature": "(self, blocking: bool = False) -> None",
+            "doc": "Execute single step forward.\n\nPerforms one forward step immediately. Motor must not be moving.\n\nArgs:\n    blocking (bool): If True, wait for step to complete\n\nReturns:\n    None\n\nExample:\n    >>> stepper.forward_step()"
+          },
+          {
+            "name": "backward_step",
+            "signature": "(self, blocking: bool = False) -> None",
+            "doc": "Execute single step backward.\n\nPerforms one backward step immediately. Motor must not be moving.\nRequires direction pin to be configured.\n\nArgs:\n    blocking (bool): If True, wait for step to complete\n\nReturns:\n    None\n\nExample:\n    >>> stepper.backward_step()"
+          },
+          {
+            "name": "move_by_acceleration",
+            "signature": "(self, acceleration: int, allow_reverse: bool) -> dict[str, int]",
+            "doc": "Move by acceleration control (speed controlled via acceleration).\n\nAdvanced mode where speed is controlled by applying acceleration or\ndeceleration. Positive acceleration = accelerate forward to max speed.\nNegative acceleration = decelerate (or reverse if allow_reverse=True).\n\nArgs:\n    acceleration (int): Acceleration to apply (steps/second\u00b2)\n    allow_reverse (bool): Allow motor to reverse direction\n\nReturns:\n    int: MoveResultCode\n\nExample:\n    >>> stepper.move_by_acceleration(1000)  # Accelerate forward\n    >>> stepper.move_by_acceleration(-500)  # Decelerate"
+          },
+          {
+            "name": "stop_move",
+            "signature": "(self) -> None",
+            "doc": "Stop motor with normal deceleration.\n\nInitiates smooth stop using configured acceleration. Motor will\ndecelerate to zero. Safe to call from interrupt.\n\nArgs:\n    None\n\nReturns:\n    None\n\nExample:\n    >>> stepper.stop_move()"
+          },
+          {
+            "name": "is_stopping",
+            "signature": "(self) -> bool",
+            "doc": "Check if motor is decelerating to stop.\n\nReturns True while motor is decelerating after stopMove() call.\n\nArgs:\n    None\n\nReturns:\n    bool: True if decelerating\n\nExample:\n    >>> if stepper.is_stopping():\n    ...     print(\"Motor is slowing down\")"
+          },
+          {
+            "name": "force_stop",
+            "signature": "(self) -> None",
+            "doc": "Stop motor immediately without deceleration.\n\nAbruptly halts motor. Position may be lost due to queue flush.\nSafe to call from interrupt. Motor stops within ~20ms.\n\nArgs:\n    None\n\nReturns:\n    None\n\nExample:\n    >>> stepper.force_stop()"
+          },
+          {
+            "name": "force_stop_and_new_position",
+            "signature": "(self, new_pos: int) -> None",
+            "doc": "Stop immediately and set new position.\n\nAbruptly stops motor and updates internal position counter.\nUsed when external sensor provides new position.\n\nArgs:\n    new_pos (int): New position value to set\n\nReturns:\n    None\n\nExample:\n    >>> stepper.force_stop_and_new_position(0)"
+          },
+          {
+            "name": "steps_to_stop",
+            "signature": "(self) -> int",
+            "doc": "Get steps needed to decelerate to stop.\n\nCalculates how many more steps the motor will take before reaching\nzero speed if stopMove() is called now. Useful for obstacle avoidance.\n\nArgs:\n    None\n\nReturns:\n    int: Number of steps to stop\n\nExample:\n    >>> remaining = stepper.steps_to_stop()\n    >>> if stepper.get_current_position() + remaining > limit:\n    ...     stepper.stop_move()"
+          },
+          {
+            "name": "get_current_position",
+            "signature": "(self) -> int",
+            "doc": "Get current motor position.\n\nReturns the internal position counter reflecting executed steps.\n\nArgs:\n    None\n\nReturns:\n    int: Current position in steps\n\nExample:\n    >>> pos = stepper.get_current_position()"
+          },
+          {
+            "name": "get_target_position",
+            "signature": "(self) -> int",
+            "doc": "Get target position for current move.\n\nReturns the position the motor is moving toward.\n\nArgs:\n    None\n\nReturns:\n    int: Target position in steps\n\nExample:\n    >>> target = stepper.get_target_position()"
+          },
+          {
+            "name": "set_current_position",
+            "signature": "(self, position: int) -> None",
+            "doc": "Manually set the current position.\n\nChanges the motor's internal position counter to the specified value.\nUseful for calibration or when using external position feedback sensors.\nRecommend using only while motor is stopped.\n\nArgs:\n    position (int): New position value\n\nReturns:\n    None\n\nExample:\n    >>> stepper.set_current_position(0)  # Reset to origin"
+          },
+          {
+            "name": "distance_to_go",
+            "signature": "(self) -> int",
+            "doc": "Get remaining distance to target position.\n\nReturns the number of steps between current position and target position.\nPositive means target is ahead, negative means behind.\n\nArgs:\n    None\n\nReturns:\n    int: Steps remaining (can be negative)\n\nExample:\n    >>> remaining = stepper.distance_to_go()\n    >>> if remaining == 0:\n    ...     print(\"Motor reached target\")"
+          },
+          {
+            "name": "is_running",
+            "signature": "(self) -> bool",
+            "doc": "Check if motor is currently moving.\n\nReturns True while the motor has commanded position different from\ncurrent position and is executing steps. Returns False when idle.\nEssential for non-blocking operation.\n\nArgs:\n    None\n\nReturns:\n    bool: True if motor is moving, False if idle\n\nExample:\n    >>> stepper.move_to(5000)\n    >>> while stepper.is_running():\n    ...     # Do other work while motor moves\n    ...     pass"
+          },
+          {
+            "name": "ticks_in_queue",
+            "signature": "(self) -> int",
+            "doc": "Get number of CPU ticks queued for execution.\n\nReturns the cumulative ticks queued for future execution. Useful for\nmonitoring queue depth and ensuring sufficient lookahead for smooth motion.\n\nArgs:\n    None\n\nReturns:\n    int: Number of ticks in command queue\n\nExample:\n    >>> queue_ticks = stepper.ticks_in_queue()"
+          },
+          {
+            "name": "has_ticks_in_queue",
+            "signature": "(self, min_ticks: int) -> bool",
+            "doc": "Check if command queue has minimum ticks pending.\n\nReturns True if there are at least min_ticks queued for future execution.\n\nArgs:\n    min_ticks (int): Minimum ticks to check for\n\nReturns:\n    bool: True if queue has at least min_ticks pending\n\nExample:\n    >>> if stepper.has_ticks_in_queue(1000):\n    ...     print(\"Queue is well-stocked\")"
+          },
+          {
+            "name": "queue_entries",
+            "signature": "(self) -> int",
+            "doc": "Get number of command queue entries in use.\n\nReturns the count of command entries currently in the queue.\nEach command can contain multiple steps. Queue depth varies by platform\n(typically 16-32 entries).\n\nArgs:\n    None\n\nReturns:\n    int: Number of queue entries in use\n\nExample:\n    >>> entries = stepper.queue_entries()"
+          },
+          {
+            "name": "get_period_after_commands_us",
+            "signature": "(self) -> int",
+            "doc": "Get time in microseconds until queue completion.\n\nReturns the estimated time needed to execute all queued commands.\nUseful for synchronizing with other tasks or scheduling the next\nmovement command.\n\nArgs:\n    None\n\nReturns:\n    int: Time in microseconds until queue is empty\n\nExample:\n    >>> wait_time_us = stepper.get_period_after_commands_us()"
+          },
+          {
+            "name": "get_period_after_commands_ticks",
+            "signature": "(self) -> int",
+            "doc": "Get time in CPU ticks until queue completion.\n\nReturns the estimated time needed to execute all queued commands,\nexpressed in CPU ticks.\n\nArgs:\n    None\n\nReturns:\n    int: Time in CPU ticks until queue is empty\n\nExample:\n    >>> wait_time_ticks = stepper.get_period_after_commands_ticks()"
+          },
+          {
+            "name": "get_position_after_commands_completed",
+            "signature": "(self) -> int",
+            "doc": "Get position after all queued commands complete.\n\nReturns where the motor will be positioned after executing all\ncurrently queued commands.\n\nArgs:\n    None\n\nReturns:\n    int: Future position in steps\n\nExample:\n    >>> future_pos = stepper.get_position_after_commands_completed()"
+          },
+          {
+            "name": "set_position_after_commands_completed",
+            "signature": "(self, new_pos: int) -> None",
+            "doc": "Set future position after queued commands complete.\n\nUpdates the internal position that will be set after current command\nqueue drains. Takes immediate effect on getCurrentPosition().\n\nArgs:\n    new_pos (int): Position value to set after queue completes\n\nReturns:\n    None\n\nExample:\n    >>> stepper.set_position_after_commands_completed(0)"
+          },
+          {
+            "name": "ramp_state",
+            "signature": "(self) -> int",
+            "doc": "Get current ramp generator state.\n\nReturns state flags indicating current ramp state and direction.\nAdvanced users only.\n\nArgs:\n    None\n\nReturns:\n    int: State flags (RAMP_STATE_... and RAMP_DIRECTION_... combined)\n\nExample:\n    >>> state = stepper.ramp_state()"
+          },
+          {
+            "name": "is_ramp_generator_active",
+            "signature": "(self) -> bool",
+            "doc": "Check if ramp generator is active.\n\nReturns True while acceleration/deceleration is being calculated.\n\nArgs:\n    None\n\nReturns:\n    bool: True if ramp generator is running\n\nExample:\n    >>> if stepper.is_ramp_generator_active():\n    ...     print(\"Motor is accelerating/decelerating\")"
+          },
+          {
+            "name": "enable_outputs",
+            "signature": "(self) -> bool",
+            "doc": "Enable motor driver outputs.\n\nEnergizes the motor, allowing it to hold torque. Used with manual\nenable control (when auto_enable is False).\n\nArgs:\n    None\n\nReturns:\n    bool: True if successfully enabled\n\nExample:\n    >>> stepper.enable_outputs()"
+          },
+          {
+            "name": "disable_outputs",
+            "signature": "(self) -> bool",
+            "doc": "Disable motor driver outputs.\n\nDe-energizes the motor, reducing power consumption. Motor loses holding\ntorque but can still be rotated manually. Used with manual enable control.\n\nArgs:\n    None\n\nReturns:\n    bool: True if successfully disabled\n\nExample:\n    >>> stepper.disable_outputs()"
+          },
+          {
+            "name": "set_forward_planning_time_ms",
+            "signature": "(self, ms: int) -> None",
+            "doc": "Configure forward planning horizon (advanced users only).\n\nSets how far ahead the acceleration planner looks. Longer horizon provides\nsmoother acceleration curves but increases latency to speed changes.\nDefault is 20ms. Only change if stepper is not running.\n\nAttention: This is for advanced users only. Too small values risk the\nstepper running at full speed then stopping abruptly due to queue underrun.\n\nArgs:\n    ms (int): Planning horizon in milliseconds\n\nReturns:\n    None\n\nExample:\n    >>> stepper.set_forward_planning_time_ms(30)"
+          },
+          {
+            "name": "detach_from_pin",
+            "signature": "(self) -> None",
+            "doc": "Detach stepper from its pin (advanced).\n\nReleases the step pin for other use. Pretty low-level, use with care.\n\nArgs:\n    None\n\nReturns:\n    None\n\nExample:\n    >>> stepper.detach_from_pin()"
+          },
+          {
+            "name": "reattach_to_pin",
+            "signature": "(self) -> None",
+            "doc": "Reattach stepper to its pin (advanced).\n\nRestores stepper control after detachFromPin(). Pretty low-level, use with care.\n\nArgs:\n    None\n\nReturns:\n    None\n\nExample:\n    >>> stepper.reattach_to_pin()"
+          },
+          {
+            "name": "attach_to_pulse_counter",
+            "signature": "(self, unused_pcnt_unit: int, low_value: int, high_value: int) -> bool",
+            "doc": "Attach stepper to pulse counter for position verification (ESP32 only, advanced).\n\nConnects an independent pulse counter to track steps and verify\ncorrect execution. Used for testing and quality assurance.\n\nNote: The pcnt_unit parameter is ignored on IDF5; units are managed by the system.\n\nArgs:\n    unused_pcnt_unit (int): Pulse counter unit (ignored on IDF5, for compatibility)\n    low_value (int): Low counter limit (default -16384)\n    high_value (int): High counter limit (default 16384)\n    dir_pin_readback (int): Optional direction pin for readback\n\nReturns:\n    bool: True on success, False on error\n\nExample:\n    >>> stepper.attach_to_pulse_counter()\n    >>> stepper.attach_to_pulse_counter(low_value=-3200, high_value=3200)"
+          },
+          {
+            "name": "read_pulse_counter",
+            "signature": "(self) -> int",
+            "doc": "Read current pulse counter value (ESP32 only).\n\nReturns the current value of the attached pulse counter.\n\nArgs:\n    None\n\nReturns:\n    int: Current pulse counter value\n\nExample:\n    >>> count = stepper.read_pulse_counter()"
+          },
+          {
+            "name": "clear_pulse_counter",
+            "signature": "(self) -> None",
+            "doc": "Clear pulse counter to zero (ESP32 only).\n\nResets the pulse counter to 0.\n\nArgs:\n    None\n\nReturns:\n    None\n\nExample:\n    >>> stepper.clear_pulse_counter()"
+          },
+          {
+            "name": "pulse_counter_attached",
+            "signature": "(self) -> bool",
+            "doc": "Check if pulse counter is attached (ESP32 only).\n\nReturns True if a pulse counter is currently attached.\n\nArgs:\n    None\n\nReturns:\n    bool: True if pulse counter attached\n\nExample:\n    >>> if stepper.pulse_counter_attached():\n    ...     print(\"Pulse counter is active\")"
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "actuators.__init__": {
     "doc": "No module docstring available",
     "functions": [],
     "classes": [],
@@ -1900,8 +1872,8 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, analog_pin: int)",
-            "doc": "Infrared analog distance sensor (Sharp GP2Y0A21YK).\n\nArgs:\n    analog_pin (int): Analog pin used for reading the voltage (default A3, i.e., 17)."
+            "signature": "(self)",
+            "doc": "Infrared analog distance sensor (Sharp GP2Y0A21YK).\nanalog_pin defaults to 36 in ESP32 and A0 in ESP8266."
           },
           {
             "name": "distance",

@@ -40,6 +40,7 @@ ble.on_write("5678", on_write_handler)```
 __include_modules__ = "BLESimple"
 __include_internal_modules__ = "helpers/BLESimpleHelper"
 __dependencies__ = ""
+__available_platforms__ = "espressif32"
 
 
 class BLESimple:
@@ -60,6 +61,7 @@ class BLESimple:
         Custom Initializer, call this inside setup.
         """
         __use_as_is__ = True
+        __translation__ = "{0}.init_ble()"
 
     def start(self) -> None:
         """Start BLE advertising or scanning based on the mode."""

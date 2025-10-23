@@ -63,6 +63,7 @@ class DHTSensor:
         Begin communication with the sensor.
         """
         __use_as_is__ = True
+        __translation__ = "{0}.begin()"
         pass
 
     def read_temperature(self, is_fahrenheit: bool) -> float:

@@ -1,8 +1,11 @@
-__include_modules__ = {"espressif8266":"ESP8266WebServer",  
-"espressif32": "WebServer"}
+__include_modules__ = {"espressif8266": "ESP8266WebServer", "espressif32": "WebServer"}
 
-__include_internal_modules__ = {"espressif8266":"helpers/webserver/WebserverHelperESP8266", 
-"espressif32":"helpers/webserver/WebserverHelperESP32"}
+"""__include_internal_modules__ = {
+    "espressif8266": "helpers/webserver/WebserverHelperESP8266",
+    "espressif32": "helpers/webserver/WebserverHelperESP32",
+}"""
+
+__include_internal_modules__ = "helpers/WebserverHelper"
 __dependencies__ = ""  # Built-in to ESP32/ESP8266 Arduino cores
 
 
@@ -23,40 +26,46 @@ class WebServer:
         """
         __use_as_is__ = False
         __is_reference__ = False
-        __class_actual_type__ = {"espressif8266":"ESP8266WebServer",  
-"espressif32": "WebServer"}
-        __construct_with_equal_to__ = False # this means is constructs like WebServer server(80)
+        __class_actual_type__ = {
+            "espressif8266": "ESP8266WebServer",
+            "espressif32": "WebServer",
+        }
+        __construct_with_equal_to__ = (
+            False  # this means is constructs like WebServer server(80)
+        )
         __translation__ = "({1})"
         pass
 
-    def on(self, path: str, method, handler) -> WebServer:
+    def on(self, path: str, method: str, handler: callable) -> WebServer:
         """
         Registers a handler function for the given URL path.
 
         Args:
             path (str): The URL endpoint (e.g., "/status").
-            handler (function): A function with no parameters that handles the request.
+            method (str): "HTTP_GET" or "HTTP_POST"
+            handler (callable): A function with no parameters that handles the request.
 
         Example:
             server.on("/hello", handle_hello)
         """
         __use_as_is__ = False
-        __translation__ = "{0}.on({1}.c_str(), {2}, {3})"
+        __translation__ = "custom_webserver_on({0}, {1}, {2}, {3})"
         pass
-
 
     def begin(self) -> WebServer:
         """
         Starts the web server. Must be called after all routes are registered.
         """
         __use_as_is__ = True
+        __translation__ = "{0}.begin()"
         pass
 
-    def handleClient(self) -> WebServer:
+    def handle_client(self) -> WebServer:
         """
         Processes incoming client requests. Should be called repeatedly in loop().
         """
         __use_as_is__ = True
+        __translation__ = "{0}.handleClient()"
         pass
 
     def send(self, status_code: int, content_type: str, body: str) -> None:
