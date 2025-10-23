@@ -40,6 +40,7 @@ ble.on_write("5678", on_write_handler)```
 __include_modules__ = "BLESimple"
 __include_internal_modules__ = "helpers/BLESimpleHelper"
 __dependencies__ = ""
+__available_platforms__ = "espressif32"
 
 
 class BLESimple:

@@ -494,7 +494,8 @@ class DependencyResolver:
             module_type TEXT, 
             translated_name TEXT,
             dependencies TEXT, 
-            include_internal_modules TEXT
+            include_internal_modules TEXT,
+            available_platforms TEXT
 
         )
         """
@@ -536,6 +537,21 @@ class DependencyResolver:
         self.conn.commit()
         print(f"[DEBUG] All tables for {self.current_id} deleted.")
 
+    def variable_exists(self, variable_name: str) -> bool:
+        """
+        Check if a variable with the given name exists in the variables table.
+
+        Args:
+            variable_name (str): The name of the variable to check.
+
+        Returns:
+            bool: True if the variable exists, False otherwise.
+        """
+        table_name = f"{self.current_id}_variables"
+        query = f"SELECT 1 FROM {table_name} WHERE variable_name = ? LIMIT 1"
+        self.cursor.execute(query, (variable_name,))
+        return self.cursor.fetchone() is not None
+
     def get_imported_global_methods(self, current_module_name):
         methods_table = f"{self.current_id}_methods"
 
@@ -554,6 +570,41 @@ class DependencyResolver:
             method_name: module_name for method_name, module_name in rows
         }
         return imported_methods
+
+    def get_available_platforms(self, module_name):
+        """
+        Retrieve available_platforms for a given module name.
+
+        Args:
+            module_name (str): The name of the module to query
+
+        Returns:
+            str: Comma-separated list of available platforms (e.g., "ESP32,AVR,ARM")
+                 Returns empty string if module not found
+
+        Raises:
+            sqlite3.Error: If database query fails
+        """
+        try:
+            query = f"""
+            SELECT available_platforms FROM {self.current_id}_modules
+            WHERE module_name = ?
+            """
+            self.cursor.execute(query, (module_name,))
+            result = self.cursor.fetchone()
+
+            if result is None:
+                print(f"Warning: Module '{module_name}' not found in database")
+                return ""
+
+            available_platforms = result[0] if result[0] else ""
+            return available_platforms
+
+        except Exception as e:
+            print(
+                f"Error retrieving available_platforms for module '{module_name}': {str(e)}"
+            )
+            raise
 
     def get_method_metadata(self, method_name, module_name=None, class_name=None):
         methods_table = f"{self.current_id}_methods"
@@ -1344,6 +1395,7 @@ class DependencyResolver:
         module_type,
         dependencies,
         include_internal_modules,
+        available_platforms,
     ):
         data = {
             "module_name": module_name,
@@ -1351,6 +1403,7 @@ class DependencyResolver:
             "module_type": module_type,
             "dependencies": dependencies,
             "include_internal_modules": include_internal_modules,
+            "available_platforms": available_platforms,
         }
         table = f"{self.current_id}_modules"
         self._insert_dicts_to_table(table, [data])
@@ -1512,12 +1565,17 @@ class DependencyResolver:
                 module_tree, "__include_internal_modules__"
             )
 
+            available_platforms = (
+                self._get_dunder_value(module_tree, "__available_platforms__") or "all"
+            )
+
             self._insert_module_info(
                 module_name,
                 translated_name,
                 module_type,
                 dependencies,
                 include_internal_modules,
+                available_platforms,
             )
 
             for node in module_tree.body:

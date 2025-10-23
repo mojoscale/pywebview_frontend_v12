@@ -33,6 +33,7 @@ Example:
 __include_modules__ = "FastAccelStepper"
 __dependencies__ = "gin66/FastAccelStepper"
 __include_internal_modules__ = "helpers/actuators/FastAccelStepperHelper"
+__available_platforms__ = "espressif32"
 
 
 class FastAccelStepperEngine:

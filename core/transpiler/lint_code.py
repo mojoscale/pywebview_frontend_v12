@@ -405,6 +405,20 @@ class LintCode(ast.NodeVisitor):
                     self.module_name, import_name, import_alias
                 )
 
+                # also check if the current platform is compatible
+                available_platforms = self.dependency_resolver.get_available_platforms(
+                    import_name
+                )
+
+                if available_platforms and available_platforms != "all":
+                    list_available_platforms = available_platforms.split(",")
+
+                    if self.platform not in list_available_platforms:
+                        self.add_error(
+                            node,
+                            f"The module '{import_name}' is not available on {self.platform} due to hardware restrictions.",
+                        )
+
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node):
@@ -728,7 +742,7 @@ class LintCode(ast.NodeVisitor):
 
         # cannot be called on global scope in arduino
         if self.scope == "global":
-            self.add_error(node, "'if' can be only called within a function body.")
+            self.add_error(node, "'for' can be only called within a function body.")
 
         loop_var_type = self.type_analyzer.get_node_type(node.iter)
         loop_type = loop_var_type.split(",")[0]
@@ -739,15 +753,16 @@ class LintCode(ast.NodeVisitor):
             self.loop_variables[loop_var] = "int"
         elif loop_type == "list":
             element_type = loop_var_type.split(",")[1]
-            self.loop_variables[loop_var] = element_type
+            print(f"saving loop var {loop_var.id} for {iterable}")
+            self.loop_variables[loop_var.id] = element_type
         elif loop_type == "dict_items":
             # Extract key and value variables from the loop target
             if isinstance(loop_var, ast.Tuple) and len(loop_var.elts) == 2:
                 key_var = loop_var.elts[0]
                 val_var = loop_var.elts[1]
                 _, key_type, value_type = loop_var_type.split(",")
-                self.loop_variables[key_var] = key_type
-                self.loop_variables[val_var] = value_type
+                self.loop_variables[key_var.id] = key_type
+                self.loop_variables[val_var.id] = value_type
             else:
                 # Handle error case where loop target is not a tuple of two variables
                 self.add_error(
@@ -764,6 +779,9 @@ class LintCode(ast.NodeVisitor):
 
         for stmt in node.body:
             self.visit(stmt)
+
+        # loop has ended so reset loop_variables
+        self.loop_variables = {}
 
         self.is_within_For = False
 
@@ -820,6 +838,15 @@ class LintCode(ast.NodeVisitor):
 
         for arg in node.args:
             arg_type = self.type_analyzer.get_node_type(arg)
+
+            if not arg_type:
+                # this can be a loop variable
+                # e.g: for x in custom_list
+                # x will be resolved here
+                try:
+                    arg_type = self.loop_variables[arg.id]
+                except KeyError:
+                    pass
             call_args.append(arg_type)
             self.visit(arg)
 
@@ -989,6 +1016,20 @@ class LintCode(ast.NodeVisitor):
         """
         if isinstance(node.ctx, ast.Load):  # Right-hand side (being read)
             var_name = node.id
+
+            is_variable_defined = self.dependency_resolver.variable_exists(var_name)
+
+            if not is_variable_defined:
+                if self.is_within_For:
+                    if var_name in self.loop_variables:
+                        return
+
+                self.add_error(
+                    node, f"'{var_name}' is not defined anywhere. This could be a typo."
+                )
+
+            else:
+                return
 
             # Skip Python builtins
             if var_name in dir(__builtins__):
