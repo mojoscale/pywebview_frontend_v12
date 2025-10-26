@@ -65,6 +65,7 @@ class Api:
         self.main_loop = None
         self.compile_queue = None
         self.loop_ready = False
+        self.compile_status = {}
 
     # ------------------------
     # General app utils
@@ -220,6 +221,8 @@ class Api:
     # ------------------------
     # Compilation
     # ------------------------
+    # Add to your __init__ method
+
     def compile(self, project_id, upload=False, port=None):
         """Schedule a compile job and return immediately."""
         project = get_project_from_id(project_id)
@@ -248,6 +251,14 @@ class Api:
         if not self.loop_ready:
             return {"success": False, "error": "Main loop not ready"}
 
+        # Initialize compile status
+        self.compile_status[project_id] = {
+            "completed": False,
+            "success": False,
+            "in_progress": True,
+            "message": "Compilation scheduled",
+        }
+
         # Push into async compile queue
         self.main_loop.call_soon_threadsafe(self.compile_queue.put_nowait, task)
         return {"success": True, "message": "Compilation scheduled"}
@@ -257,11 +268,9 @@ class Api:
         self.loop_ready = True
         while True:
             task = await self.compile_queue.get()
+            project_id = task["project_id"]
+
             try:
-                print(
-                    f"⚡ Compiling project {task['project_id']} "
-                    f"for board={task['board']}, platform={task['platform']}"
-                )
                 result = await compile_project(
                     task["code_files"],
                     task["board"],
@@ -271,20 +280,34 @@ class Api:
                     port=task["port"],
                 )
 
-                # Ensure JSON-safe
-                safe_result = {}
-                for k, v in result.items():
-                    if isinstance(v, (str, int, float, bool, type(None), list, dict)):
-                        safe_result[k] = v
-                    else:
-                        safe_result[k] = str(v)
+                # Update completion status
+                self.compile_status[project_id] = {
+                    "completed": True,
+                    "success": result.get("success", False),
+                    "in_progress": False,
+                    "message": result.get("message", "Compilation completed"),
+                    "error": result.get("error"),
+                    "warnings": result.get("warnings", []),
+                    "specs": result.get("specs", {}),
+                    "suggestions": result.get("suggestions", []),
+                }
 
-                print(f"✅ Compile finished: {safe_result}")
-                # TODO: push to frontend via evaluate_js if desired
             except Exception as e:
-                print(f"❌ Compile failed: {e}")
+                self.compile_status[project_id] = {
+                    "completed": True,
+                    "success": False,
+                    "in_progress": False,
+                    "error": str(e),
+                }
             finally:
-                self.compile_queue.task_done
+                self.compile_queue.task_done()
+
+    def get_compile_status(self, project_id):
+        """Get the current compilation status for a project"""
+        if project_id not in self.compile_status:
+            return {"exists": False}
+
+        return self.compile_status[project_id]
 
     # ------------------------
     # Environment Variables
