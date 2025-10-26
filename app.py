@@ -28,6 +28,7 @@ from core.db import (
     get_core_db_conn,
     update_project_files,
     get_project_code_from_id,
+    update_project_details,
 )
 
 from core.transpiler.generate_pyi import generate_pyi_stubs, CORE_LIBS
@@ -98,9 +99,15 @@ class Api:
             metadata["board_name"] = board_name
             metadata["board_id"] = board_id
             metadata["platform"] = platform
-        create_new_project(
-            project_details["name"], project_details["description"], metadata=metadata
-        )
+
+            description = ""
+
+            if "description" in project_details:
+                description = project_details["description"]
+        create_new_project(project_details["name"], description, metadata=metadata)
+
+    def update_project(self, payload: dict):
+        return update_project_details(payload)
 
     # ------------------------
     # Serial + Modules
