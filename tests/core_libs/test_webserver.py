@@ -1,4 +1,4 @@
-import webserver as w
+import comms.webserver as w
 
 # Create instance
 server = w.WebServer(80)

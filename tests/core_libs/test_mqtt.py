@@ -1,5 +1,5 @@
-import wifi as w
-import mqtt as m
+import comms.wifi as w
+import comms.mqtt as m
 
 wi_fi_client = w.WiFiClient()
 

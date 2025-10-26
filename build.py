@@ -144,6 +144,7 @@ def build():
         "--include-package=parso",
         "--include-package=core.transpiler.core_libs",
         # Disable console for Windows TBD
+        "--windows-console-mode=disable",
     ]
 
     # Remove empty strings

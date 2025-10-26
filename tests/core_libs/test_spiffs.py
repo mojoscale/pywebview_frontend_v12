@@ -1,4 +1,4 @@
-import spiffs as sp
+import storage.spiffs as sp
 
 
 def setup() -> None:

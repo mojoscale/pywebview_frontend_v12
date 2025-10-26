@@ -1,4 +1,4 @@
-import wifi as w
+import comms.wifi as w
 import arduino as a
 
 

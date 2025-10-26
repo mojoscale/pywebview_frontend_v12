@@ -281,260 +281,6 @@
     "classes": [],
     "variables": []
   },
-  "async_webserver": {
-    "doc": "No module docstring available",
-    "functions": [],
-    "classes": [
-      {
-        "name": "AsyncWebServerRequest",
-        "doc": "No docstring available",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self)",
-            "doc": "    Initializes a new instance of the asynchronous HTTP server.\n\nThis constructor creates an `AsyncWebServer` object bound to a specific\nnetwork port. Once instantiated, you can register HTTP route handlers\nusing the `on()` method and start the server with `begin()`.\n\nThis class serves as a Python stub for the C++ `AsyncWebServer` class from\nthe **ESPAsyncWebServer** library, commonly used on ESP32 and ESP8266 boards.\nThe actual implementation is handled by the corresponding C++ library when\nthe transpiler generates the final firmware code.\n\n**Usage Example (Python \u2192 Arduino Transpilation):**\n    ```python\n    import async_webserver as a\n\n    server = a.AsyncWebServer(80)\n\n    def handle_root(request:a.AsyncWebServerRequest) -> None:\n        request.send(200, \"text/plain\", \"Hello from ESP!\")\n\n\n    def setup()->None:\n        server.on(\"/\", HTTP_GET, handle_root)\n        server.begin()\n\n\n    def loop()->None:\n        pass\n    ```\n\n\nArgs:\n    port (int):\n        The TCP port number on which the HTTP server will listen.\n        Typically, 80 is used for standard HTTP and 443 for HTTPS.\nReturns:\n    None"
-          },
-          {
-            "name": "send",
-            "signature": "(self, status_code: int, content_type: str, body: str) -> None",
-            "doc": "Sends a response to the HTTP client.\n\nArgs:\n    status_code (int): HTTP status code (e.g., 200, 404).\n    content_type (str): MIME type of the response (e.g., \"text/html\").\n    body (str): Response body content.\n\nReturns:\n    None"
-          },
-          {
-            "name": "arg",
-            "signature": "(self, name: str) -> str",
-            "doc": "Gets the value of a URL parameter or POST argument by name.\n\nArgs:\n    name (str): Name of the argument to retrieve.\n\nReturns:\n    str: Value of the argument or empty string if not found."
-          },
-          {
-            "name": "has_param",
-            "signature": "(self, name: str) -> bool",
-            "doc": "Checks if a given parameter exists in the request.\n\nArgs:\n    name (str): Name of the parameter.\n\nReturns:\n    bool: True if parameter exists, False otherwise."
-          }
-        ]
-      },
-      {
-        "name": "AsyncWebHandler",
-        "doc": "Python representation of the C++ `AsyncWebHandler` class from ESPAsyncWebServer.\n\nThis class acts as an abstract base for web request handlers such as\n`AsyncStaticWebHandler` or `AsyncCallbackWebHandler`.\n\nIt provides methods for:\n  - Determining whether a handler can process a given request.\n  - Executing the request handler.\n  - Applying authentication and filters.\n  - Controlling handler priority and behavior.\n\nNote:\n    This class should generally not be instantiated directly.\n    Instead, use subclasses that implement `can_handle()` and `handle_request()`.",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self)",
-            "doc": "Initialize an AsyncWebHandler instance.\n\nThis constructor sets `__use_as_is__` to False,\nmeaning the transpiler should not instantiate this class directly."
-          },
-          {
-            "name": "can_handle",
-            "signature": "(self, request: AsyncWebServerRequest) -> bool",
-            "doc": "Determine whether this handler can process the incoming request.\n\nArgs:\n    request (AsyncWebServerRequest): The HTTP request object.\n\nReturns:\n    bool: True if the handler can handle the request; False otherwise.\n\nTranslation:\n    {0}.canHandle({1})"
-          },
-          {
-            "name": "handle_request",
-            "signature": "(self, request: AsyncWebServerRequest) -> None",
-            "doc": "Handle the incoming web request.\n\nArgs:\n    request (AsyncWebServerRequest): The HTTP request to process.\n\nTranslation:\n    {0}.handleRequest({1})"
-          },
-          {
-            "name": "is_request_handler_trivial",
-            "signature": "(self) -> bool",
-            "doc": "Check whether this handler performs trivial (lightweight) processing.\n\nReturns:\n    bool: True if the handler is trivial; False otherwise.\n\nTranslation:\n    {0}.isRequestHandlerTrivial()"
-          },
-          {
-            "name": "set_authentication",
-            "signature": "(self, username: str, password: str) -> AsyncWebHandler",
-            "doc": "Protect this handler with basic authentication.\n\nArgs:\n    username (str): The HTTP Basic Auth username.\n    password (str): The HTTP Basic Auth password.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setAuthentication({1}, {2})"
-          },
-          {
-            "name": "set_filter",
-            "signature": "(self, filter_func) -> AsyncWebHandler",
-            "doc": "Assign a filter function that decides if this handler should process a request.\n\nArgs:\n    filter_func (ArRequestFilterFunction): The filtering function.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setFilter({1})"
-          },
-          {
-            "name": "filter",
-            "signature": "(self, request: AsyncWebServerRequest) -> bool",
-            "doc": "Run the filter function associated with this handler.\n\nArgs:\n    request (AsyncWebServerRequest): The request to evaluate.\n\nReturns:\n    bool: True if the handler should process this request.\n\nTranslation:\n    {0}.filter({1})"
-          },
-          {
-            "name": "set_priority",
-            "signature": "(self, priority: int) -> AsyncWebHandler",
-            "doc": "Assign a priority level to this handler.\n\nArgs:\n    priority (int): The priority value (higher = earlier execution).\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setPriority({1})"
-          },
-          {
-            "name": "priority",
-            "signature": "(self) -> int",
-            "doc": "Get the priority value assigned to this handler.\n\nReturns:\n    int: The priority level.\n\nTranslation:\n    {0}.priority()"
-          },
-          {
-            "name": "on_request",
-            "signature": "(self) -> AsyncWebHandler",
-            "doc": "Assign a custom callback to handle incoming requests.\n\nArgs:\n    callback (ArRequestHandlerFunction): The function that processes the request.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.onRequest({1})"
-          }
-        ]
-      },
-      {
-        "name": "AsyncStaticWebHandler",
-        "doc": "Represents a static file handler returned by `AsyncWebServer.serve_static()`.\n\nThis class allows chaining configuration methods such as\n`set_default_file()`, `set_cache_control()`, `set_last_modified()`,\nand `set_authentication()`.\n\nExample:\n    ```python\n    server.serve_static(\"/\", \"/www\", 86400)               .set_default_file(\"index.html\")               .set_authentication(\"user\", \"pass\")\n    ```",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self)",
-            "doc": "This class should not be instantiated directly.\n\nInstances are automatically returned when calling\n`AsyncWebServer.serve_static()`."
-          },
-          {
-            "name": "set_default_file",
-            "signature": "(self, filename: str) -> AsyncStaticWebHandler",
-            "doc": "Sets the default file to serve when a directory is requested.\n\nArgs:\n    filename (str): The file name to serve by default\n        (e.g., \"index.html\").\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining)."
-          },
-          {
-            "name": "set_cache_control",
-            "signature": "(self, cache_seconds: int) -> AsyncStaticWebHandler",
-            "doc": "Sets the cache control duration for static files.\n\nArgs:\n    cache_seconds (int): Number of seconds that the browser\n        should cache the file (e.g., 86400 for one day).\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining).\n\nNotes:\n    Transpiles to:\n        `.setCacheControl(\"max-age=<cache_seconds>\")`"
-          },
-          {
-            "name": "set_last_modified",
-            "signature": "(self, timestamp: int) -> AsyncStaticWebHandler",
-            "doc": "Sets the 'Last-Modified' timestamp header for the served files.\n\nArgs:\n    timestamp (int): UNIX timestamp representing the last\n        modification time.\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining)."
-          },
-          {
-            "name": "set_authentication",
-            "signature": "(self, user: str, password: str) -> AsyncWebHandler",
-            "doc": "Sets basic HTTP authentication credentials for the static route.\n\nArgs:\n    user (str): Username required to access the files.\n    password (str): Corresponding password.\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining)."
-          }
-        ]
-      },
-      {
-        "name": "AsyncWebServer",
-        "doc": "Dummy for AsyncWebServer.\n\nRepresents the HTTP server for asynchronous request handling.",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self, port: int)",
-            "doc": "Initializes the server on a given port.\n\nArgs:\n    port (int): Port number for the HTTP server (e.g., 80)."
-          },
-          {
-            "name": "on",
-            "signature": "(self, path: str, method: str, handler) -> None",
-            "doc": "Registers a request handler for a specific path and method.\n\nArgs:\n    path (str): The URL path to handle.\n    method (str): HTTP method as string (e.g., \"GET\", \"POST\").\n    handler (function): Function to call when the request is received.\n\nReturns:\n    None"
-          },
-          {
-            "name": "begin",
-            "signature": "(self) -> None",
-            "doc": "Starts the server. Must be called after all routes are registered.\n\nReturns:\n    None"
-          },
-          {
-            "name": "serve_static",
-            "signature": "(self, uri: str, file_path: str) -> AsyncStaticWebHandler",
-            "doc": "Serves static files from the filesystem at a given URI.\n\nArgs:\n    uri (str): The URL path prefix (e.g., \"/static\").\n    path (str): The root directory in the FS.\n    cache_control (str): Cache control header value.\n\nReturns:\n    None"
-          }
-        ]
-      }
-    ],
-    "variables": []
-  },
-  "ble_simple": {
-    "doc": "BLESimple\n=========\n\nA lightweight abstraction layer that simulates Bluetooth Low Energy (BLE)\noperations for both **Central** and **Peripheral** roles.\n\nThis class provides a Python-like API for creating, managing, and interacting\nwith BLE devices. It is designed to serve as a stub for generating or simulating\nBLE logic in microcontroller environments such as ESP32 or similar boards.\n\nSupported Features\n------------------\n- Initialize BLE in `central` or `peripheral` mode.\n- Start/stop advertising or scanning.\n- Connect and disconnect devices.\n- Define services and characteristics.\n- Read, write, and notify characteristic values.\n- Register callbacks for connection, disconnection, write, and notify events.\n\nExample Usage\n-------------\n```python\n# Initialize as a peripheral\nble = BLESimple(\"MyDevice\", \"peripheral\")\n\n# Inside setup()\nble.init_ble()\nble.add_service(\"1234\")\nble.add_characteristic(\"1234\", \"5678\", \"Hello\", readable=True, writable=True, notify=True)\nble.start()\n\n# Handle incoming writes\ndef on_write_handler(value: str):\n    print(\"Central wrote:\", value)\n\nble.on_write(\"5678\", on_write_handler)```",
-    "functions": [],
-    "classes": [
-      {
-        "name": "BLESimple",
-        "doc": "No docstring available",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self, name: str, mode: str)",
-            "doc": "Initialize a BLE device in either 'central' or 'peripheral' mode.\n\nArgs:\n    name (str): The name of the BLE device.\n    mode (str): 'peripheral' or 'central'."
-          },
-          {
-            "name": "init_ble",
-            "signature": "(self) -> None",
-            "doc": "Custom Initializer, call this inside setup."
-          },
-          {
-            "name": "start",
-            "signature": "(self) -> None",
-            "doc": "Start BLE advertising or scanning based on the mode."
-          },
-          {
-            "name": "stop",
-            "signature": "(self) -> None",
-            "doc": "Stop BLE services or connections."
-          },
-          {
-            "name": "scan",
-            "signature": "(self, timeout: int) -> list[str]",
-            "doc": "Scan for nearby BLE devices (central mode only).\n\nArgs:\n    timeout (int): Scan duration in seconds.\n\nReturns:\n    list[str]: List of device names or IDs."
-          },
-          {
-            "name": "connect_to",
-            "signature": "(self, name_or_uuid: str) -> bool",
-            "doc": "Connect to a BLE device by name or UUID.\n\nArgs:\n    name_or_uuid (str): Target device ID.\n\nReturns:\n    bool: True if successful."
-          },
-          {
-            "name": "disconnect",
-            "signature": "(self) -> None",
-            "doc": "Disconnect from any connected BLE device."
-          },
-          {
-            "name": "is_connected",
-            "signature": "(self) -> bool",
-            "doc": "Check if device is currently connected.\n\nReturns:\n    bool: Connection status."
-          },
-          {
-            "name": "add_service",
-            "signature": "(self, uuid: str) -> None",
-            "doc": "Define a BLE service (peripheral mode only).\n\nArgs:\n    uuid (str): UUID of the service."
-          },
-          {
-            "name": "add_characteristic",
-            "signature": "(self, service_uuid: str, uuid: str, value: str, readable: bool, writable: bool, notify: bool) -> None",
-            "doc": "Add a characteristic to the last-defined service.\n\nArgs:\n    service_uuid: UUID of service to be added in.\n    uuid (str): UUID of the characteristic.\n    value (str): Default value.\n    readable (bool): Whether central can read.\n    writable (bool): Whether central can write.\n    notify (bool): Whether peripheral can send notify updates."
-          },
-          {
-            "name": "read",
-            "signature": "(self, uuid: str) -> str",
-            "doc": "Read a characteristic value.\n\nArgs:\n    uuid (str): Characteristic UUID.\n\nReturns:\n    str: Value."
-          },
-          {
-            "name": "write",
-            "signature": "(self, uuid: str, value: str) -> None",
-            "doc": "Write a value to a characteristic.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    value (str): Value to write."
-          },
-          {
-            "name": "notify",
-            "signature": "(self, uuid: str, value: str) -> None",
-            "doc": "Send a notification to subscribers.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    value (str): Value to send."
-          },
-          {
-            "name": "on_connect",
-            "signature": "(self, callback) -> None",
-            "doc": "Register a function to call on connection.\n\nArgs:\n    callback (callable): Function with **no arguments**.\n        Example:\n            def handler(): ..."
-          },
-          {
-            "name": "on_disconnect",
-            "signature": "(self, callback) -> None",
-            "doc": "Register a function to call on disconnect.\n\nArgs:\n    callback (callable): Function with **no arguments**.\n        Example:\n            def handler(): ..."
-          },
-          {
-            "name": "on_write",
-            "signature": "(self, uuid: str, callback) -> None",
-            "doc": "Set a callback for write events.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    callback (callable): Function that takes **one argument (str)** \u2013 the value written by central.\n        Example:\n            def handler(value: str): ..."
-          },
-          {
-            "name": "on_notify",
-            "signature": "(self, uuid: str, callback) -> None",
-            "doc": "Set a callback for notify events.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    callback (callable): Function that takes **one argument (str)** \u2013 the notified value received.\n        Example:\n            def handler(value: str): ..."
-          },
-          {
-            "name": "get_services",
-            "signature": "(self) -> list[str]",
-            "doc": "Return all known service UUIDs.\n\nReturns:\n    list[str]: UUIDs"
-          },
-          {
-            "name": "get_characteristics",
-            "signature": "(self, service_uuid: str) -> dict[str, str]",
-            "doc": "Return characteristics under a given service.\n\nArgs:\n    service_uuid (str): Service UUID.\n\nReturns:\n    list[str]: Characteristic UUIDs."
-          }
-        ]
-      }
-    ],
-    "variables": []
-  },
   "env_vars": {
     "doc": "No module docstring available",
     "functions": [
@@ -544,402 +290,6 @@
         "doc": "No docstring available"
       }
     ],
-    "classes": [],
-    "variables": []
-  },
-  "mqtt": {
-    "doc": "No module docstring available",
-    "functions": [],
-    "classes": [
-      {
-        "name": "PubSubClient",
-        "doc": "A lightweight MQTT client for Arduino (ESP32/ESP8266) supporting publish/subscribe.",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self, wifi_client: WiFiClient) -> None",
-            "doc": "Initialize with a WiFiClient instance.\n\nArgs:\n    wifi_client: A WiFiClient instance (TCP transport layer)"
-          },
-          {
-            "name": "set_server",
-            "signature": "(self, host: str, port: int) -> None",
-            "doc": "Set the MQTT broker address and port."
-          },
-          {
-            "name": "set_callback",
-            "signature": "(self, callback_func: callable) -> None",
-            "doc": "Set the callback function for received MQTT messages."
-          },
-          {
-            "name": "connect_simple",
-            "signature": "(self, client_id: str) -> bool",
-            "doc": "Connect to the MQTT broker with just a client ID."
-          },
-          {
-            "name": "connect_with_auth",
-            "signature": "(self, client_id: str, username: str, password: str) -> bool",
-            "doc": "Connect to the MQTT broker with authentication."
-          },
-          {
-            "name": "connect_with_last_will",
-            "signature": "(self, client_id: str, will_topic: str, will_qos: int, will_retain: bool, will_message: str) -> bool",
-            "doc": "Connect with a last will message, no authentication."
-          },
-          {
-            "name": "connect_full",
-            "signature": "(self, client_id: str, username: str, password: str, will_topic: str, will_qos: int, will_retain: bool, will_message: str) -> bool",
-            "doc": "Connect with auth and last will message."
-          },
-          {
-            "name": "publish_simple",
-            "signature": "(self, topic: str, payload: str) -> bool",
-            "doc": "Publish a plain string payload to a topic."
-          },
-          {
-            "name": "publish_retained",
-            "signature": "(self, topic: str, payload: str, retained: bool) -> bool",
-            "doc": "Publish with retained flag."
-          },
-          {
-            "name": "subscribe",
-            "signature": "(self, topic: str) -> bool",
-            "doc": "Subscribe to a topic (QoS 0)."
-          },
-          {
-            "name": "subscribe_with_qos",
-            "signature": "(self, topic: str, qos: int) -> bool",
-            "doc": "Subscribe with a specific QoS."
-          },
-          {
-            "name": "unsubscribe",
-            "signature": "(self, topic: str) -> bool",
-            "doc": "Unsubscribe from a topic."
-          },
-          {
-            "name": "connected",
-            "signature": "(self) -> bool",
-            "doc": "Check if still connected to the MQTT broker."
-          },
-          {
-            "name": "disconnect",
-            "signature": "(self) -> None",
-            "doc": "Disconnect from the broker."
-          },
-          {
-            "name": "loop",
-            "signature": "(self) -> None",
-            "doc": "Handle incoming messages and maintain connection.\nMust be called regularly in `loop()`."
-          },
-          {
-            "name": "set_keep_alive",
-            "signature": "(self, keepalive_secs: int) -> None",
-            "doc": "Set MQTT keep-alive interval (seconds)."
-          },
-          {
-            "name": "setSocketTimeout",
-            "signature": "(self, timeout_secs: int) -> None",
-            "doc": "Set socket timeout in seconds."
-          },
-          {
-            "name": "set_buffer_size",
-            "signature": "(self, size: int) -> None",
-            "doc": "Set internal MQTT buffer size (bytes)."
-          }
-        ]
-      }
-    ],
-    "variables": []
-  },
-  "spiffs": {
-    "doc": "No module docstring available",
-    "functions": [
-      {
-        "name": "spiffs_begin",
-        "signature": "() -> bool",
-        "doc": "Mounts the SPIFFS filesystem.\n\nReturns:\n    bool: True if the filesystem is successfully mounted, False otherwise."
-      },
-      {
-        "name": "spiffs_end",
-        "signature": "() -> None",
-        "doc": "Unmounts the SPIFFS filesystem and releases resources."
-      },
-      {
-        "name": "spiffs_format",
-        "signature": "() -> bool",
-        "doc": "Formats the SPIFFS filesystem.\n\nReturns:\n    bool: True if formatting succeeds, False otherwise."
-      },
-      {
-        "name": "spiffs_open",
-        "signature": "(path: str, mode: str) -> None",
-        "doc": "Opens a file in the SPIFFS filesystem.\n\nArgs:\n    path (str): Path to the file.\n    mode (str): File mode (e.g., 'r', 'w', 'a').\n\nReturns:\n    File object or None: File handle if successful, None otherwise."
-      },
-      {
-        "name": "spiffs_exists",
-        "signature": "(path: str) -> bool",
-        "doc": "Checks if a file or directory exists at the specified path.\n\nArgs:\n    path (str): Path to check.\n\nReturns:\n    bool: True if the path exists, False otherwise."
-      },
-      {
-        "name": "spiffs_remove",
-        "signature": "(path: str) -> bool",
-        "doc": "Deletes a file from the SPIFFS filesystem.\n\nArgs:\n    path (str): Path of the file to delete.\n\nReturns:\n    bool: True if file is successfully removed, False otherwise."
-      },
-      {
-        "name": "spiffs_rename",
-        "signature": "(src: str, dest: str) -> bool",
-        "doc": "Renames or moves a file.\n\nArgs:\n    src (str): Source file path.\n    dest (str): Destination file path.\n\nReturns:\n    bool: True if successful, False otherwise."
-      },
-      {
-        "name": "spiffs_mkdir",
-        "signature": "(path: str) -> bool",
-        "doc": "Creates a directory in the SPIFFS filesystem.\n\nArgs:\n    path (str): Directory path.\n\nReturns:\n    bool: True if successful, False otherwise."
-      },
-      {
-        "name": "spiffs_rmdir",
-        "signature": "(path: str) -> bool",
-        "doc": "Removes a directory from the SPIFFS filesystem.\n\nArgs:\n    path (str): Directory path.\n\nReturns:\n    bool: True if successful, False otherwise."
-      },
-      {
-        "name": "spiffs_used_bytes",
-        "signature": "() -> int",
-        "doc": "Returns the number of bytes currently used in the SPIFFS filesystem.\n\nReturns:\n    int: Number of used bytes."
-      },
-      {
-        "name": "spiffs_total_bytes",
-        "signature": "() -> int",
-        "doc": "Returns the total size of the SPIFFS filesystem.\n\nReturns:\n    int: Total number of bytes available."
-      },
-      {
-        "name": "spiffs_free_bytes",
-        "signature": "() -> int",
-        "doc": "Returns the number of free bytes in the SPIFFS filesystem.\n\nReturns:\n    int: Number of free bytes available."
-      },
-      {
-        "name": "spiffs_info",
-        "signature": "() -> dict[str, str]",
-        "doc": "Prints or returns general information about the SPIFFS filesystem.\n(Custom implementation required)"
-      }
-    ],
-    "classes": [],
-    "variables": []
-  },
-  "webserver": {
-    "doc": "No module docstring available",
-    "functions": [],
-    "classes": [
-      {
-        "name": "WebServer",
-        "doc": "Dummy class for ESP32/ESP8266 synchronous WebServer.\n\nThis class provides a simple HTTP server with support for GET/POST routes.\nIt is blocking and should be used for lightweight traffic only.",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self, port: int)",
-            "doc": "Initializes the WebServer on a specified port.\n\nArgs:\n    port (int): Port number to listen on (usually 80)."
-          },
-          {
-            "name": "on",
-            "signature": "(self, path: str, method: str, handler: callable) -> WebServer",
-            "doc": "Registers a handler function for the given URL path.\n\nArgs:\n    path (str): The URL endpoint (e.g., \"/status\").\n    method (str): \"HTTP_GET\" or \"HTTP_POST\"\n    handler (callable): A function with no parameters that handles the request.\n\nExample:\n    server.on(\"/hello\", handle_hello)"
-          },
-          {
-            "name": "begin",
-            "signature": "(self) -> WebServer",
-            "doc": "Starts the web server. Must be called after all routes are registered."
-          },
-          {
-            "name": "handle_client",
-            "signature": "(self) -> WebServer",
-            "doc": "Processes incoming client requests. Should be called repeatedly in loop()."
-          },
-          {
-            "name": "send",
-            "signature": "(self, status_code: int, content_type: str, body: str) -> None",
-            "doc": "Sends an HTTP response to the client.\n\nArgs:\n    status_code (int): HTTP status code (e.g., 200, 404).\n    content_type (str): MIME type (e.g., \"text/plain\").\n    body (str): The response body."
-          },
-          {
-            "name": "has_arg",
-            "signature": "(self, name: str) -> bool",
-            "doc": "Checks if a parameter was passed in the HTTP request.\n\nArgs:\n    name (str): The name of the parameter.\n\nReturns:\n    bool: True if parameter exists, False otherwise."
-          },
-          {
-            "name": "arg",
-            "signature": "(self, name: str) -> str",
-            "doc": "Retrieves the value of a parameter from the HTTP request.\n\nArgs:\n    name (str): The name of the parameter.\n\nReturns:\n    str: The value of the parameter."
-          }
-        ]
-      }
-    ],
-    "variables": []
-  },
-  "wifi": {
-    "doc": "No module docstring available",
-    "functions": [
-      {
-        "name": "wifi_connect",
-        "signature": "(ssid: str, password: str, timeout: int) -> None",
-        "doc": "Connects to a Wi-Fi network.\n\nArgs:\n    ssid (str): The SSID of the Wi-Fi network.\n    password (str): The password for the network.\n    timeout (int): Timeout in milliseconds.\n\nReturns:\n    bool: True if connected successfully, else False."
-      },
-      {
-        "name": "wifi_begin",
-        "signature": "(ssid: str, password: str) -> None",
-        "doc": "No docstring available"
-      },
-      {
-        "name": "wifi_is_connected",
-        "signature": "() -> bool",
-        "doc": "Checks Wi-Fi connection status.\n\nReturns:\n    bool: True if connected to Wi-Fi."
-      },
-      {
-        "name": "wifi_localIP",
-        "signature": "() -> str",
-        "doc": "No docstring available"
-      },
-      {
-        "name": "wifi_get_ip",
-        "signature": "() -> str",
-        "doc": "Retrieves the IP address assigned to the board.\n\nReturns:\n    str: The local IP address as a string."
-      },
-      {
-        "name": "wifi_disconnect",
-        "signature": "() -> None",
-        "doc": "Disconnects from the Wi-Fi network.\n\nReturns:\n    None"
-      },
-      {
-        "name": "scan_network",
-        "signature": "() -> list[str]",
-        "doc": "Scan for available WiFi networks.\n\nReturns:\n    list[str]: A list of SSIDs (network names) of nearby WiFi networks.\n\nNotes:\n    - This method will call a native function: custom_wifi_helper_scan_wifi_networks().\n    - It may block briefly while scanning completes."
-      }
-    ],
-    "classes": [
-      {
-        "name": "WiFiClient",
-        "doc": "A TCP client used for making WiFi-based socket connections (e.g., to MQTT/HTTP servers).",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self) -> None",
-            "doc": "Initialize the client instance."
-          },
-          {
-            "name": "connect",
-            "signature": "(self, host: str, port: int) -> bool",
-            "doc": "Connect to a TCP server.\n\nArgs:\n    host (str): Hostname or IP address.\n    port (int): Port number.\n\nReturns:\n    bool: True if connection succeeds."
-          },
-          {
-            "name": "write",
-            "signature": "(self, data: str) -> int",
-            "doc": "Send raw data to the server.\n\nArgs:\n    data (str): Data to send.\n\nReturns:\n    int: Bytes written."
-          },
-          {
-            "name": "print",
-            "signature": "(self, data: str) -> int",
-            "doc": "Print data to the stream (human-readable).\n\nArgs:\n    data (str): Data to print.\n\nReturns:\n    int: Bytes written."
-          },
-          {
-            "name": "println",
-            "signature": "(self, data: str) -> int",
-            "doc": "Print data followed by newline.\n\nArgs:\n    data (str): Data to print.\n\nReturns:\n    int: Bytes written."
-          },
-          {
-            "name": "available",
-            "signature": "(self) -> int",
-            "doc": "Number of bytes available to read.\n\nReturns:\n    int: Available byte count."
-          },
-          {
-            "name": "read",
-            "signature": "(self) -> int",
-            "doc": "Read a single byte/char.\n\nReturns:\n    int: One byte as int."
-          },
-          {
-            "name": "read_bytes",
-            "signature": "(self, buffer: str, length: int) -> int",
-            "doc": "Read a fixed number of bytes into the provided buffer.\n\nArgs:\n    buffer (str): A string variable name that acts as the target buffer in generated code.\n    length (int): Number of bytes to read.\n\nReturns:\n    int: Number of bytes read."
-          },
-          {
-            "name": "read_string",
-            "signature": "(self) -> str",
-            "doc": "Read all available bytes as a string.\n\nReturns:\n    str: Entire stream as string."
-          },
-          {
-            "name": "peek",
-            "signature": "(self) -> int",
-            "doc": "Peek at next byte without removing.\n\nReturns:\n    int: Next byte as int."
-          },
-          {
-            "name": "flush",
-            "signature": "(self) -> None",
-            "doc": "Wait for outgoing data to be sent."
-          },
-          {
-            "name": "stop",
-            "signature": "(self) -> None",
-            "doc": "Close the TCP connection."
-          },
-          {
-            "name": "connected",
-            "signature": "(self) -> bool",
-            "doc": "Check if still connected to server.\n\nReturns:\n    bool: True if connected."
-          }
-        ]
-      }
-    ],
-    "variables": []
-  },
-  "wifi_manager": {
-    "doc": "No module docstring available",
-    "functions": [],
-    "classes": [
-      {
-        "name": "WiFiManager",
-        "doc": "A WiFi manager that auto-connects to known networks or opens a config portal for ESP32/ESP8266.",
-        "methods": [
-          {
-            "name": "__init__",
-            "signature": "(self) -> None",
-            "doc": "No docstring available"
-          },
-          {
-            "name": "set_debug_output",
-            "signature": "(self, enable: bool) -> None",
-            "doc": "Enable or disable debug logging on Serial."
-          },
-          {
-            "name": "reset_settings",
-            "signature": "(self) -> None",
-            "doc": "Clear stored WiFi credentials from flash."
-          },
-          {
-            "name": "auto_connect",
-            "signature": "(self, ap_name: str, ap_password: str) -> bool",
-            "doc": "Connect to saved WiFi or start a config portal.\n\nArgs:\n    ap_name (str): The SSID for the access point in config mode.\n    ap_password (str): Password for the access point.\n\nReturns:\n    bool: True if WiFi connection was successful."
-          },
-          {
-            "name": "start_config_portal",
-            "signature": "(self, ap_name: str, ap_password: str) -> bool",
-            "doc": "Force start the configuration portal regardless of existing WiFi credentials.\n\nArgs:\n    ap_name (str): The SSID for the access point.\n    ap_password (str): Password for the access point.\n\nReturns:\n    bool: True if WiFi connected successfully."
-          },
-          {
-            "name": "set_timeout",
-            "signature": "(self, seconds: int) -> None",
-            "doc": "Set timeout for config portal to auto-exit if no connection is made."
-          },
-          {
-            "name": "set_connect_timeout",
-            "signature": "(self, seconds: int) -> None",
-            "doc": "Set timeout for how long to wait for WiFi connection before failing."
-          },
-          {
-            "name": "set_minimum_signal_quality",
-            "signature": "(self, quality: int) -> None",
-            "doc": "Only show WiFi networks above this signal quality (in percent)."
-          }
-        ]
-      }
-    ],
-    "variables": []
-  },
-  "__init__": {
-    "doc": "No module docstring available",
-    "functions": [],
     "classes": [],
     "variables": []
   },
@@ -1311,6 +661,578 @@
     "doc": "No module docstring available",
     "functions": [],
     "classes": [],
+    "variables": []
+  },
+  "comms.async_webserver": {
+    "doc": "No module docstring available",
+    "functions": [],
+    "classes": [
+      {
+        "name": "AsyncWebServerRequest",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "    Initializes a new instance of the asynchronous HTTP server.\n\nThis constructor creates an `AsyncWebServer` object bound to a specific\nnetwork port. Once instantiated, you can register HTTP route handlers\nusing the `on()` method and start the server with `begin()`.\n\nThis class serves as a Python stub for the C++ `AsyncWebServer` class from\nthe **ESPAsyncWebServer** library, commonly used on ESP32 and ESP8266 boards.\nThe actual implementation is handled by the corresponding C++ library when\nthe transpiler generates the final firmware code.\n\n**Usage Example (Python \u2192 Arduino Transpilation):**\n    ```python\n    import async_webserver as a\n\n    server = a.AsyncWebServer(80)\n\n    def handle_root(request:a.AsyncWebServerRequest) -> None:\n        request.send(200, \"text/plain\", \"Hello from ESP!\")\n\n\n    def setup()->None:\n        server.on(\"/\", HTTP_GET, handle_root)\n        server.begin()\n\n\n    def loop()->None:\n        pass\n    ```\n\n\nArgs:\n    port (int):\n        The TCP port number on which the HTTP server will listen.\n        Typically, 80 is used for standard HTTP and 443 for HTTPS.\nReturns:\n    None"
+          },
+          {
+            "name": "send",
+            "signature": "(self, status_code: int, content_type: str, body: str) -> None",
+            "doc": "Sends a response to the HTTP client.\n\nArgs:\n    status_code (int): HTTP status code (e.g., 200, 404).\n    content_type (str): MIME type of the response (e.g., \"text/html\").\n    body (str): Response body content.\n\nReturns:\n    None"
+          },
+          {
+            "name": "arg",
+            "signature": "(self, name: str) -> str",
+            "doc": "Gets the value of a URL parameter or POST argument by name.\n\nArgs:\n    name (str): Name of the argument to retrieve.\n\nReturns:\n    str: Value of the argument or empty string if not found."
+          },
+          {
+            "name": "has_param",
+            "signature": "(self, name: str) -> bool",
+            "doc": "Checks if a given parameter exists in the request.\n\nArgs:\n    name (str): Name of the parameter.\n\nReturns:\n    bool: True if parameter exists, False otherwise."
+          }
+        ]
+      },
+      {
+        "name": "AsyncWebHandler",
+        "doc": "Python representation of the C++ `AsyncWebHandler` class from ESPAsyncWebServer.\n\nThis class acts as an abstract base for web request handlers such as\n`AsyncStaticWebHandler` or `AsyncCallbackWebHandler`.\n\nIt provides methods for:\n  - Determining whether a handler can process a given request.\n  - Executing the request handler.\n  - Applying authentication and filters.\n  - Controlling handler priority and behavior.\n\nNote:\n    This class should generally not be instantiated directly.\n    Instead, use subclasses that implement `can_handle()` and `handle_request()`.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "Initialize an AsyncWebHandler instance.\n\nThis constructor sets `__use_as_is__` to False,\nmeaning the transpiler should not instantiate this class directly."
+          },
+          {
+            "name": "can_handle",
+            "signature": "(self, request: AsyncWebServerRequest) -> bool",
+            "doc": "Determine whether this handler can process the incoming request.\n\nArgs:\n    request (AsyncWebServerRequest): The HTTP request object.\n\nReturns:\n    bool: True if the handler can handle the request; False otherwise.\n\nTranslation:\n    {0}.canHandle({1})"
+          },
+          {
+            "name": "handle_request",
+            "signature": "(self, request: AsyncWebServerRequest) -> None",
+            "doc": "Handle the incoming web request.\n\nArgs:\n    request (AsyncWebServerRequest): The HTTP request to process.\n\nTranslation:\n    {0}.handleRequest({1})"
+          },
+          {
+            "name": "is_request_handler_trivial",
+            "signature": "(self) -> bool",
+            "doc": "Check whether this handler performs trivial (lightweight) processing.\n\nReturns:\n    bool: True if the handler is trivial; False otherwise.\n\nTranslation:\n    {0}.isRequestHandlerTrivial()"
+          },
+          {
+            "name": "set_authentication",
+            "signature": "(self, username: str, password: str) -> AsyncWebHandler",
+            "doc": "Protect this handler with basic authentication.\n\nArgs:\n    username (str): The HTTP Basic Auth username.\n    password (str): The HTTP Basic Auth password.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setAuthentication({1}, {2})"
+          },
+          {
+            "name": "set_filter",
+            "signature": "(self, filter_func) -> AsyncWebHandler",
+            "doc": "Assign a filter function that decides if this handler should process a request.\n\nArgs:\n    filter_func (ArRequestFilterFunction): The filtering function.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setFilter({1})"
+          },
+          {
+            "name": "filter",
+            "signature": "(self, request: AsyncWebServerRequest) -> bool",
+            "doc": "Run the filter function associated with this handler.\n\nArgs:\n    request (AsyncWebServerRequest): The request to evaluate.\n\nReturns:\n    bool: True if the handler should process this request.\n\nTranslation:\n    {0}.filter({1})"
+          },
+          {
+            "name": "set_priority",
+            "signature": "(self, priority: int) -> AsyncWebHandler",
+            "doc": "Assign a priority level to this handler.\n\nArgs:\n    priority (int): The priority value (higher = earlier execution).\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setPriority({1})"
+          },
+          {
+            "name": "priority",
+            "signature": "(self) -> int",
+            "doc": "Get the priority value assigned to this handler.\n\nReturns:\n    int: The priority level.\n\nTranslation:\n    {0}.priority()"
+          },
+          {
+            "name": "on_request",
+            "signature": "(self) -> AsyncWebHandler",
+            "doc": "Assign a custom callback to handle incoming requests.\n\nArgs:\n    callback (ArRequestHandlerFunction): The function that processes the request.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.onRequest({1})"
+          }
+        ]
+      },
+      {
+        "name": "AsyncStaticWebHandler",
+        "doc": "Represents a static file handler returned by `AsyncWebServer.serve_static()`.\n\nThis class allows chaining configuration methods such as\n`set_default_file()`, `set_cache_control()`, `set_last_modified()`,\nand `set_authentication()`.\n\nExample:\n    ```python\n    server.serve_static(\"/\", \"/www\", 86400)               .set_default_file(\"index.html\")               .set_authentication(\"user\", \"pass\")\n    ```",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "This class should not be instantiated directly.\n\nInstances are automatically returned when calling\n`AsyncWebServer.serve_static()`."
+          },
+          {
+            "name": "set_default_file",
+            "signature": "(self, filename: str) -> AsyncStaticWebHandler",
+            "doc": "Sets the default file to serve when a directory is requested.\n\nArgs:\n    filename (str): The file name to serve by default\n        (e.g., \"index.html\").\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining)."
+          },
+          {
+            "name": "set_cache_control",
+            "signature": "(self, cache_seconds: int) -> AsyncStaticWebHandler",
+            "doc": "Sets the cache control duration for static files.\n\nArgs:\n    cache_seconds (int): Number of seconds that the browser\n        should cache the file (e.g., 86400 for one day).\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining).\n\nNotes:\n    Transpiles to:\n        `.setCacheControl(\"max-age=<cache_seconds>\")`"
+          },
+          {
+            "name": "set_last_modified",
+            "signature": "(self, timestamp: int) -> AsyncStaticWebHandler",
+            "doc": "Sets the 'Last-Modified' timestamp header for the served files.\n\nArgs:\n    timestamp (int): UNIX timestamp representing the last\n        modification time.\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining)."
+          },
+          {
+            "name": "set_authentication",
+            "signature": "(self, user: str, password: str) -> AsyncWebHandler",
+            "doc": "Sets basic HTTP authentication credentials for the static route.\n\nArgs:\n    user (str): Username required to access the files.\n    password (str): Corresponding password.\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining)."
+          }
+        ]
+      },
+      {
+        "name": "AsyncWebServer",
+        "doc": "Dummy for AsyncWebServer.\n\nRepresents the HTTP server for asynchronous request handling.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, port: int)",
+            "doc": "Initializes the server on a given port.\n\nArgs:\n    port (int): Port number for the HTTP server (e.g., 80)."
+          },
+          {
+            "name": "on",
+            "signature": "(self, path: str, method: str, handler) -> None",
+            "doc": "Registers a request handler for a specific path and method.\n\nArgs:\n    path (str): The URL path to handle.\n    method (str): HTTP method as string (e.g., \"GET\", \"POST\").\n    handler (function): Function to call when the request is received.\n\nReturns:\n    None"
+          },
+          {
+            "name": "begin",
+            "signature": "(self) -> None",
+            "doc": "Starts the server. Must be called after all routes are registered.\n\nReturns:\n    None"
+          },
+          {
+            "name": "serve_static",
+            "signature": "(self, uri: str, file_path: str) -> AsyncStaticWebHandler",
+            "doc": "Serves static files from the filesystem at a given URI.\n\nArgs:\n    uri (str): The URL path prefix (e.g., \"/static\").\n    path (str): The root directory in the FS.\n    cache_control (str): Cache control header value.\n\nReturns:\n    None"
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "comms.ble_simple": {
+    "doc": "BLESimple\n=========\n\nA lightweight abstraction layer that simulates Bluetooth Low Energy (BLE)\noperations for both **Central** and **Peripheral** roles.\n\nThis class provides a Python-like API for creating, managing, and interacting\nwith BLE devices. It is designed to serve as a stub for generating or simulating\nBLE logic in microcontroller environments such as ESP32 or similar boards.\n\nSupported Features\n------------------\n- Initialize BLE in `central` or `peripheral` mode.\n- Start/stop advertising or scanning.\n- Connect and disconnect devices.\n- Define services and characteristics.\n- Read, write, and notify characteristic values.\n- Register callbacks for connection, disconnection, write, and notify events.\n\nExample Usage\n-------------\n```python\n# Initialize as a peripheral\nble = BLESimple(\"MyDevice\", \"peripheral\")\n\n# Inside setup()\nble.init_ble()\nble.add_service(\"1234\")\nble.add_characteristic(\"1234\", \"5678\", \"Hello\", readable=True, writable=True, notify=True)\nble.start()\n\n# Handle incoming writes\ndef on_write_handler(value: str):\n    print(\"Central wrote:\", value)\n\nble.on_write(\"5678\", on_write_handler)```",
+    "functions": [],
+    "classes": [
+      {
+        "name": "BLESimple",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, name: str, mode: str)",
+            "doc": "Initialize a BLE device in either 'central' or 'peripheral' mode.\n\nArgs:\n    name (str): The name of the BLE device.\n    mode (str): 'peripheral' or 'central'."
+          },
+          {
+            "name": "init_ble",
+            "signature": "(self) -> None",
+            "doc": "Custom Initializer, call this inside setup."
+          },
+          {
+            "name": "start",
+            "signature": "(self) -> None",
+            "doc": "Start BLE advertising or scanning based on the mode."
+          },
+          {
+            "name": "stop",
+            "signature": "(self) -> None",
+            "doc": "Stop BLE services or connections."
+          },
+          {
+            "name": "scan",
+            "signature": "(self, timeout: int) -> list[str]",
+            "doc": "Scan for nearby BLE devices (central mode only).\n\nArgs:\n    timeout (int): Scan duration in seconds.\n\nReturns:\n    list[str]: List of device names or IDs."
+          },
+          {
+            "name": "connect_to",
+            "signature": "(self, name_or_uuid: str) -> bool",
+            "doc": "Connect to a BLE device by name or UUID.\n\nArgs:\n    name_or_uuid (str): Target device ID.\n\nReturns:\n    bool: True if successful."
+          },
+          {
+            "name": "disconnect",
+            "signature": "(self) -> None",
+            "doc": "Disconnect from any connected BLE device."
+          },
+          {
+            "name": "is_connected",
+            "signature": "(self) -> bool",
+            "doc": "Check if device is currently connected.\n\nReturns:\n    bool: Connection status."
+          },
+          {
+            "name": "add_service",
+            "signature": "(self, uuid: str) -> None",
+            "doc": "Define a BLE service (peripheral mode only).\n\nArgs:\n    uuid (str): UUID of the service."
+          },
+          {
+            "name": "add_characteristic",
+            "signature": "(self, service_uuid: str, uuid: str, value: str, readable: bool, writable: bool, notify: bool) -> None",
+            "doc": "Add a characteristic to the last-defined service.\n\nArgs:\n    service_uuid: UUID of service to be added in.\n    uuid (str): UUID of the characteristic.\n    value (str): Default value.\n    readable (bool): Whether central can read.\n    writable (bool): Whether central can write.\n    notify (bool): Whether peripheral can send notify updates."
+          },
+          {
+            "name": "read",
+            "signature": "(self, uuid: str) -> str",
+            "doc": "Read a characteristic value.\n\nArgs:\n    uuid (str): Characteristic UUID.\n\nReturns:\n    str: Value."
+          },
+          {
+            "name": "write",
+            "signature": "(self, uuid: str, value: str) -> None",
+            "doc": "Write a value to a characteristic.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    value (str): Value to write."
+          },
+          {
+            "name": "notify",
+            "signature": "(self, uuid: str, value: str) -> None",
+            "doc": "Send a notification to subscribers.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    value (str): Value to send."
+          },
+          {
+            "name": "on_connect",
+            "signature": "(self, callback) -> None",
+            "doc": "Register a function to call on connection.\n\nArgs:\n    callback (callable): Function with **no arguments**.\n        Example:\n            def handler(): ..."
+          },
+          {
+            "name": "on_disconnect",
+            "signature": "(self, callback) -> None",
+            "doc": "Register a function to call on disconnect.\n\nArgs:\n    callback (callable): Function with **no arguments**.\n        Example:\n            def handler(): ..."
+          },
+          {
+            "name": "on_write",
+            "signature": "(self, uuid: str, callback) -> None",
+            "doc": "Set a callback for write events.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    callback (callable): Function that takes **one argument (str)** \u2013 the value written by central.\n        Example:\n            def handler(value: str): ..."
+          },
+          {
+            "name": "on_notify",
+            "signature": "(self, uuid: str, callback) -> None",
+            "doc": "Set a callback for notify events.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    callback (callable): Function that takes **one argument (str)** \u2013 the notified value received.\n        Example:\n            def handler(value: str): ..."
+          },
+          {
+            "name": "get_services",
+            "signature": "(self) -> list[str]",
+            "doc": "Return all known service UUIDs.\n\nReturns:\n    list[str]: UUIDs"
+          },
+          {
+            "name": "get_characteristics",
+            "signature": "(self, service_uuid: str) -> dict[str, str]",
+            "doc": "Return characteristics under a given service.\n\nArgs:\n    service_uuid (str): Service UUID.\n\nReturns:\n    list[str]: Characteristic UUIDs."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "comms.mqtt": {
+    "doc": "No module docstring available",
+    "functions": [],
+    "classes": [
+      {
+        "name": "PubSubClient",
+        "doc": "A lightweight MQTT client for Arduino (ESP32/ESP8266) supporting publish/subscribe.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, wifi_client: WiFiClient) -> None",
+            "doc": "Initialize with a WiFiClient instance.\n\nArgs:\n    wifi_client: A WiFiClient instance (TCP transport layer)"
+          },
+          {
+            "name": "set_server",
+            "signature": "(self, host: str, port: int) -> None",
+            "doc": "Set the MQTT broker address and port."
+          },
+          {
+            "name": "set_callback",
+            "signature": "(self, callback_func: callable) -> None",
+            "doc": "Set the callback function for received MQTT messages."
+          },
+          {
+            "name": "connect_simple",
+            "signature": "(self, client_id: str) -> bool",
+            "doc": "Connect to the MQTT broker with just a client ID."
+          },
+          {
+            "name": "connect_with_auth",
+            "signature": "(self, client_id: str, username: str, password: str) -> bool",
+            "doc": "Connect to the MQTT broker with authentication."
+          },
+          {
+            "name": "connect_with_last_will",
+            "signature": "(self, client_id: str, will_topic: str, will_qos: int, will_retain: bool, will_message: str) -> bool",
+            "doc": "Connect with a last will message, no authentication."
+          },
+          {
+            "name": "connect_full",
+            "signature": "(self, client_id: str, username: str, password: str, will_topic: str, will_qos: int, will_retain: bool, will_message: str) -> bool",
+            "doc": "Connect with auth and last will message."
+          },
+          {
+            "name": "publish_simple",
+            "signature": "(self, topic: str, payload: str) -> bool",
+            "doc": "Publish a plain string payload to a topic."
+          },
+          {
+            "name": "publish_retained",
+            "signature": "(self, topic: str, payload: str, retained: bool) -> bool",
+            "doc": "Publish with retained flag."
+          },
+          {
+            "name": "subscribe",
+            "signature": "(self, topic: str) -> bool",
+            "doc": "Subscribe to a topic (QoS 0)."
+          },
+          {
+            "name": "subscribe_with_qos",
+            "signature": "(self, topic: str, qos: int) -> bool",
+            "doc": "Subscribe with a specific QoS."
+          },
+          {
+            "name": "unsubscribe",
+            "signature": "(self, topic: str) -> bool",
+            "doc": "Unsubscribe from a topic."
+          },
+          {
+            "name": "connected",
+            "signature": "(self) -> bool",
+            "doc": "Check if still connected to the MQTT broker."
+          },
+          {
+            "name": "disconnect",
+            "signature": "(self) -> None",
+            "doc": "Disconnect from the broker."
+          },
+          {
+            "name": "loop",
+            "signature": "(self) -> None",
+            "doc": "Handle incoming messages and maintain connection.\nMust be called regularly in `loop()`."
+          },
+          {
+            "name": "set_keep_alive",
+            "signature": "(self, keepalive_secs: int) -> None",
+            "doc": "Set MQTT keep-alive interval (seconds)."
+          },
+          {
+            "name": "setSocketTimeout",
+            "signature": "(self, timeout_secs: int) -> None",
+            "doc": "Set socket timeout in seconds."
+          },
+          {
+            "name": "set_buffer_size",
+            "signature": "(self, size: int) -> None",
+            "doc": "Set internal MQTT buffer size (bytes)."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "comms.webserver": {
+    "doc": "No module docstring available",
+    "functions": [],
+    "classes": [
+      {
+        "name": "WebServer",
+        "doc": "Dummy class for ESP32/ESP8266 synchronous WebServer.\n\nThis class provides a simple HTTP server with support for GET/POST routes.\nIt is blocking and should be used for lightweight traffic only.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, port: int)",
+            "doc": "Initializes the WebServer on a specified port.\n\nArgs:\n    port (int): Port number to listen on (usually 80)."
+          },
+          {
+            "name": "on",
+            "signature": "(self, path: str, method: str, handler: callable) -> WebServer",
+            "doc": "Registers a handler function for the given URL path.\n\nArgs:\n    path (str): The URL endpoint (e.g., \"/status\").\n    method (str): \"HTTP_GET\" or \"HTTP_POST\"\n    handler (callable): A function with no parameters that handles the request.\n\nExample:\n    server.on(\"/hello\", handle_hello)"
+          },
+          {
+            "name": "begin",
+            "signature": "(self) -> WebServer",
+            "doc": "Starts the web server. Must be called after all routes are registered."
+          },
+          {
+            "name": "handle_client",
+            "signature": "(self) -> WebServer",
+            "doc": "Processes incoming client requests. Should be called repeatedly in loop()."
+          },
+          {
+            "name": "send",
+            "signature": "(self, status_code: int, content_type: str, body: str) -> None",
+            "doc": "Sends an HTTP response to the client.\n\nArgs:\n    status_code (int): HTTP status code (e.g., 200, 404).\n    content_type (str): MIME type (e.g., \"text/plain\").\n    body (str): The response body."
+          },
+          {
+            "name": "has_arg",
+            "signature": "(self, name: str) -> bool",
+            "doc": "Checks if a parameter was passed in the HTTP request.\n\nArgs:\n    name (str): The name of the parameter.\n\nReturns:\n    bool: True if parameter exists, False otherwise."
+          },
+          {
+            "name": "arg",
+            "signature": "(self, name: str) -> str",
+            "doc": "Retrieves the value of a parameter from the HTTP request.\n\nArgs:\n    name (str): The name of the parameter.\n\nReturns:\n    str: The value of the parameter."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "comms.wifi": {
+    "doc": "No module docstring available",
+    "functions": [
+      {
+        "name": "wifi_connect",
+        "signature": "(ssid: str, password: str, timeout: int) -> None",
+        "doc": "Connects to a Wi-Fi network.\n\nArgs:\n    ssid (str): The SSID of the Wi-Fi network.\n    password (str): The password for the network.\n    timeout (int): Timeout in milliseconds.\n\nReturns:\n    bool: True if connected successfully, else False."
+      },
+      {
+        "name": "wifi_begin",
+        "signature": "(ssid: str, password: str) -> None",
+        "doc": "No docstring available"
+      },
+      {
+        "name": "wifi_is_connected",
+        "signature": "() -> bool",
+        "doc": "Checks Wi-Fi connection status.\n\nReturns:\n    bool: True if connected to Wi-Fi."
+      },
+      {
+        "name": "wifi_localIP",
+        "signature": "() -> str",
+        "doc": "No docstring available"
+      },
+      {
+        "name": "wifi_get_ip",
+        "signature": "() -> str",
+        "doc": "Retrieves the IP address assigned to the board.\n\nReturns:\n    str: The local IP address as a string."
+      },
+      {
+        "name": "wifi_disconnect",
+        "signature": "() -> None",
+        "doc": "Disconnects from the Wi-Fi network.\n\nReturns:\n    None"
+      },
+      {
+        "name": "scan_network",
+        "signature": "() -> list[str]",
+        "doc": "Scan for available WiFi networks.\n\nReturns:\n    list[str]: A list of SSIDs (network names) of nearby WiFi networks.\n\nNotes:\n    - This method will call a native function: custom_wifi_helper_scan_wifi_networks().\n    - It may block briefly while scanning completes."
+      }
+    ],
+    "classes": [
+      {
+        "name": "WiFiClient",
+        "doc": "A TCP client used for making WiFi-based socket connections (e.g., to MQTT/HTTP servers).",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self) -> None",
+            "doc": "Initialize the client instance."
+          },
+          {
+            "name": "connect",
+            "signature": "(self, host: str, port: int) -> bool",
+            "doc": "Connect to a TCP server.\n\nArgs:\n    host (str): Hostname or IP address.\n    port (int): Port number.\n\nReturns:\n    bool: True if connection succeeds."
+          },
+          {
+            "name": "write",
+            "signature": "(self, data: str) -> int",
+            "doc": "Send raw data to the server.\n\nArgs:\n    data (str): Data to send.\n\nReturns:\n    int: Bytes written."
+          },
+          {
+            "name": "print",
+            "signature": "(self, data: str) -> int",
+            "doc": "Print data to the stream (human-readable).\n\nArgs:\n    data (str): Data to print.\n\nReturns:\n    int: Bytes written."
+          },
+          {
+            "name": "println",
+            "signature": "(self, data: str) -> int",
+            "doc": "Print data followed by newline.\n\nArgs:\n    data (str): Data to print.\n\nReturns:\n    int: Bytes written."
+          },
+          {
+            "name": "available",
+            "signature": "(self) -> int",
+            "doc": "Number of bytes available to read.\n\nReturns:\n    int: Available byte count."
+          },
+          {
+            "name": "read",
+            "signature": "(self) -> int",
+            "doc": "Read a single byte/char.\n\nReturns:\n    int: One byte as int."
+          },
+          {
+            "name": "read_bytes",
+            "signature": "(self, buffer: str, length: int) -> int",
+            "doc": "Read a fixed number of bytes into the provided buffer.\n\nArgs:\n    buffer (str): A string variable name that acts as the target buffer in generated code.\n    length (int): Number of bytes to read.\n\nReturns:\n    int: Number of bytes read."
+          },
+          {
+            "name": "read_string",
+            "signature": "(self) -> str",
+            "doc": "Read all available bytes as a string.\n\nReturns:\n    str: Entire stream as string."
+          },
+          {
+            "name": "peek",
+            "signature": "(self) -> int",
+            "doc": "Peek at next byte without removing.\n\nReturns:\n    int: Next byte as int."
+          },
+          {
+            "name": "flush",
+            "signature": "(self) -> None",
+            "doc": "Wait for outgoing data to be sent."
+          },
+          {
+            "name": "stop",
+            "signature": "(self) -> None",
+            "doc": "Close the TCP connection."
+          },
+          {
+            "name": "connected",
+            "signature": "(self) -> bool",
+            "doc": "Check if still connected to server.\n\nReturns:\n    bool: True if connected."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "comms.wifi_manager": {
+    "doc": "No module docstring available",
+    "functions": [],
+    "classes": [
+      {
+        "name": "WiFiManager",
+        "doc": "A WiFi manager that auto-connects to known networks or opens a config portal for ESP32/ESP8266.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "set_debug_output",
+            "signature": "(self, enable: bool) -> None",
+            "doc": "Enable or disable debug logging on Serial."
+          },
+          {
+            "name": "reset_settings",
+            "signature": "(self) -> None",
+            "doc": "Clear stored WiFi credentials from flash."
+          },
+          {
+            "name": "auto_connect",
+            "signature": "(self, ap_name: str, ap_password: str) -> bool",
+            "doc": "Connect to saved WiFi or start a config portal.\n\nArgs:\n    ap_name (str): The SSID for the access point in config mode.\n    ap_password (str): Password for the access point.\n\nReturns:\n    bool: True if WiFi connection was successful."
+          },
+          {
+            "name": "start_config_portal",
+            "signature": "(self, ap_name: str, ap_password: str) -> bool",
+            "doc": "Force start the configuration portal regardless of existing WiFi credentials.\n\nArgs:\n    ap_name (str): The SSID for the access point.\n    ap_password (str): Password for the access point.\n\nReturns:\n    bool: True if WiFi connected successfully."
+          },
+          {
+            "name": "set_timeout",
+            "signature": "(self, seconds: int) -> None",
+            "doc": "Set timeout for config portal to auto-exit if no connection is made."
+          },
+          {
+            "name": "set_connect_timeout",
+            "signature": "(self, seconds: int) -> None",
+            "doc": "Set timeout for how long to wait for WiFi connection before failing."
+          },
+          {
+            "name": "set_minimum_signal_quality",
+            "signature": "(self, quality: int) -> None",
+            "doc": "Only show WiFi networks above this signal quality (in percent)."
+          }
+        ]
+      }
+    ],
     "variables": []
   },
   "sensors.adxl345": {
@@ -2540,6 +2462,78 @@
         ]
       }
     ],
+    "variables": []
+  },
+  "storage.spiffs": {
+    "doc": "No module docstring available",
+    "functions": [
+      {
+        "name": "spiffs_begin",
+        "signature": "() -> bool",
+        "doc": "Mounts the SPIFFS filesystem.\n\nReturns:\n    bool: True if the filesystem is successfully mounted, False otherwise."
+      },
+      {
+        "name": "spiffs_end",
+        "signature": "() -> None",
+        "doc": "Unmounts the SPIFFS filesystem and releases resources."
+      },
+      {
+        "name": "spiffs_format",
+        "signature": "() -> bool",
+        "doc": "Formats the SPIFFS filesystem.\n\nReturns:\n    bool: True if formatting succeeds, False otherwise."
+      },
+      {
+        "name": "spiffs_open",
+        "signature": "(path: str, mode: str) -> None",
+        "doc": "Opens a file in the SPIFFS filesystem.\n\nArgs:\n    path (str): Path to the file.\n    mode (str): File mode (e.g., 'r', 'w', 'a').\n\nReturns:\n    File object or None: File handle if successful, None otherwise."
+      },
+      {
+        "name": "spiffs_exists",
+        "signature": "(path: str) -> bool",
+        "doc": "Checks if a file or directory exists at the specified path.\n\nArgs:\n    path (str): Path to check.\n\nReturns:\n    bool: True if the path exists, False otherwise."
+      },
+      {
+        "name": "spiffs_remove",
+        "signature": "(path: str) -> bool",
+        "doc": "Deletes a file from the SPIFFS filesystem.\n\nArgs:\n    path (str): Path of the file to delete.\n\nReturns:\n    bool: True if file is successfully removed, False otherwise."
+      },
+      {
+        "name": "spiffs_rename",
+        "signature": "(src: str, dest: str) -> bool",
+        "doc": "Renames or moves a file.\n\nArgs:\n    src (str): Source file path.\n    dest (str): Destination file path.\n\nReturns:\n    bool: True if successful, False otherwise."
+      },
+      {
+        "name": "spiffs_mkdir",
+        "signature": "(path: str) -> bool",
+        "doc": "Creates a directory in the SPIFFS filesystem.\n\nArgs:\n    path (str): Directory path.\n\nReturns:\n    bool: True if successful, False otherwise."
+      },
+      {
+        "name": "spiffs_rmdir",
+        "signature": "(path: str) -> bool",
+        "doc": "Removes a directory from the SPIFFS filesystem.\n\nArgs:\n    path (str): Directory path.\n\nReturns:\n    bool: True if successful, False otherwise."
+      },
+      {
+        "name": "spiffs_used_bytes",
+        "signature": "() -> int",
+        "doc": "Returns the number of bytes currently used in the SPIFFS filesystem.\n\nReturns:\n    int: Number of used bytes."
+      },
+      {
+        "name": "spiffs_total_bytes",
+        "signature": "() -> int",
+        "doc": "Returns the total size of the SPIFFS filesystem.\n\nReturns:\n    int: Total number of bytes available."
+      },
+      {
+        "name": "spiffs_free_bytes",
+        "signature": "() -> int",
+        "doc": "Returns the number of free bytes in the SPIFFS filesystem.\n\nReturns:\n    int: Number of free bytes available."
+      },
+      {
+        "name": "spiffs_info",
+        "signature": "() -> dict[str, str]",
+        "doc": "Prints or returns general information about the SPIFFS filesystem.\n(Custom implementation required)"
+      }
+    ],
+    "classes": [],
     "variables": []
   }
 }

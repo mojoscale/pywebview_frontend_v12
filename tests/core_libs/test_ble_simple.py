@@ -1,4 +1,4 @@
-import ble_simple as b
+import comms.ble_simple as b
 
 
 def on_write_handler(value: str) -> None:

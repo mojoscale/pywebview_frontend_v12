@@ -49,7 +49,7 @@ def convert_to_stub(py_file: Path) -> str:
 
 def generate_pyi_stubs(core_lib_path: str):
     core_path = Path(core_lib_path).resolve()
-    output_base = Path.cwd() / "core_stubs"
+    output_base = Path.cwd() / "core" / "transpiler" / "core_stubs"
 
     for root, _, files in os.walk(core_path):
         root_path = Path(root)
