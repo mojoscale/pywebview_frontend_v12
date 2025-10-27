@@ -17,8 +17,13 @@ import json
 import sqlite3
 
 import datetime
-
-from .utils import get_app_dir, check_or_create_app_dir, STARTER_CODE
+import re
+from core.utils import (
+    get_app_dir,
+    check_or_create_app_dir,
+    STARTER_CODE,
+    get_platform_for_board_id,
+)
 
 # Ensure db folder exists
 check_or_create_app_dir()
@@ -103,6 +108,41 @@ def create_new_project(name, description, metadata={}):
     create_project_files(str(new_project.project_id))
 
     return new_project  # no need to call .save() again
+
+
+def update_project_details(payload: dict):
+    project_id = payload.get("project_id")
+    project = Project.get(project_id=project_id)
+    print(
+        f"project is {type(project)} and project_id is {project_id} amd name {project.name}"
+    )
+    if "name" in payload:
+        project.name = payload["name"]
+
+    if "description" in payload:
+        project.description = payload["description"]
+
+    if "board_name_id" in payload:
+        board_name_id = payload["board_name_id"]
+        print(f"new board name id is {board_name_id}")
+        if board_name_id != "":
+            match = re.match(r"^(.*)\s+\((.*)\)$", board_name_id)
+            board_name = match.group(1).strip()
+            board_id = match.group(2).strip()
+            platform = get_platform_for_board_id(board_id)
+            print(f"{board_name}-{board_id}-{platform}")
+
+            metadata = project.metadata
+            print(f"metadata is {metadata}")
+            metadata["board_name"] = board_name
+            metadata["board_id"] = board_id
+            metadata["platform"] = platform
+            print(f"new metadata is {metadata}")
+
+            project.metadata = metadata
+
+    project.save()
+    return
 
 
 def _serialize_value(value):

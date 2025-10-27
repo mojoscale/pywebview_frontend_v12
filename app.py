@@ -28,6 +28,7 @@ from core.db import (
     get_core_db_conn,
     update_project_files,
     get_project_code_from_id,
+    update_project_details,
 )
 
 from core.transpiler.generate_pyi import generate_pyi_stubs, CORE_LIBS
@@ -65,6 +66,7 @@ class Api:
         self.main_loop = None
         self.compile_queue = None
         self.loop_ready = False
+        self.compile_status = {}
 
     # ------------------------
     # General app utils
@@ -97,9 +99,15 @@ class Api:
             metadata["board_name"] = board_name
             metadata["board_id"] = board_id
             metadata["platform"] = platform
-        create_new_project(
-            project_details["name"], project_details["description"], metadata=metadata
-        )
+
+            description = ""
+
+            if "description" in project_details:
+                description = project_details["description"]
+        create_new_project(project_details["name"], description, metadata=metadata)
+
+    def update_project(self, payload: dict):
+        return update_project_details(payload)
 
     # ------------------------
     # Serial + Modules
@@ -207,6 +215,71 @@ class Api:
                     print(f"   {line}")
             return []
 
+    def format_code_simple(self, code: str) -> str:
+        """Lightweight fallback formatter (no external deps)."""
+        try:
+            lines = code.splitlines()
+            result = []
+            indent = 0
+            in_str = False
+            str_delim = None
+            prev_blank = False
+
+            for raw in lines:
+                stripped = raw.strip()
+
+                # skip consecutive blank lines
+                if not stripped:
+                    if not prev_blank:
+                        result.append("")
+                    prev_blank = True
+                    continue
+                prev_blank = False
+
+                # detect triple-quoted strings
+                for delim in ('"""', "'''"):
+                    count = stripped.count(delim)
+                    if count == 1:
+                        in_str = not in_str
+                        str_delim = delim
+                    elif count >= 2 and in_str and delim == str_delim:
+                        in_str = False
+
+                if in_str:
+                    result.append(raw)
+                    continue
+
+                first_word = stripped.split()[0] if stripped else ""
+
+                if first_word in {"else", "elif", "except", "finally"}:
+                    indent = max(0, indent - 1)
+                elif first_word in {"return", "break", "continue", "pass", "raise"}:
+                    orig_indent = (len(raw) - len(stripped)) // 4
+                    if orig_indent < indent:
+                        indent = orig_indent
+
+                result.append("    " * indent + stripped)
+
+                if stripped.endswith(":") and not stripped.startswith("@"):
+                    indent += 1
+
+            # remove leading/trailing blank lines
+            return "\n".join([ln for ln in result]).strip("\n")
+        except Exception as e:
+            print(f"Format error: {e}")
+            return code
+
+    def format_code(self, code: str) -> str:
+        """Format Python code using Black if available, else fallback."""
+        try:
+            import black
+
+            mode = black.Mode()
+            return black.format_str(code, mode=mode)
+        except Exception as e:
+            print(f"[Black unavailable or failed: {e}] using fallback formatter")
+            return self.format_code_simple(code)
+
     # ------------------------
     # Project files
     # ------------------------
@@ -220,6 +293,8 @@ class Api:
     # ------------------------
     # Compilation
     # ------------------------
+    # Add to your __init__ method
+
     def compile(self, project_id, upload=False, port=None):
         """Schedule a compile job and return immediately."""
         project = get_project_from_id(project_id)
@@ -248,6 +323,14 @@ class Api:
         if not self.loop_ready:
             return {"success": False, "error": "Main loop not ready"}
 
+        # Initialize compile status
+        self.compile_status[project_id] = {
+            "completed": False,
+            "success": False,
+            "in_progress": True,
+            "message": "Compilation scheduled",
+        }
+
         # Push into async compile queue
         self.main_loop.call_soon_threadsafe(self.compile_queue.put_nowait, task)
         return {"success": True, "message": "Compilation scheduled"}
@@ -257,11 +340,9 @@ class Api:
         self.loop_ready = True
         while True:
             task = await self.compile_queue.get()
+            project_id = task["project_id"]
+
             try:
-                print(
-                    f"⚡ Compiling project {task['project_id']} "
-                    f"for board={task['board']}, platform={task['platform']}"
-                )
                 result = await compile_project(
                     task["code_files"],
                     task["board"],
@@ -271,20 +352,34 @@ class Api:
                     port=task["port"],
                 )
 
-                # Ensure JSON-safe
-                safe_result = {}
-                for k, v in result.items():
-                    if isinstance(v, (str, int, float, bool, type(None), list, dict)):
-                        safe_result[k] = v
-                    else:
-                        safe_result[k] = str(v)
+                # Update completion status
+                self.compile_status[project_id] = {
+                    "completed": True,
+                    "success": result.get("success", False),
+                    "in_progress": False,
+                    "message": result.get("message", "Compilation completed"),
+                    "error": result.get("error"),
+                    "warnings": result.get("warnings", []),
+                    "specs": result.get("specs", {}),
+                    "suggestions": result.get("suggestions", []),
+                }
 
-                print(f"✅ Compile finished: {safe_result}")
-                # TODO: push to frontend via evaluate_js if desired
             except Exception as e:
-                print(f"❌ Compile failed: {e}")
+                self.compile_status[project_id] = {
+                    "completed": True,
+                    "success": False,
+                    "in_progress": False,
+                    "error": str(e),
+                }
             finally:
-                self.compile_queue.task_done
+                self.compile_queue.task_done()
+
+    def get_compile_status(self, project_id):
+        """Get the current compilation status for a project"""
+        if project_id not in self.compile_status:
+            return {"exists": False}
+
+        return self.compile_status[project_id]
 
     # ------------------------
     # Environment Variables

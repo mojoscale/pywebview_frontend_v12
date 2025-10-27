@@ -147,44 +147,166 @@ def ensure_pip_and_install_pio(python_exe: str, target_dir: str):
 
 
 def parse_platformio_result(stdout: str, stderr: str) -> dict:
+    # Combine all output for analysis
+    all_output = stdout + "\n" + stderr
+
+    # DEBUG: Print what we're analyzing
+    print(f"🔍 Analyzing output for success/failure...")
+    print(f"🔍 stdout contains [SUCCESS]: {'[SUCCESS]' in stdout}")
+    print(f"🔍 stdout contains [FAILED]: {'[FAILED]' in stdout}")
+    print(f"🔍 stderr contains error: {'error:' in stderr.lower()}")
+    print(
+        f"🔍 all_output contains compilation error: {any(word in all_output.lower() for word in ['error:', '*** [', 'failed'])}"
+    )
+
+    # Check for the most obvious failure markers FIRST
+    has_failed_marker = "[FAILED]" in stdout
+    has_success_marker = "[SUCCESS]" in stdout
+
+    # Check for compiler/linker errors
+    has_compiler_error = any(
+        pattern in all_output
+        for pattern in ["error:", "*** [", "does not name a type", "Error 1"]
+    )
+
+    # Check for specific error patterns that indicate failure
+    has_specific_errors = any(
+        error_pattern in all_output
+        for error_pattern in [
+            "does not name a type",
+            "expected",
+            "undefined reference",
+            "compilation terminated",
+            "No such file or directory",
+        ]
+    )
+
+    # If we have ANY failure markers or errors, compilation failed
+    # If we have success marker AND no failure indicators, compilation succeeded
+    compilation_failed = has_failed_marker or has_compiler_error or has_specific_errors
+    compilation_succeeded = has_success_marker and not compilation_failed
+
+    print(
+        f"🔍 Final determination: failed={compilation_failed}, succeeded={compilation_succeeded}"
+    )
+
     result = {
-        "success": "[SUCCESS]" in stdout,
-        "firmware_bin": None,
-        "firmware_elf": None,
-        "ram_used": None,
-        "flash_used": None,
-        "duration_seconds": None,
-        "errors": [],
+        "success": compilation_succeeded,
+        "message": "Compilation successful"
+        if compilation_succeeded
+        else "Compilation failed",
+        "specs": {
+            "flash": {"used": 0, "total": 0},
+            "ram": {"used": 0, "total": 0},
+            "additional": {},
+        },
         "warnings": [],
+        "suggestions": [],
+        "errors": [],
     }
 
     lines_out = stdout.splitlines()
     lines_err = stderr.splitlines()
 
+    # Only parse memory usage if compilation was successful
+    memory_parsed = False
+    if compilation_succeeded:
+        for line in lines_out:
+            # Parse RAM usage
+            if "RAM:" in line and "used" in line and "bytes from" in line:
+                match = re.search(r"used\s+(\d+)\s+bytes\s+from\s+(\d+)", line)
+                if match:
+                    result["specs"]["ram"]["used"] = int(match.group(1))
+                    result["specs"]["ram"]["total"] = int(match.group(2))
+                    memory_parsed = True
+
+            # Parse Flash usage
+            elif "Flash:" in line and "used" in line and "bytes from" in line:
+                match = re.search(r"used\s+(\d+)\s+bytes\s+from\s+(\d+)", line)
+                if match:
+                    result["specs"]["flash"]["used"] = int(match.group(1))
+                    result["specs"]["flash"]["total"] = int(match.group(2))
+                    memory_parsed = True
+
+            # Parse firmware info
+            elif "firmware.elf" in line and "Linking" in line:
+                result["specs"]["additional"]["Firmware ELF"] = line.strip().split()[-1]
+            elif "firmware.bin" in line and "Building" in line:
+                result["specs"]["additional"]["Firmware BIN"] = line.strip().split()[-1]
+
+            # Parse duration
+            elif "Took" in line and "seconds" in line:
+                match = re.search(r"Took ([\d.]+) seconds", line)
+                if match:
+                    result["specs"]["additional"]["Duration"] = f"{match.group(1)}s"
+
+    # Collect ALL errors and warnings
+    for line in lines_out + lines_err:
+        line_lower = line.lower()
+        if "error:" in line_lower:
+            if line.strip() not in result["errors"]:
+                result["errors"].append(line.strip())
+        elif "warning:" in line_lower:
+            if line.strip() not in result["warnings"]:
+                result["warnings"].append(line.strip())
+
+    # Specifically look for compilation error patterns
     for line in lines_out:
-        if "firmware.elf" in line and "Linking" in line:
-            result["firmware_elf"] = line.strip().split()[-1]
-        elif "firmware.bin" in line and "Building" in line:
-            result["firmware_bin"] = line.strip().split()[-1]
-        elif "RAM:" in line:
-            match = re.search(r"RAM:\s+\[[= ]+\]\s+([\d.]+%)", line)
-            if match:
-                result["ram_used"] = match.group(1)
-        elif "Flash:" in line:
-            match = re.search(r"Flash:\s+\[[= ]+\]\s+([\d.]+%)", line)
-            if match:
-                result["flash_used"] = match.group(1)
-        elif "[SUCCESS]" in line and "Took" in line:
-            match = re.search(r"Took ([\d.]+) seconds", line)
-            if match:
-                result["duration_seconds"] = float(match.group(1))
+        if any(
+            pattern in line for pattern in ["*** [", "Error 1", "does not name a type"]
+        ):
+            if line.strip() not in result["errors"]:
+                result["errors"].append(line.strip())
 
-    for line in lines_err:
-        if "error:" in line.lower():
-            result["errors"].append(line.strip())
-        elif "warning:" in line.lower():
-            result["warnings"].append(line.strip())
+    # Set the main error message if compilation failed
+    if compilation_failed:
+        if result["errors"]:
+            # Use the first meaningful error as the main error
+            for error in result["errors"]:
+                if "error:" in error.lower():
+                    result["error"] = error
+                    break
+            else:
+                result["error"] = (
+                    result["errors"][0] if result["errors"] else "Compilation failed"
+                )
+        else:
+            result["error"] = "Compilation failed - check build output"
 
+    # Generate helpful suggestions based on the errors
+    if compilation_failed:
+        all_errors_text = " ".join(result["errors"]).lower()
+
+        if "does not name a type" in all_errors_text:
+            result["suggestions"] = [
+                "Check for undefined variables or functions",
+                "Verify all variables are declared before use",
+                "Check for missing #include statements",
+            ]
+        elif "undefined reference" in all_errors_text:
+            result["suggestions"] = [
+                "Check if all required libraries are included",
+                "Verify function declarations match definitions",
+                "Check library dependencies in platformio.ini",
+            ]
+        elif (
+            "memory" in all_errors_text
+            or "ram" in all_errors_text
+            or "flash" in all_errors_text
+        ):
+            result["suggestions"] = [
+                "Reduce global variable usage",
+                "Use PROGMEM for constant data",
+                "Optimize string usage with F() macro",
+            ]
+        else:
+            result["suggestions"] = [
+                "Check the compilation output for specific error details"
+            ]
+
+    print(
+        f"🔍 Parse result: success={result['success']}, error={result.get('error', 'None')}"
+    )
     return result
 
 
@@ -392,9 +514,19 @@ async def compile_project(
         )
 
         parsed = parse_platformio_result(stdout, stderr)
-        parsed["success"] = code == 0
 
-        if upload and code == 0:
+        # DEBUG: Log what we found
+        print(f"🔍 Parse result - success: {parsed['success']}, return code: {code}")
+
+        # Trust the parse function - it's correctly detecting failures
+        # Don't override with the potentially incorrect return code
+
+        # Add board info to specs
+        if "specs" in parsed:
+            parsed["specs"]["additional"]["Board"] = board
+            parsed["specs"]["additional"]["Platform"] = platform
+
+        if upload and parsed["success"]:
             actual_port = port or find_first_serial_port()
             print(f"🧭 Selected serial port: {actual_port}")
             release_serial_port(actual_port)
@@ -407,29 +539,49 @@ async def compile_project(
             parsed["upload_success"] = u_code == 0
             parsed["upload_port"] = actual_port
 
-        return {
-            **parsed,
-            "board": board,
-            "platform": platform,
-            "build_dir": str(build_dir),
-            "returncode": code,
+        # Return the structured result for frontend
+        result = {
+            "success": parsed["success"],
+            "message": parsed.get("message", "Compilation completed"),
+            "specs": parsed.get("specs", {}),
+            "warnings": parsed.get("warnings", []),
+            "suggestions": parsed.get("suggestions", []),
         }
+
+        # Add error info if compilation failed
+        if not parsed["success"]:
+            result["error"] = parsed.get("error", "Compilation failed")
+            if parsed.get("errors"):
+                # Include all errors for debugging
+                result["errors"] = parsed["errors"]
+
+        print(f"📊 Final result: {result}")
+        return result
 
     except FileNotFoundError as e:
         error_msg = f"PlatformIO not installed: {e}"
         print(f"❌ {error_msg}")
         return {
             "success": False,
-            "errors": [error_msg],
-            "returncode": -1,
+            "error": error_msg,
+            "message": "PlatformIO installation required",
+            "suggestions": [
+                "Run PlatformIO installation",
+                "Check if PlatformIO is properly configured",
+            ],
         }
     except Exception as e:
         error_msg = f"Unexpected error during compilation: {e}"
         print(f"❌ {error_msg}")
         return {
             "success": False,
-            "errors": [error_msg],
-            "returncode": -1,
+            "error": error_msg,
+            "message": "Compilation failed due to unexpected error",
+            "suggestions": [
+                "Check the console for detailed error information",
+                "Verify your Python code syntax",
+                "Ensure all required libraries are available",
+            ],
         }
 
 

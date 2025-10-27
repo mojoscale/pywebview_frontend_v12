@@ -11,7 +11,7 @@ import {
   Button,
   Space,
   Badge,
-  Avatar,
+  //Avatar,
   Empty,
   Modal,
   message,
@@ -26,8 +26,9 @@ import {
   ApiOutlined,
   SearchOutlined,
   CopyOutlined,
-  EyeOutlined,
-  FileTextOutlined,
+  //EyeOutlined,
+  //FileTextOutlined,
+  FolderOutlined,
 } from "@ant-design/icons";
 import Fuse from "fuse.js";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -60,6 +61,13 @@ type CodeBlock = {
   code: string;
 };
 
+// Folder structure type
+type FolderStructure = {
+  name: string;
+  modules: Record<string, ModuleEntry>;
+  subFolders?: Record<string, FolderStructure>;
+};
+
 const { Title, Text, Paragraph } = Typography;
 const { Panel } = Collapse;
 
@@ -88,11 +96,54 @@ const parseDocstringForCodeBlocks = (doc: string): { description: string; codeBl
   return { description: cleanDoc, codeBlocks };
 };
 
+// Helper to organize modules into folder structure
+const organizeModulesByFolder = (modules: Record<string, ModuleEntry>): FolderStructure => {
+  const root: FolderStructure = {
+    name: "root",
+    modules: {},
+    subFolders: {},
+  };
+
+  Object.entries(modules).forEach(([modPath, modEntry]) => {
+    // Split by dots: sensor.xxx -> ["sensor", "xxx"]
+    const parts = modPath.split(".");
+    const isBarModule = parts.length === 1; // No dots, just bare module name
+
+    if (isBarModule) {
+      // Bare module - goes directly to root
+      root.modules[modPath] = modEntry;
+    } else {
+      // Module with dots - organize into structure
+      let current = root;
+      
+      // Navigate/create folder structure for all but the last part
+      for (let i = 0; i < parts.length - 1; i++) {
+        const folderName = parts[i];
+        if (!current.subFolders) current.subFolders = {};
+        if (!current.subFolders[folderName]) {
+          current.subFolders[folderName] = {
+            name: folderName,
+            modules: {},
+            subFolders: {},
+          };
+        }
+        current = current.subFolders[folderName];
+      }
+      
+      // Add module to final folder with just the last part as display name
+      current.modules[modPath] = modEntry;
+    }
+  });
+
+  return root;
+};
+
 const ModuleExplorer = () => {
   const [rawModules, setRawModules] = useState<Record<string, ModuleEntry>>({});
   const [search, setSearch] = useState("");
   const [darkMode, setDarkMode] = useState(false);
-  const [activePanels, setActivePanels] = useState<string[]>([]);
+  //const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
+  //const [expandedModules, setExpandedModules] = useState<string[]>([]);
   const [detailModal, setDetailModal] = useState<{
     visible: boolean;
     item: ExplorerItem | null;
@@ -256,340 +307,240 @@ const ModuleExplorer = () => {
     }
 
     const fuse = new Fuse(flattened, {
-      keys: ["name", "module", "signature", "doc", "parentClass", "value"],
+      keys: ["name", "module", "doc", "signature"],
       threshold: 0.3,
-      includeScore: true,
-      ignoreLocation: true,
-      minMatchCharLength: 2,
+      minMatchCharLength: 1,
     });
 
-    const searchResults = fuse.search(search);
-    const resultItems = searchResults.map((r) => r.item);
-
-    // Group results by module for display
-    const groupedResults: Record<string, ExplorerItem[]> = {};
-    resultItems.forEach((item) => {
-      if (!groupedResults[item.module]) {
-        groupedResults[item.module] = [];
+    const results = fuse.search(search).map(r => r.item);
+    
+    // Build module map from search results
+    const resultModules: Record<string, ModuleEntry> = {};
+    results.forEach((item) => {
+      if (item.type !== "module" && "name" in item) {
+        if (!resultModules[item.module]) {
+          resultModules[item.module] = processedModules[item.module];
+        }
       }
-      groupedResults[item.module].push(item);
     });
 
     return {
-      modules: groupedResults,
-      flattened: resultItems,
+      modules: resultModules,
+      flattened: results,
       hasSearch: true,
     };
   }, [search, flattened, processedModules]);
 
-  // Get type icon and color
-  const getTypeConfig = (type: string) => {
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    message.success(`${label} copied to clipboard`);
+  };
+
+  // Get icon for item type
+  const getItemIcon = (type: string, darkMode: boolean) => {
+    const color = darkMode ? "#177ddc" : "#1890ff";
     switch (type) {
       case "function":
-        return {
-          icon: <FunctionOutlined />,
-          color: "#1890ff",
-          label: "Function",
-        };
-      case "class":
-        return { icon: <CrownOutlined />, color: "#52c41a", label: "Class" };
       case "method":
-        return { icon: <CodeOutlined />, color: "#722ed1", label: "Method" };
-      case "variable":
-        return { icon: <ApiOutlined />, color: "#fa8c16", label: "Variable" };
-      case "module":
-        return { icon: <FileTextOutlined />, color: "#13c2c2", label: "Module" };
-      default:
-        return { icon: <CodeOutlined />, color: "#8c8c8c", label: "Unknown" };
-    }
-  };
-
-  // Copy to clipboard
-  const copyToClipboard = async (text: string, description: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      message.success(`Copied ${description} to clipboard!`);
-    } catch (err) {
-      message.error('Failed to copy to clipboard');
-    }
-  };
-
-  // Show detail modal
-  const showDetailModal = (item: ExplorerItem) => {
-    setDetailModal({
-      visible: true,
-      item,
-    });
-  };
-
-  // Get display name for item
-  const getDisplayName = (item: ExplorerItem): string => {
-    if (item.type === "method") {
-      return `${item.parentClass}.${item.name}`;
-    }
-    if (item.type === "module") {
-      return "Module Documentation";
-    }
-    return item.name;
-  };
-
-  // Get copyable content for item
-  const getCopyableContent = (item: ExplorerItem): string => {
-    switch (item.type) {
-      case "function":
-        return `${item.name}${item.signature}`;
-      case "method":
-        // For methods, remove 'self' from signature if present
-        const methodSignature = item.signature.replace(/\(self\s*,?\s*/, '(').replace(/\(self\)/, '()');
-        return `${item.parentClass}.${item.name}${methodSignature}`;
+        return <FunctionOutlined style={{ color, marginRight: 8 }} />;
       case "class":
-        return `${item.name}${item.signature}`;
+        return <CrownOutlined style={{ color, marginRight: 8 }} />;
       case "variable":
-        return item.name;
+        return <CodeOutlined style={{ color, marginRight: 8 }} />;
       case "module":
-        return item.doc || "";
+        return <ApiOutlined style={{ color, marginRight: 8 }} />;
       default:
-        return "";
+        return null;
     }
   };
 
-  // Fixed type guard for signature
-  /*const hasSignature = (item: ExplorerItem): boolean => {
-    return (item.type === "function" || item.type === "method" || item.type === "class") && 
-           "signature" in item && 
-           item.signature !== '()';
-  };*/
-
-  // Helper to get signature safely
-  const getSignature = (item: ExplorerItem): string | null => {
-    if ((item.type === "function" || item.type === "method" || item.type === "class") && "signature" in item) {
-      return item.signature;
-    }
-    return null;
-  };
-
-  // Render entry card
+  // Render a single entry
   const renderEntry = (item: ExplorerItem) => {
-    const typeConfig = getTypeConfig(item.type);
-    const displayName = getDisplayName(item);
+    const displayStyle = {
+      padding: "8px 12px",
+      cursor: "pointer",
+      borderRadius: 4,
+      transition: "background-color 0.2s",
+      color: darkMode ? "#d9d9d9" : "#333",
+      fontSize: 13,
+    };
 
-    // Special styling for module doc cards
-    const isModuleDoc = item.type === "module";
-    const signature = getSignature(item);
+    const itemLabel = "name" in item ? item.name : item.module;
+    const signature = "signature" in item ? item.signature : null;
+
+    /*const hoverStyle = {
+      ...displayStyle,
+      background: darkMode ? "#262626" : "#f5f5f5",
+    };*/
 
     return (
-      <Card
-        size="small"
-        hoverable={!isModuleDoc}
-        style={{
-          marginBottom: 8,
-          border: `1px solid ${darkMode ? "#434343" : "#f0f0f0"}`,
-          borderRadius: 6,
-          background: isModuleDoc 
-            ? (darkMode ? "rgba(19, 194, 194, 0.08)" : "rgba(19, 194, 194, 0.04)")
-            : (darkMode ? "rgba(255,255,255,0.02)" : "#fff"),
-          cursor: isModuleDoc ? "default" : "pointer",
-          borderLeft: isModuleDoc ? `3px solid ${typeConfig.color}` : undefined,
+      <div
+        style={displayStyle}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.background = darkMode ? "#262626" : "#f5f5f5";
         }}
-        bodyStyle={{ padding: 12 }}
-        onClick={isModuleDoc ? undefined : () => showDetailModal(item)}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "transparent";
+        }}
+        onClick={() => {
+          setDetailModal({ visible: true, item });
+        }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Header */}
-          <div style={{ 
-            display: "flex", 
-            alignItems: "flex-start", 
-            gap: 8,
-            minHeight: 24
-          }}>
-            <Avatar
-              size="small"
-              icon={typeConfig.icon}
-              style={{
-                backgroundColor: typeConfig.color,
-                fontSize: 12,
-                flexShrink: 0,
-              }}
-            />
-            
-            <div style={{ 
-              flex: 1, 
-              minWidth: 0,
-              display: "flex", 
-              flexDirection: "column", 
-              gap: 4 
-            }}>
-              {/* Name and signature row */}
-              <div style={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: 8,
-                flexWrap: "wrap" 
-              }}>
-                <Text
-                  strong
-                  style={{ 
-                    color: darkMode ? "#fff" : "#000", 
-                    fontSize: 13,
-                    lineHeight: 1.2
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (item.type === "module") {
-                      copyToClipboard(item.module, "module name");
-                    } else {
-                      copyToClipboard(displayName, "name");
-                    }
-                  }}
-                >
-                  {displayName}
-                </Text>
-                
-                {signature && (
-                  <Tag
-                    color={darkMode ? "blue" : "geekblue"}
-                    style={{ 
-                      margin: 0, 
-                      fontSize: 10, 
-                      lineHeight: 1.2,
-                      flexShrink: 0 
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      copyToClipboard(signature, "signature");
-                    }}
-                  >
-                    {signature}
-                  </Tag>
-                )}
-              </div>
-              
-              {/* Type and module row */}
-              <div style={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: 8,
-                justifyContent: "space-between"
-              }}>
-                <Tag
-                  style={{
-                    fontSize: 9,
-                    padding: "1px 6px",
-                    border: `1px solid ${typeConfig.color}20`,
-                    color: typeConfig.color,
-                    background: `${typeConfig.color}10`,
-                    lineHeight: 1.2,
-                    margin: 0
-                  }}
-                >
-                  {typeConfig.label}
-                </Tag>
-                
-                <Text 
-                  type="secondary" 
-                  style={{ 
-                    fontSize: 10,
-                    lineHeight: 1.2
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyToClipboard(item.module, "module path");
-                  }}
-                >
-                  {item.module}
-                </Text>
-              </div>
+        <Space size={8}>
+          {getItemIcon(item.type, darkMode)}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: 13, fontWeight: 500 }}>
+              {itemLabel}
+              {item.type === "method" && (
+                <span style={{ fontSize: 11, color: darkMode ? "#8c8c8c" : "#999", marginLeft: 8 }}>
+                  (method of {item.parentClass})
+                </span>
+              )}
             </div>
-            
-            {!isModuleDoc && (
-              <Button
-                type="text"
-                size="small"
-                icon={<EyeOutlined />}
-                style={{ 
-                  flexShrink: 0,
-                  marginLeft: 4 
+            {signature && (
+              <div
+                style={{
+                  fontSize: 11,
+                  fontFamily: "monospace",
+                  color: darkMode ? "#8c8c8c" : "#666",
+                  marginTop: 2,
                 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  showDetailModal(item);
-                }}
-              />
+              >
+                {getSignatureDisplay(item, signature)}
+              </div>
             )}
           </div>
-
-          {/* Documentation */}
-          {"doc" in item && item.doc && (
-            <Paragraph
-              style={{
-                margin: 0,
-                fontSize: 12,
-                lineHeight: 1.4,
-                color: darkMode ? "#8c8c8c" : "#666",
-                fontStyle: isModuleDoc ? "normal" : undefined,
-              }}
-              ellipsis={{ rows: isModuleDoc ? 4 : 2, expandable: true }}
-            >
-              {parseDocstringForCodeBlocks(item.doc).description}
-            </Paragraph>
-          )}
-
-          {/* Variable value */}
-          {item.type === "variable" && item.value && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Text 
-                style={{ 
-                  fontSize: 11, 
-                  color: darkMode ? "#8c8c8c" : "#666",
-                  fontWeight: 500 
-                }}
-              >
-                Value:
-              </Text>
-              <Tag
-                color={darkMode ? "blue" : "cyan"}
-                style={{ 
-                  margin: 0, 
-                  fontSize: 10,
-                  lineHeight: 1.2
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  copyToClipboard(item.value, "value");
-                }}
-              >
-                {item.value}
-              </Tag>
-            </div>
-          )}
-
-          {/* Module doc actions */}
-          {isModuleDoc && (
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <Button
-                size="small"
-                type="text"
-                icon={<CopyOutlined />}
-                onClick={() => copyToClipboard(item.doc || "", "module documentation")}
-                style={{ fontSize: 11, height: 24 }}
-              >
-                Copy Doc
-              </Button>
-              <Button
-                size="small"
-                type="primary"
-                ghost
-                icon={<EyeOutlined />}
-                onClick={() => showDetailModal(item)}
-                style={{ fontSize: 11, height: 24 }}
-              >
-                View Full
-              </Button>
-            </div>
-          )}
-        </div>
-      </Card>
+          <Tag
+            
+            style={{ marginLeft: "auto", fontSize: 10 }}
+            color={
+              item.type === "function" || item.type === "method"
+                ? "blue"
+                : item.type === "class"
+                ? "purple"
+                : item.type === "variable"
+                ? "green"
+                : "default"
+            }
+          >
+            {item.type}
+          </Tag>
+        </Space>
+      </div>
     );
+  };
+
+  // Render module items within a module panel
+  const renderModuleItems = (modName: string, mod: ModuleEntry) => {
+    const items = getModuleItems(modName, mod);
+    
+    return (
+      <List
+        dataSource={items}
+        renderItem={(item: ExplorerItem) => (
+          <List.Item style={{ padding: "4px 0" }}>
+            {renderEntry(item)}
+          </List.Item>
+        )}
+        locale={{ emptyText: "No items found" }}
+      />
+    );
+  };
+
+  // Render folder structure recursively
+  const renderFolderStructure = (folder: FolderStructure, path: string = "") => {
+    const items: any[] = [];
+    
+    // Render subfolders
+    if (folder.subFolders) {
+      Object.entries(folder.subFolders).forEach(([folderName, subFolder]) => {
+        const folderPath = path ? `${path}/${folderName}` : folderName;
+        const folderKey = `folder-${folderPath}`;
+        
+        // Count total items in folder (including subfolders)
+        const countItems = (f: FolderStructure): number => {
+          let count = Object.keys(f.modules).reduce((acc, modName) => {
+            const mod = f.modules[modName];
+            return acc + getModuleItems(modName, mod).filter(i => i.type !== "module").length;
+          }, 0);
+          
+          if (f.subFolders) {
+            count += Object.values(f.subFolders).reduce((acc, sf) => acc + countItems(sf), 0);
+          }
+          
+          return count;
+        };
+        
+        items.push(
+          <Panel
+            key={folderKey}
+            header={
+              <Space>
+                <FolderOutlined style={{ color: darkMode ? "#fadb14" : "#ffc069" }} />
+                <Text strong style={{ color: darkMode ? "#fff" : "#000" }}>
+                  {folderName}
+                </Text>
+                <Badge
+                  count={countItems(subFolder)}
+                  size="small"
+                  color={darkMode ? "blue" : "geekblue"}
+                />
+              </Space>
+            }
+            style={{
+              border: `1px solid ${darkMode ? "#303030" : "#f0f0f0"}`,
+              borderRadius: 6,
+              marginBottom: 8,
+              background: darkMode ? "#1f1f1f" : "#fff",
+            }}
+          >
+            <Collapse
+              accordion
+              ghost
+              style={{ background: "transparent" }}
+            >
+              {renderFolderStructure(subFolder, folderPath)}
+            </Collapse>
+          </Panel>
+        );
+      });
+    }
+    
+    // Render modules in this folder
+    Object.entries(folder.modules).forEach(([modName, mod]) => {
+      const moduleKey = `module-${modName}`;
+      const items_count = getModuleItems(modName, mod).filter(i => i.type !== "module").length;
+      
+      items.push(
+        <Panel
+          key={moduleKey}
+          header={
+            <Space>
+              <CodeOutlined style={{ color: darkMode ? "#177ddc" : "#1890ff" }} />
+              <Text style={{ color: darkMode ? "#fff" : "#000" }}>
+                {modName.split(".").pop()}
+              </Text>
+              <Badge
+                count={items_count}
+                size="small"
+                color={darkMode ? "cyan" : "geekblue"}
+              />
+            </Space>
+          }
+          style={{
+            border: `1px solid ${darkMode ? "#303030" : "#f0f0f0"}`,
+            borderRadius: 6,
+            marginBottom: 8,
+            marginLeft: 16,
+            background: darkMode ? "#1f1f1f" : "#fff",
+          }}
+        >
+          {renderModuleItems(modName, mod)}
+        </Panel>
+      );
+    });
+    
+    return items;
   };
 
   // Render detail modal
@@ -597,128 +548,112 @@ const ModuleExplorer = () => {
     if (!detailModal.item) return null;
 
     const item = detailModal.item;
-    const typeConfig = getTypeConfig(item.type);
-    const displayName = getDisplayName(item);
-    const copyableContent = getCopyableContent(item);
-    
-    // Parse docstring for code blocks
-    const docContent = "doc" in item && item.doc ? 
-      parseDocstringForCodeBlocks(item.doc) : 
-      { description: '', codeBlocks: [] };
-
-    const signature = getSignature(item);
+    const docContent = parseDocstringForCodeBlocks(item.doc || "");
 
     return (
       <Modal
         title={
-          <Space>
-            <Avatar
-              size="small"
-              icon={typeConfig.icon}
-              style={{
-                backgroundColor: typeConfig.color,
-              }}
-            />
-            <Text strong>{displayName}</Text>
-            <Tag color={typeConfig.color}>{typeConfig.label}</Tag>
-          </Space>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {getItemIcon(item.type, darkMode)}
+            <span>
+              {"name" in item ? item.name : item.module}
+            </span>
+            <Tag color={item.type === "method" ? "blue" : item.type === "class" ? "purple" : "default"}>
+              {item.type}
+            </Tag>
+          </div>
         }
         open={detailModal.visible}
         onCancel={() => setDetailModal({ visible: false, item: null })}
-        footer={[
-          <Button
-            key="copy"
-            type="primary"
-            icon={<CopyOutlined />}
-            onClick={() => copyToClipboard(copyableContent, displayName)}
-          >
-            Copy {item.type === "function" || item.type === "method" || item.type === "class" ? "Signature" : 
-                  item.type === "module" ? "Documentation" : "Name"}
-          </Button>,
-          <Button
-            key="close"
-            onClick={() => setDetailModal({ visible: false, item: null })}
-          >
-            Close
-          </Button>,
-        ]}
-        width={700}
-        style={{ maxWidth: '90vw' }}
-        bodyStyle={{ maxHeight: '70vh', overflow: 'auto' }}
+        footer={null}
+        width={800}
+        style={{
+          colorScheme: darkMode ? "dark" : "light",
+        }}
+        bodyStyle={{
+          background: darkMode ? "#141414" : "#fff",
+          color: darkMode ? "#fff" : "#000",
+        }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Basic info */}
-          <div>
-            <Text strong>Module: </Text>
-            <Text 
-              code 
-              style={{ cursor: "pointer" }}
-              onClick={() => copyToClipboard(item.module, "module path")}
-            >
-              {item.module}
-            </Text>
-          </div>
-
-          {/* Signature for functions/methods/classes */}
-          {signature && (
-            <div>
-              <Text strong>Signature: </Text>
-              <Text 
-                code 
-                style={{ 
-                  cursor: "pointer",
-                  background: darkMode ? "#2a2a2a" : "#f5f5f5",
-                  padding: "2px 6px",
-                  borderRadius: 3,
-                }}
-                onClick={() => copyToClipboard(getSignatureDisplay(item, signature), "signature")}
-              >
-                {getSignatureDisplay(item, signature)}
-              </Text>
-            </div>
-          )}
-
-          {/* Value for variables */}
-          {item.type === "variable" && item.value && (
-            <div>
-              <Text strong>Value: </Text>
-              <Text 
-                code 
-                style={{ 
-                  cursor: "pointer",
-                  background: darkMode ? "#2a2a2a" : "#f5f5f5",
-                  padding: "2px 6px",
-                  borderRadius: 3,
-                }}
-                onClick={() => copyToClipboard(item.value, "value")}
-              >
-                {item.value}
-              </Text>
-            </div>
-          )}
-
-          {/* Documentation */}
-          {"doc" in item && item.doc && (
-            <div>
-              <Text strong>Documentation:</Text>
+        <div style={{ marginBottom: 16 }}>
+          {/* Signature */}
+          {item.type !== "module" && (
+            <div style={{ marginBottom: 16 }}>
               <div
                 style={{
-                  marginTop: 8,
-                  padding: 16,
-                  background: darkMode ? "#1f1f1f" : "#f9f9f9",
-                  borderRadius: 6,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 8,
+                }}
+              >
+                <Text strong style={{ fontSize: 12, color: darkMode ? "#8c8c8c" : "#666" }}>
+                  SIGNATURE
+                </Text>
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<CopyOutlined />}
+                  onClick={() => {
+                    const sig = "signature" in item ? item.signature : "";
+                    const display = getSignatureDisplay(item, sig);
+                    copyToClipboard(display, "Signature");
+                  }}
+                  style={{ fontSize: 11, height: 22, padding: "0 6px" }}
+                >
+                  Copy
+                </Button>
+              </div>
+              <Card
+                size="small"
+                style={{
+                  background: darkMode ? "#1f1f1f" : "#fafafa",
+                  borderRadius: 4,
+                  fontFamily: "monospace",
+                  fontSize: 12,
                   border: `1px solid ${darkMode ? "#303030" : "#e8e8e8"}`,
+                }}
+              >
+                {getSignatureDisplay(
+                  item,
+                  "signature" in item ? item.signature : null
+                )}
+              </Card>
+            </div>
+          )}
+
+          {/* Module */}
+          <div style={{ marginBottom: 16 }}>
+            <Text strong style={{ fontSize: 12, color: darkMode ? "#8c8c8c" : "#666" }}>
+              MODULE
+            </Text>
+            <div style={{ fontSize: 12, marginTop: 4, color: darkMode ? "#d9d9d9" : "#333" }}>
+              {item.module}
+            </div>
+          </div>
+
+          {/* Documentation */}
+          {docContent.description || docContent.codeBlocks.length > 0 ? (
+            <div>
+              <Text strong style={{ fontSize: 12, color: darkMode ? "#8c8c8c" : "#666" }}>
+                DOCUMENTATION
+              </Text>
+              <div
+                style={{
+                  marginTop: 12,
+                  paddingTop: 12,
+                  borderTop: `1px solid ${darkMode ? "#303030" : "#f0f0f0"}`,
                 }}
               >
                 {/* Render description text */}
                 {docContent.description && (
                   <Paragraph
                     style={{
-                      margin: docContent.codeBlocks.length > 0 ? '0 0 20px 0' : 0,
+                      margin: docContent.codeBlocks.length > 0 ? "0 0 20px 0" : 0,
                       whiteSpace: "pre-wrap",
                       fontSize: 13,
                       lineHeight: 1.6,
-                      color: darkMode ? '#d9d9d9' : '#333',
+                      color: darkMode ? "#d9d9d9" : "#333",
                     }}
                   >
                     {docContent.description}
@@ -727,11 +662,11 @@ const ModuleExplorer = () => {
                 
                 {/* Render code blocks */}
                 {docContent.codeBlocks.map((block, index) => (
-                  <div key={index} style={{ marginBottom: 20, position: 'relative' }}>
+                  <div key={index} style={{ marginBottom: 20, position: "relative" }}>
                     <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
+                      display: "flex", 
+                      justifyContent: "space-between", 
+                      alignItems: "center",
                       marginBottom: 8 
                     }}>
                       <Tag 
@@ -748,7 +683,7 @@ const ModuleExplorer = () => {
                         style={{ 
                           fontSize: 11,
                           height: 22,
-                          padding: '0 6px'
+                          padding: "0 6px"
                         }}
                       >
                         Copy Code
@@ -762,8 +697,8 @@ const ModuleExplorer = () => {
                         borderRadius: 4,
                         fontSize: 12,
                         lineHeight: 1.4,
-                        background: darkMode ? '#1a1a1a' : '#f5f5f5',
-                        border: `1px solid ${darkMode ? '#333' : '#e8e8e8'}`,
+                        background: darkMode ? "#1a1a1a" : "#f5f5f5",
+                        border: `1px solid ${darkMode ? "#333" : "#e8e8e8"}`,
                       }}
                       showLineNumbers
                       wrapLongLines
@@ -774,15 +709,13 @@ const ModuleExplorer = () => {
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       </Modal>
     );
   };
 
-  const displayModules = searchResults.hasSearch
-    ? searchResults.modules
-    : processedModules;
+  const folderStructure = useMemo(() => organizeModulesByFolder(searchResults.modules), [searchResults.modules]);
 
   return (
     <div
@@ -883,7 +816,7 @@ const ModuleExplorer = () => {
         }}
       >
         <div style={{ padding: "0 16px 16px 16px" }}>
-          {Object.keys(displayModules).length === 0 ? (
+          {Object.keys(processedModules).length === 0 ? (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={
@@ -895,61 +828,8 @@ const ModuleExplorer = () => {
               }}
             />
           ) : (
-            <Collapse
-              accordion
-              ghost
-              activeKey={activePanels}
-              onChange={(keys) =>
-                setActivePanels(Array.isArray(keys) ? keys : [keys])
-              }
-              style={{ background: "transparent" }}
-            >
-              {Object.entries(displayModules).map(([modName, mod]) => {
-                const items = searchResults.hasSearch
-                  ? (mod as ExplorerItem[])
-                  : getModuleItems(modName, mod as ModuleEntry);
-
-                return (
-                  <Panel
-                    header={
-                      <Space>
-                        <Text
-                          strong
-                          style={{
-                            color: darkMode ? "#fff" : "#000",
-                          }}
-                        >
-                          {modName}
-                        </Text>
-                        <Badge
-                          count={items.filter(item => item.type !== "module").length}
-                          size="small"
-                          color={darkMode ? "blue" : "geekblue"}
-                        />
-                      </Space>
-                    }
-                    key={modName}
-                    style={{
-                      border: `1px solid ${
-                        darkMode ? "#303030" : "#f0f0f0"
-                      }`,
-                      borderRadius: 6,
-                      marginBottom: 8,
-                      background: darkMode ? "#1f1f1f" : "#fff",
-                    }}
-                  >
-                    <List
-                      dataSource={items}
-                      renderItem={(item: ExplorerItem) => (
-                        <List.Item style={{ padding: "4px 0" }}>
-                          {renderEntry(item)}
-                        </List.Item>
-                      )}
-                      locale={{ emptyText: "No items found" }}
-                    />
-                  </Panel>
-                );
-              })}
+            <Collapse accordion ghost style={{ background: "transparent" }}>
+              {renderFolderStructure(folderStructure)}
             </Collapse>
           )}
         </div>

@@ -5,6 +5,20 @@ import platform
 import shutil
 from pathlib import Path
 
+PROJECT_DIR = Path(__file__).resolve().parent
+ROOT_DIR = PROJECT_DIR.parent  # one level up
+VENV_PATH = ROOT_DIR / ".venv"  # assuming `.venv` folder
+print(f"🔍 Project dir: {PROJECT_DIR}")
+print(f"🔍 Root dir: {ROOT_DIR}")
+print(f"🔍 Venv path: {VENV_PATH}")
+
+# Detect site-packages path
+if platform.system() == "Windows":
+    SITE_PACKAGES = VENV_PATH / "Lib" / "site-packages"
+else:
+    pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    SITE_PACKAGES = VENV_PATH / "lib" / pyver / "site-packages"
+
 APP_NAME = "MojoscaleIDE"
 ENTRY_FILE = "app.py"
 FRONTEND_DIST = Path("frontend") / "dist"
@@ -144,7 +158,15 @@ def build():
         "--include-package=parso",
         "--include-package=core.transpiler.core_libs",
         # Disable console for Windows TBD
-        "--windows-console-mode=disable",
+        # "--windows-console-mode=disable",
+        "--include-package=black",
+        "--include-package=pathspec",
+        "--include-package=platformdirs",
+        "--include-package=typing_extensions",
+        f"--include-data-dir={SITE_PACKAGES / 'black'}=black",
+        f"--include-data-dir={SITE_PACKAGES / 'pathspec'}=pathspec",
+        f"--include-data-dir={SITE_PACKAGES / 'platformdirs'}=platformdirs",
+        # f"--include-data-dir={SITE_PACKAGES / 'typing_extensions'}=typing_extensions",
     ]
 
     # Remove empty strings
