@@ -452,12 +452,39 @@ const IDE: React.FC<IDEProps> = ({ projectId, isApiReady }) => {
   }, []);
 
   // Save project
+  // Remove prettier imports and update handleSaveProject:
+
+  // Save project with formatting
   const handleSaveProject = async () => {
     if (!window.pywebview?.api || !isApiReady || !projectId) return;
     try {
-      await window.pywebview.api.save_project_files(projectId, code);
-      message.success("Project saved!");
-      await lintCode(code);
+      let formattedCode = code;
+      
+      // Try to format code using backend
+      try {
+        if (window.pywebview?.api?.format_code) {
+          formattedCode = await window.pywebview.api.format_code(code);
+          
+          // Update the editor with formatted code
+          setCode(formattedCode);
+          if (editorRef.current) {
+            editorRef.current.setValue(formattedCode);
+          }
+          
+          console.log("✅ Code formatted successfully");
+        }
+      } catch (formatError) {
+        console.warn("⚠️ Code formatting failed, saving without format:", formatError);
+        // Continue with original code if formatting fails
+      }
+      
+      // Save the (possibly formatted) code
+      await window.pywebview.api.save_project_files(projectId, formattedCode);
+      message.success("Project saved and formatted!");
+      
+      // Lint the code after saving
+      await lintCode(formattedCode);
+      
     } catch (err) {
       console.error("❌ Error saving project:", err);
       message.error("Failed to save project");

@@ -215,6 +215,71 @@ class Api:
                     print(f"   {line}")
             return []
 
+    def format_code_simple(self, code: str) -> str:
+        """Lightweight fallback formatter (no external deps)."""
+        try:
+            lines = code.splitlines()
+            result = []
+            indent = 0
+            in_str = False
+            str_delim = None
+            prev_blank = False
+
+            for raw in lines:
+                stripped = raw.strip()
+
+                # skip consecutive blank lines
+                if not stripped:
+                    if not prev_blank:
+                        result.append("")
+                    prev_blank = True
+                    continue
+                prev_blank = False
+
+                # detect triple-quoted strings
+                for delim in ('"""', "'''"):
+                    count = stripped.count(delim)
+                    if count == 1:
+                        in_str = not in_str
+                        str_delim = delim
+                    elif count >= 2 and in_str and delim == str_delim:
+                        in_str = False
+
+                if in_str:
+                    result.append(raw)
+                    continue
+
+                first_word = stripped.split()[0] if stripped else ""
+
+                if first_word in {"else", "elif", "except", "finally"}:
+                    indent = max(0, indent - 1)
+                elif first_word in {"return", "break", "continue", "pass", "raise"}:
+                    orig_indent = (len(raw) - len(stripped)) // 4
+                    if orig_indent < indent:
+                        indent = orig_indent
+
+                result.append("    " * indent + stripped)
+
+                if stripped.endswith(":") and not stripped.startswith("@"):
+                    indent += 1
+
+            # remove leading/trailing blank lines
+            return "\n".join([ln for ln in result]).strip("\n")
+        except Exception as e:
+            print(f"Format error: {e}")
+            return code
+
+    def format_code(self, code: str) -> str:
+        """Format Python code using Black if available, else fallback."""
+        try:
+            import black
+
+            mode = black.Mode()
+            return black.format_str(code, mode=mode)
+        except Exception as e:
+            print(f"[Black unavailable or failed: {e}] using fallback formatter")
+            return self.format_code_simple(code)
+
     # ------------------------
     # Project files
     # ------------------------
