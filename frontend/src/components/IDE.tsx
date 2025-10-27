@@ -200,6 +200,25 @@ const IDE: React.FC<IDEProps> = ({ projectId, isApiReady }) => {
     }
   }, [isApiReady, projectId]);
 
+  // Add this effect to handle error display
+  useEffect(() => {
+    if (errors.length > 0 && editorRef.current) {
+      // If there are errors, ensure the first error is visible
+      const firstError = errors[0];
+      if (firstError && firstError.line === 1) {
+        // Small delay to ensure editor is fully rendered
+        setTimeout(() => {
+          editorRef.current?.revealLineInCenter(1);
+          editorRef.current?.setPosition({
+            lineNumber: firstError.line,
+            column: firstError.column || 1,
+          });
+        }, 100);
+      }
+    }
+  }, [errors]);
+
+
   useEffect(() => {
     fetchProject();
   }, [fetchProject]);
@@ -922,6 +941,14 @@ const IDE: React.FC<IDEProps> = ({ projectId, isApiReady }) => {
               lineNumbersMinChars: 3,
               renderLineHighlight: 'all',
               readOnly: isCompiling,
+              padding: {
+                top: 5,
+              },
+              hover: {
+                enabled: true,
+                sticky: false,
+                above: false,
+              },
             }}
           />
         </div>
