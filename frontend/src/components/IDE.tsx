@@ -114,7 +114,7 @@ const BoardSelect: React.FC<{ value?: string; onChange?: (value: string) => void
       value={value}
       onChange={onChange}
       filterOption={(input, option) =>
-        (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+        String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
       }
     >
       {boards.map((board) => (
@@ -229,7 +229,7 @@ const IDE: React.FC<IDEProps> = ({ projectId, isApiReady }) => {
 
     const poll = async () => {
       try {
-        const status = await window.pywebview.api.get_compile_status(projectId);
+        const status = await window.pywebview?.api?.get_compile_status(projectId);
         
         if (status && status.completed) {
           // Stop polling
@@ -365,7 +365,11 @@ const IDE: React.FC<IDEProps> = ({ projectId, isApiReady }) => {
         // Cache the result
         if (completionCacheRef.current.size >= COMPLETION_CACHE_SIZE) {
           const firstKey = completionCacheRef.current.keys().next().value;
-          completionCacheRef.current.delete(firstKey);
+          if (firstKey){
+            completionCacheRef.current.delete(firstKey);
+
+          }
+          
         }
         completionCacheRef.current.set(requestKey, completions);
 
@@ -863,7 +867,7 @@ const IDE: React.FC<IDEProps> = ({ projectId, isApiReady }) => {
                 {compilationResult.success ? 'Compilation Successful' : 'Compilation Failed'}
               </Text>
               {compilationResult.fileName && (
-                <Tag icon={<FileTextOutlined />} color="blue" size="small">
+                <Tag icon={<FileTextOutlined />} color="blue" >
                   {compilationResult.fileName}
                 </Tag>
               )}

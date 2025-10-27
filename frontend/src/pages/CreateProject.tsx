@@ -36,7 +36,7 @@ const CreateProject: React.FC = () => {
       loading={loading}
       submitText="Create Project"
       title="Create New Project"
-      showCancel={true}
+      //showCancel={true}
       cancelPath="/"
     />
   );

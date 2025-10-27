@@ -13,6 +13,7 @@ declare global {
     stop_serial_monitor: () => Promise<void>;
     get_platforms: () => Promise<string[]>;
     get_project: (projectId: string) => Promise<any>;
+    get_compile_status:(projectId: string) => Promise<any>;
     lint_code: (
       code: string,
       board: string

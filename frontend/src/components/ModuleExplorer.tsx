@@ -11,7 +11,7 @@ import {
   Button,
   Space,
   Badge,
-  Avatar,
+  //Avatar,
   Empty,
   Modal,
   message,
@@ -26,8 +26,8 @@ import {
   ApiOutlined,
   SearchOutlined,
   CopyOutlined,
-  EyeOutlined,
-  FileTextOutlined,
+  //EyeOutlined,
+  //FileTextOutlined,
   FolderOutlined,
 } from "@ant-design/icons";
 import Fuse from "fuse.js";
@@ -142,8 +142,8 @@ const ModuleExplorer = () => {
   const [rawModules, setRawModules] = useState<Record<string, ModuleEntry>>({});
   const [search, setSearch] = useState("");
   const [darkMode, setDarkMode] = useState(false);
-  const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
-  const [expandedModules, setExpandedModules] = useState<string[]>([]);
+  //const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
+  //const [expandedModules, setExpandedModules] = useState<string[]>([]);
   const [detailModal, setDetailModal] = useState<{
     visible: boolean;
     item: ExplorerItem | null;
@@ -368,10 +368,10 @@ const ModuleExplorer = () => {
     const itemLabel = "name" in item ? item.name : item.module;
     const signature = "signature" in item ? item.signature : null;
 
-    const hoverStyle = {
+    /*const hoverStyle = {
       ...displayStyle,
       background: darkMode ? "#262626" : "#f5f5f5",
-    };
+    };*/
 
     return (
       <div
@@ -411,7 +411,7 @@ const ModuleExplorer = () => {
             )}
           </div>
           <Tag
-            size="small"
+            
             style={{ marginLeft: "auto", fontSize: 10 }}
             color={
               item.type === "function" || item.type === "method"
@@ -449,7 +449,7 @@ const ModuleExplorer = () => {
 
   // Render folder structure recursively
   const renderFolderStructure = (folder: FolderStructure, path: string = "") => {
-    const items = [];
+    const items: any[] = [];
     
     // Render subfolders
     if (folder.subFolders) {

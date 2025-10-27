@@ -56,25 +56,32 @@ const ArduinoTranspilerLog: React.FC<ArduinoTranspilerLogProps> = ({
   onDownload,
   onClose 
 }) => {
-  const {
-    success,
-    message,
-    error,
-    warnings = [],
-    specs = {},
-    suggestions = [],
-    timestamp,
-    fileName
+  const { 
+  success,
+  message,
+  error,
+  warnings = [],
+  specs: maybeSpecs,
+  suggestions = [],
+  timestamp,
+  fileName
   } = compilationResult;
+
+  const specs: NonNullable<CompilationResult["specs"]> = maybeSpecs ?? {
+    flash: { used: 0, total: 0 },
+    ram: { used: 0, total: 0 },
+    additional: {}
+  };
+
 
   // Calculate memory usage percentages
   const flashUsage = specs.flash ? (specs.flash.used / specs.flash.total) * 100 : 0;
   const ramUsage = specs.ram ? (specs.ram.used / specs.ram.total) * 100 : 0;
 
-  const getMemoryStatus = (usage: number) => {
+  const getMemoryStatus = (usage: number): "success" | "normal" | "exception" => {
     if (usage < 70) return 'success';
-    if (usage < 90) return 'warning';
-    return 'error';
+    if (usage < 90) return 'normal';
+    return 'exception';
   };
 
   return (
@@ -165,7 +172,7 @@ const ArduinoTranspilerLog: React.FC<ArduinoTranspilerLogProps> = ({
                         suffix={`/ ${specs.flash.total} bytes`}
                         valueStyle={{ 
                           color: getMemoryStatus(flashUsage) === 'success' ? '#3f8600' : 
-                                getMemoryStatus(flashUsage) === 'warning' ? '#faad14' : '#cf1322'
+                                getMemoryStatus(flashUsage) === 'normal' ? '#faad14' : '#cf1322'
                         }}
                       />
                       <Progress 
@@ -187,7 +194,7 @@ const ArduinoTranspilerLog: React.FC<ArduinoTranspilerLogProps> = ({
                         suffix={`/ ${specs.ram.total} bytes`}
                         valueStyle={{ 
                           color: getMemoryStatus(ramUsage) === 'success' ? '#3f8600' : 
-                                getMemoryStatus(ramUsage) === 'warning' ? '#faad14' : '#cf1322'
+                                getMemoryStatus(ramUsage) === 'normal' ? '#faad14' : '#cf1322'
                         }}
                       />
                       <Progress 
@@ -229,14 +236,14 @@ const ArduinoTranspilerLog: React.FC<ArduinoTranspilerLogProps> = ({
                 <List
                   size="small"
                   dataSource={warnings}
-                  renderItem={(warning, index) => (
+                  /*renderItem={(warning, index) => (
                     <List.Item>
                       <Space>
                         <WarningOutlined style={{ color: '#faad14' }} />
                         <Text>{warning}</Text>
                       </Space>
                     </List.Item>
-                  )}
+                  )}*/
                 />
               </div>
             )}
@@ -277,7 +284,7 @@ const ArduinoTranspilerLog: React.FC<ArduinoTranspilerLogProps> = ({
                 <List
                   size="small"
                   dataSource={suggestions}
-                  renderItem={(suggestion, index) => (
+                  renderItem={(suggestion, _) => (
                     <List.Item>
                       <Space>
                         <InfoCircleOutlined style={{ color: '#1890ff' }} />
@@ -299,7 +306,7 @@ const ArduinoTranspilerLog: React.FC<ArduinoTranspilerLogProps> = ({
                 <List
                   size="small"
                   dataSource={warnings}
-                  renderItem={(warning, index) => (
+                  renderItem={(warning, _) => (
                     <List.Item>
                       <Space>
                         <WarningOutlined style={{ color: '#faad14' }} />
