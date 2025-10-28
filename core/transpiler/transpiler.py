@@ -1633,6 +1633,39 @@ class TypeAnalyzer:
         self.get_is_inside_loop = get_is_inside_loop
         self.get_loop_vars = get_loop_vars
 
+    def get_lhs_name(self, target):
+        """Return a string representing the LHS name from any assignment target."""
+        if isinstance(target, ast.Name):
+            return target.id
+
+        elif isinstance(target, ast.Attribute):
+            # Handle obj.attr or nested obj.sub.attr
+            base = self.get_lhs_name(target.value)
+            return f"{base}.{target.attr}"
+
+        elif isinstance(target, ast.Subscript):
+            # Handle arr[0], obj.list[1], or dict["key"]
+            base = self.get_lhs_name(target.value)
+
+            # --- Python 3.8–3.12 compatible slice extraction ---
+            slice_node = getattr(target, "slice", None)
+            if isinstance(slice_node, ast.Constant):
+                index = slice_node.value
+            elif hasattr(ast, "Index") and isinstance(slice_node, ast.Index):
+                index = slice_node.value
+            else:
+                # Fallback for complex slices like d[x+y]
+                return f"{base}[{ast.unparse(slice_node)}]"
+
+            # --- Handle string keys correctly ---
+            if isinstance(index, str):
+                return f'{base}["{index}"]'
+            else:
+                return f"{base}[{index}]"
+
+        else:
+            raise TypeError(f"Unsupported LHS node type: {type(target).__name__}")
+
     def _call_type_analyzer(self, call_chain: dict, node):
         prev_type = None
         prev_statement = None
@@ -1902,6 +1935,46 @@ class TypeAnalyzer:
                         )
                 raise TypeError(f"Unsupported binary op for list: {type(op).__name__}")
 
+            # --- LIST on LEFT side ----------------------------------------------------
+
+            if left_base == "list":
+                if isinstance(op, ast.Mult):
+                    # list * int → valid
+                    if right_base == "int":
+                        return left_type
+                    # list * bool → valid (True=1, False=0)
+                    if right_base == "bool":
+                        return left_type
+                    # list * float → valid (fractional repeat)
+                    if right_base == "float":
+                        return left_type
+                    # list * str → invalid
+                    if right_base == "str":
+                        raise TypeError("Cannot multiply list by string")
+                raise TypeError(f"Unsupported binary op for list: {type(op).__name__}")
+
+            # --- LIST on RIGHT side ---------------------------------------------------
+
+            if right_base == "list":
+                if isinstance(op, ast.Mult):
+                    # int * list → valid
+                    if left_base == "int":
+                        return right_type
+                    # bool * list → valid (True=1, False=0)
+                    if left_base == "bool":
+                        return right_type
+                    # float * list → valid (fractional repeat)
+                    if left_base == "float":
+                        return right_type
+                    # str * list → invalid
+                    if left_base == "str":
+                        raise TypeError("Cannot multiply string by list")
+                raise TypeError(
+                    f"Unsupported binary op for {left_base} * list: {type(op).__name__}"
+                )
+
+            # --------------------------------------------------------------------------
+
             # DICT — not supported
             if "dict" in (left_base, right_base):
                 raise TypeError(
@@ -2019,16 +2092,23 @@ class ArduinoTranspiler(ast.NodeVisitor):
             get_loop_vars=lambda: self.loop_variables,
         )
 
-    """def visit(self, node, prev_translated_expr=None):
-        
-        method = "visit_" + node.__class__.__name__
-        visitor = getattr(self, method, self.generic_visit)
-        # Call the real visitor method, passing along context if it accepts it
+    def visit(self, node, context=None):
+        """Central dispatcher that forwards context if provided."""
+        method_name = "visit_" + node.__class__.__name__
+        visitor = getattr(self, method_name, self.generic_visit)
         try:
-            return visitor(node, prev_translated_expr=prev_translated_expr)
+            return visitor(node, context=context)
         except TypeError:
-            # Visitor doesn’t accept translated_expr → call normally
-            return visitor(node)"""
+            return visitor(node)
+
+    def generic_visit(self, node, context=None):
+        for field, value in ast.iter_fields(node):
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, ast.AST):
+                        self.visit(item)  # ❌ don’t pass context by default
+            elif isinstance(value, ast.AST):
+                self.visit(value)
 
     def transpile(self) -> str:
         # tree = ast.parse(self.code)
@@ -2056,24 +2136,26 @@ class ArduinoTranspiler(ast.NodeVisitor):
         lines = []
         for stmt in node.body:
             line = self.visit(stmt)
-            if line:  # ✅
-                if isinstance(
-                    stmt,
-                    (
-                        ast.Assign,
-                        ast.Expr,
-                        ast.Return,
-                        ast.Call,
-                        ast.Compare,
-                        ast.BinOp,
-                    ),
-                ):
-                    if not line.strip().endswith(";"):
-                        line += ";"
-                lines.append(line)
+            if not line:
+                continue
 
-        if lines:
-            return "\n".join(lines)
+            stripped = line.rstrip()
+            print(f"stripped is {stripped}")
+
+            # only append semicolon if it looks like a "statement" line, not a block
+            if not (
+                stripped.endswith(";")
+                or stripped.endswith("}")
+                or stripped.endswith("{")
+                or stripped.endswith(":")
+            ):
+                line = stripped + ";"
+
+            print(f"line is {line}")
+
+            lines.append(line)
+
+        return "\n".join(lines)
 
     def visit_Expr(self, node):
         return self.visit(node.value)
@@ -2351,7 +2433,8 @@ class ArduinoTranspiler(ast.NodeVisitor):
             raise NotImplementedError(f"Unsupported binary operator: {ast.dump(op)}")
         return f"({left} {operator} {right})"
 
-    def visit_Dict(self, node):
+    def visit_Dict(self, node, context=None):
+        print(f"visiting dict with context {context}")
         keys = node.keys
         values = node.values
         json_parts = []
@@ -2365,47 +2448,27 @@ class ArduinoTranspiler(ast.NodeVisitor):
             inferred_type = get_cpp_python_type(value_type)
             print(f"value type is {value_type} and inferred_type {inferred_type}")
 
-            """if not (isinstance(k, ast.Constant) and isinstance(v, ast.Constant)):
-                json_parts.append("/* unsupported */")
-                continue
-
-            k_val = k.value
-            v_val = v.value
-
-            # stringify key with JSON-style quotes (do NOT escape here)
-            key_str = f'"{k_val}"' if isinstance(k_val, str) else f'"{str(k_val)}"'
-
-            if isinstance(v_val, bool):
-                inferred_type = get_cpp_python_type("bool")
-                value_str = "true" if v_val else "false"
-
-            elif isinstance(v_val, int):
-                inferred_type = get_cpp_python_type("int")
-                value_str = str(v_val)
-
-            elif isinstance(v_val, float):
-                inferred_type = get_cpp_python_type("float")
-                value_str = str(v_val)
-
-            elif isinstance(v_val, str):
-                inferred_type = get_cpp_python_type("str")
-                escaped_val = v_val.replace(
-                    '"', '\\"'
-                )  # only escape internal quotes in string values
-                value_str = f'"{escaped_val}"'
-
-            else:
-                value_str = "/* unsupported */"
-
-            json_parts.append(f"{key_str}: {value_str}")"""
-
         json_str = "{ " + ", ".join(json_parts) + " }"
         c_string_literal = json_str.replace(
             '"', '\\"'
         )  # just escape for outer C++ string
 
+        print(f"got inferred_type {inferred_type}")
+
         if not inferred_type:
-            inferred_type = "auto"
+            print("inferred type is none")
+            if context:
+                print(f"found context {context}")
+                context_split = context.split(",")
+                is_context_split_right_len = len(context_split) == 3
+                is_context_correct = context_split[0] == "dict"
+                if is_context_split_right_len and is_context_correct:
+                    inferred_type = get_cpp_python_type(context_split[2])
+
+                else:
+                    inferred_type = "auto"
+            else:
+                inferred_type = "auto"
 
         return f'PyDict<{inferred_type}>("{c_string_literal}")'
 
@@ -2931,23 +2994,20 @@ class ArduinoTranspiler(ast.NodeVisitor):
             body_lines.append(f"    Serial.begin({self.monitor_speed});")
 
         for stmt in node.body:
-            print(f"visiting statement {stmt}")
             stmt_line = self.visit(stmt)
-            if stmt_line:
-                if isinstance(
-                    stmt,
-                    (
-                        ast.Assign,
-                        ast.Expr,
-                        ast.Return,
-                        ast.Call,
-                        ast.Compare,
-                        ast.BinOp,
-                    ),
-                ):
-                    if not stmt_line.strip().endswith(";"):
-                        stmt_line += ";"
-                body_lines.append(f"    {stmt_line}")
+            if not stmt_line:
+                continue
+
+            stripped = stmt_line.rstrip()
+            if not (
+                stripped.endswith(";")
+                or stripped.endswith("}")
+                or stripped.endswith("{")
+                or stripped.endswith(":")
+            ):
+                stripped += ";"
+
+            body_lines.append(f"    {stripped}")
 
         body_str = "\n".join(body_lines)
 
@@ -3373,18 +3433,41 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
         return "auto"
 
-    def visit_List(self, node):
+    def _get_combined_list(self, node):
         elements = node.elts
         element_exprs = [self.visit(elt) for elt in elements]
+        arr_values = ", ".join(element_exprs)
+
+        return arr_values
+
+    def _handle_list_translation(self, node):
+        elements = node.elts
 
         # Infer element type from first element or fallback
         # py_element_type = self._get_list_element_type(elements)
         py_element_type = self.type_analyzer._get_list_element_type(elements)
         element_type = get_cpp_python_type(py_element_type) or "auto"
 
-        arr_values = ", ".join(element_exprs)
+        arr_values = self._get_combined_list(node)
 
         return f"PyList<{element_type}>::from({{{arr_values}}})"
+
+    def visit_List(self, node, context=None):
+        if context:
+            context_split = context.split(",")
+
+            is_context_right_len = len(context_split) == 2
+            is_context_correct = context_split[0] == "list"
+
+            if not is_context_right_len or not is_context_correct:
+                return self._handle_list_translation(node)
+
+            element_type = get_cpp_python_type(context_split[1]) or "auto"
+            arr_values = self._get_combined_list(node)
+            return f"PyList<{element_type}>::from({{{arr_values}}})"
+
+        if not context:
+            return self._handle_list_translation(node)
 
     def is_constructor_call(self, node) -> bool:
         """
@@ -3448,23 +3531,50 @@ class ArduinoTranspiler(ast.NodeVisitor):
         print("🚫 Node.func is not a simple name or recognizable attribute-based call.")
         return False
 
+    def visit_AnnAssign(self, node):
+        is_lhs_name = isinstance(node.target, ast.Name)
+        rhs_type = extract_annotation_type(node.annotation)
+
+        if isinstance(node.value, ast.List) or isinstance(node.value, ast.Dict):
+            print(f"visint with context {rhs_type}")
+            rhs_converted = self.visit(node.value, context=rhs_type)
+        else:
+            rhs_converted = self.visit(node.value)
+
+        if is_lhs_name:
+            lhs_name = self.type_analyzer.get_lhs_name(node.target)
+            self.dependency_resolver.insert_variable(
+                lhs_name, rhs_type, self.current_module_name, "user"
+            )
+
+            return self._get_assign_translated(node, rhs_type, lhs_name, rhs_converted)
+
     def visit_Assign(self, node):
-        lhs_name = node.targets[0].id
+        lhs_name = self.type_analyzer.get_lhs_name(node.targets[0])
+
+        is_lhs_name = isinstance(node.targets[0], ast.Name)
         rhs_converted = self.visit(node.value)
         print(f"rhs converted is {rhs_converted}")
         print(f"node value is {node.value}")
 
-        rhs_type = self.type_analyzer.get_node_type(node.value)
+        if is_lhs_name:
+            # is lhs is subscript x[1], or other special type
+            # we don't need to store this.
+            rhs_type = self.type_analyzer.get_node_type(node.value)
 
+            self.dependency_resolver.insert_variable(
+                lhs_name, rhs_type, self.current_module_name, "user"
+            )
+
+            return self._get_assign_translated(node, rhs_type, lhs_name, rhs_converted)
+
+        return f"{lhs_name} = {rhs_converted}"
+
+    def _get_assign_translated(self, node, rhs_type, lhs_name, rhs_converted):
         is_python_type = is_core_python_type(rhs_type)
         print(f"var {lhs_name} is declared {rhs_type} of type {is_python_type}")
 
         cpp_type = get_cpp_python_type(rhs_type, custom_type_str=True)
-
-        self.dependency_resolver.insert_variable(
-            lhs_name, rhs_type, self.current_module_name, "user"
-        )
-
         if is_python_type or cpp_type == "auto":
             return f"{cpp_type} {lhs_name} = {rhs_converted}"
 

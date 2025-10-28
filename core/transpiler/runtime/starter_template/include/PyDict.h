@@ -72,6 +72,12 @@ public:
         for (int i = 0; i < capacity; i++) data[i].occupied = false;
     }
 
+    PyDict(std::initializer_list<std::pair<String, T>> init_list) : PyDict() {
+        for (auto& p : init_list) {
+            set(p.first, p.second);
+        }
+    }
+
     PyDict(const String& json_str) : PyDict() {
         from_json(json_str);
     }

@@ -786,7 +786,7 @@ class LintCode(ast.NodeVisitor):
         self.is_within_For = False
 
     def visit_Assign(self, node):
-        lhs_name = node.targets[0].id
+        lhs_name = self.type_analyzer.get_lhs_name(node.targets[0])
 
         is_lhs_function_name = self.dependency_resolver.get_method_metadata(lhs_name)
         if is_lhs_function_name:

@@ -657,12 +657,6 @@
     ],
     "variables": []
   },
-  "actuators.__init__": {
-    "doc": "No module docstring available",
-    "functions": [],
-    "classes": [],
-    "variables": []
-  },
   "comms.async_webserver": {
     "doc": "No module docstring available",
     "functions": [],
