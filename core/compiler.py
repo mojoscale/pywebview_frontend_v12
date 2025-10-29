@@ -487,7 +487,10 @@ async def compile_project(
         )
 
         files = transpiler["code"]
-        print(files)
+        for filename, code in files.items():
+            print(f"\n{'='*40}\n📄 {filename}\n{'='*40}")
+            print(code.strip())
+            print("\n")
         dependencies = transpiler["dependencies"]
         print("📦 Starting compilation...")
 

@@ -153,7 +153,7 @@ def format_type_string(type_or_string):
         return str(type_obj)
 
 
-def get_cpp_python_type(python_type, custom_type_str=False):
+def get_cpp_python_type(python_type, custom_type_str=False, custom_bool_type=False):
     if not python_type:
         return "auto"
     python_type_list = python_type.split(",")
@@ -163,7 +163,7 @@ def get_cpp_python_type(python_type, custom_type_str=False):
         "int": "int",
         "float": "float",
         "str": "PyString" if custom_type_str else "String",
-        "bool": "PyBool",
+        "bool": "PyBool" if custom_bool_type else "bool",
         "range": "PyRange",
         "list": "PyList",
         "dict": "PyDict",
@@ -183,7 +183,7 @@ def get_cpp_python_type(python_type, custom_type_str=False):
             python_type_element = python_type_list[2]
 
         converted_element_type = get_cpp_python_type(
-            python_type_element, custom_type_str=False
+            python_type_element, custom_type_str=False, custom_bool_type=False
         )  # inside values stay core type.
 
         return f"{type_map[python_type]}<{converted_element_type}>"
@@ -430,7 +430,7 @@ def _extract_chain(node: ast.Call):
 
         # Handle constants like 123 or "hello"
         elif isinstance(current, ast.Constant):
-            result.append({"value": repr(current.value), "type": "const", "args": []})
+            result.append({"value": current, "type": "const", "args": []})
             break
 
         else:
@@ -1828,6 +1828,13 @@ class TypeAnalyzer:
             if isinstance(node.operand, ast.Constant):
                 return type(-node.operand.value).__name__
 
+        elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.UAdd):
+            if isinstance(node.operand, ast.Constant):
+                return type(+node.operand.value).__name__
+
+        elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            return "bool"
+
         elif isinstance(node, ast.JoinedStr):
             return "str"
 
@@ -1840,14 +1847,8 @@ class TypeAnalyzer:
                 value_type = self.get_node_type(v)
                 return f"dict,{key_type},{value_type}"
 
-                """if not (isinstance(k, ast.Constant) and isinstance(v, ast.Constant)):
-                    json_parts.append("/* unsupported */")
-                    continue
-
-                k_val = k.value
-                v_val = v.value
-
-                return f"dict,{type(k_val).__name__},{type(v_val).__name__}"""
+            # this is empty dict
+            return f"dict,str,auto"
 
         elif isinstance(node, ast.Call):
             call_chain = _extract_chain(node)
@@ -2013,10 +2014,10 @@ class TypeAnalyzer:
             else:
                 val_type = type(elt.value).__name__
 
-            if type(val_type) not in LIST_ALLOWED_TYPES:
+            """if type(val_type) not in LIST_ALLOWED_TYPES:
                 raise NotImplementedError(
                     f"Unsupported constant type in list: {type(elt.value).__name__}"
-                )
+                )"""
 
             return val_type
 
@@ -2221,19 +2222,22 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
             if isinstance(op, (ast.In, ast.NotIn)):
                 right_side_type = self.type_analyzer.get_node_type(comparator)
+                right_side_type_split = right_side_type.split(",")
+
+                right_side_core_type = right_side_type_split[0]
 
                 if isinstance(op, ast.In):
-                    if right_side_type in ["list", "dict"]:
+                    if right_side_core_type in ["list", "dict"]:
                         return f"{right}.contains({left})"
 
                     elif right_side_type == "str":
                         return f"PyString({right}).contains({left})"
 
                 elif isinstance(op, ast.NotIn):
-                    if right_side_type in ["list", "dict"]:
+                    if right_side_core_type in ["list", "dict"]:
                         return f"!{right}.contains({left})"
 
-                    elif right_side_type == "str":
+                    elif right_side_core_type == "str":
                         return f"!PyString({right}).contains({left})"
 
             op_str = self._operator_to_str(op)
@@ -2308,7 +2312,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
         elif loop_type == "list":
             element_type = loop_var_type.split(",")[1]
             self.loop_variables[loop_var] = element_type
-            element_type_cpp = get_cpp_python_type(element_type)
+            element_type_cpp = get_cpp_python_type(element_type, custom_bool_type=False)
             result.append("{")
             result.append(
                 f"    PyList<{element_type_cpp}> __list_obj = PyList<{element_type_cpp}>({iterable});"
@@ -2399,6 +2403,18 @@ class ArduinoTranspiler(ast.NodeVisitor):
         self.is_inside_loop = False
 
         return "\n".join(result)
+
+    def visit_BoolOp(self, node):
+        if isinstance(node.op, ast.And):
+            op_str = "&&"
+        elif isinstance(node.op, ast.Or):
+            op_str = "||"
+        else:
+            op_str = "??"  # shouldn't happen
+
+        # Visit all values recursively
+        values = [self.visit(v) for v in node.values]
+        return f"({f' {op_str} '.join(values)})"
 
     def visit_BinOp(self, node):
         left = self.visit(node.left)
@@ -2540,7 +2556,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
             if not prev_type:
                 if called_entity_type == "const":
                     # basically a call like [1, 2, 3].split()
-                    prev_statement = called_entity_value
+                    prev_statement = self.visit(called_entity_value)
                     prev_type = (
                         self.type_analyzer.get_node_type(called_entity_value) or "str"
                     )
@@ -2669,7 +2685,9 @@ class ArduinoTranspiler(ast.NodeVisitor):
                         transformed_core_type = prev_type.split(",")[0]
                         if transformed_core_type in BUILTIN_TYPES:
                             cpp_type = get_cpp_python_type(
-                                transformed_core_type, custom_type_str=True
+                                transformed_core_type,
+                                custom_type_str=True,
+                                custom_bool_type=True,
                             )
 
                             joined_args = ",".join(args)
@@ -2950,7 +2968,9 @@ class ArduinoTranspiler(ast.NodeVisitor):
         if node.returns:
             return_type = self.type_analyzer._extract_annotation(node.returns)
 
-        return_cpp_type = get_cpp_python_type(return_type) or "void"
+        return_cpp_type = (
+            get_cpp_python_type(return_type, custom_bool_type=False) or "void"
+        )
         if (
             return_cpp_type == "auto"
             or not return_cpp_type
@@ -3462,7 +3482,9 @@ class ArduinoTranspiler(ast.NodeVisitor):
             if not is_context_right_len or not is_context_correct:
                 return self._handle_list_translation(node)
 
-            element_type = get_cpp_python_type(context_split[1]) or "auto"
+            element_type = (
+                get_cpp_python_type(context_split[1], custom_bool_type=False) or "auto"
+            )
             arr_values = self._get_combined_list(node)
             return f"PyList<{element_type}>::from({{{arr_values}}})"
 
@@ -3560,58 +3582,76 @@ class ArduinoTranspiler(ast.NodeVisitor):
         if is_lhs_name:
             # is lhs is subscript x[1], or other special type
             # we don't need to store this.
+
+            variable_exists = self.dependency_resolver.variable_exists(lhs_name)
+
             rhs_type = self.type_analyzer.get_node_type(node.value)
 
-            self.dependency_resolver.insert_variable(
-                lhs_name, rhs_type, self.current_module_name, "user"
-            )
+            if not variable_exists:
+                self.dependency_resolver.insert_variable(
+                    lhs_name, rhs_type, self.current_module_name, "user"
+                )
 
-            return self._get_assign_translated(node, rhs_type, lhs_name, rhs_converted)
+            return self._get_assign_translated(
+                node, rhs_type, lhs_name, rhs_converted, variable_exists=variable_exists
+            )
 
         return f"{lhs_name} = {rhs_converted}"
 
-    def _get_assign_translated(self, node, rhs_type, lhs_name, rhs_converted):
-        is_python_type = is_core_python_type(rhs_type)
-        print(f"var {lhs_name} is declared {rhs_type} of type {is_python_type}")
+    def _get_assign_translated(
+        self, node, rhs_type, lhs_name, rhs_converted, variable_exists=False
+    ):
+        if not variable_exists:
+            is_python_type = is_core_python_type(rhs_type)
+            print(f"var {lhs_name} is declared {rhs_type} of type {is_python_type}")
 
-        cpp_type = get_cpp_python_type(rhs_type, custom_type_str=True)
-        if is_python_type or cpp_type == "auto":
-            return f"{cpp_type} {lhs_name} = {rhs_converted}"
-
-        if self.is_constructor_call(node.value):
-            class_name = node.value.func.attr
-            is_reference = self.dependency_resolver.is_class_init_reference(class_name)
-            construct_with_equal_to = (
-                self.dependency_resolver.class_constructor_use_equal_to(class_name)
+            cpp_type = get_cpp_python_type(
+                rhs_type, custom_type_str=False, custom_bool_type=False
             )
-            actual_cpp_type = self.dependency_resolver.get_actual_class_type(class_name)
-            pass_as = self.dependency_resolver.get_class_pass_as(class_name)
-
-            if actual_cpp_type:
-                cpp_type = actual_cpp_type
-            if is_reference:
-                cpp_type = f"{cpp_type}&"
-
-            elif pass_as == "pointer":
-                cpp_type = f"{cpp_type}*"
-            elif pass_as == "reference":
-                cpp_type = f"{cpp_type}&"
-
-            if construct_with_equal_to:
+            if is_python_type or cpp_type == "auto":
                 return f"{cpp_type} {lhs_name} = {rhs_converted}"
 
-            else:
-                return f"{cpp_type} {lhs_name}{rhs_converted}"
+            if self.is_constructor_call(node.value):
+                class_name = node.value.func.attr
+                is_reference = self.dependency_resolver.is_class_init_reference(
+                    class_name
+                )
+                construct_with_equal_to = (
+                    self.dependency_resolver.class_constructor_use_equal_to(class_name)
+                )
+                actual_cpp_type = self.dependency_resolver.get_actual_class_type(
+                    class_name
+                )
+                pass_as = self.dependency_resolver.get_class_pass_as(class_name)
 
-        if not is_python_type:
-            pass_as = self.dependency_resolver.get_class_pass_as(rhs_type)
+                if actual_cpp_type:
+                    cpp_type = actual_cpp_type
+                if is_reference:
+                    cpp_type = f"{cpp_type}&"
 
-            if pass_as == "pointer":
-                cpp_type = f"{cpp_type}*"
-            elif pass_as == "reference":
-                cpp_type = f"{cpp_type}&"
+                elif pass_as == "pointer":
+                    cpp_type = f"{cpp_type}*"
+                elif pass_as == "reference":
+                    cpp_type = f"{cpp_type}&"
 
-        return f"{cpp_type} {lhs_name} = {rhs_converted}"
+                if construct_with_equal_to:
+                    return f"{cpp_type} {lhs_name} = {rhs_converted}"
+
+                else:
+                    return f"{cpp_type} {lhs_name}{rhs_converted}"
+
+            if not is_python_type:
+                pass_as = self.dependency_resolver.get_class_pass_as(rhs_type)
+
+                if pass_as == "pointer":
+                    cpp_type = f"{cpp_type}*"
+                elif pass_as == "reference":
+                    cpp_type = f"{cpp_type}&"
+
+            return f"{cpp_type} {lhs_name} = {rhs_converted}"
+
+        else:
+            return f"{lhs_name} = {rhs_converted}"
 
 
 def parse_external_python_file(filepath):

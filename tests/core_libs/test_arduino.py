@@ -1,4 +1,4 @@
-import arduino as ad
+import core.arduino as ad
 
 
 def func() -> None:
