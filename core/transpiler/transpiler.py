@@ -43,7 +43,7 @@ def is_builtin_function(name: str) -> bool:
     builtin_funcs = [
         name for name in dir(builtins) if callable(getattr(builtins, name))
     ]
-    return name in builtin_funcs or name == "range"
+    return name in builtin_funcs or name == "range" or name == "isinstance"
 
 
 def is_core_python_type(type_string):
@@ -107,6 +107,9 @@ def get_builtin_function_return_type(method_name: str, args: list):
         if arg_type1 in ("str", "float", "int", "bool"):
             return f"list,{arg_type1}"
 
+        elif arg_type1 in ("list,str", "list,int", "list,float", "list,bool"):
+            return arg_type1
+
     elif method_name in ("pow", "sorted"):
         arg_type1 = args[0]
         return arg_type1  # int if int is base or float if float is base
@@ -153,15 +156,21 @@ def format_type_string(type_or_string):
         return str(type_obj)
 
 
-def get_cpp_python_type(python_type, custom_type_str=False, custom_bool_type=False):
+def get_cpp_python_type(
+    python_type,
+    custom_type_str=False,
+    custom_bool_type=False,
+    custom_float_type=False,
+    custom_int_type=False,
+):
     if not python_type:
         return "auto"
     python_type_list = python_type.split(",")
     python_type = python_type_list[0]
 
     type_map = {
-        "int": "int",
-        "float": "float",
+        "int": "PyInt" if custom_int_type else "int",
+        "float": "PyFloat" if custom_float_type else "float",
         "str": "PyString" if custom_type_str else "String",
         "bool": "PyBool" if custom_bool_type else "bool",
         "range": "PyRange",
@@ -216,9 +225,10 @@ def get_python_builtin_class_method_type(class_name, method_name):
             return "int"
 
     elif core_class == "dict":
-        print(f"analyzing dict")
+        print(f"analyzing dict, for method name {method_name}")
         key_type = class_name_split[1] if len(class_name_split) > 1 else "any"
         value_type = class_name_split[2] if len(class_name_split) > 2 else "any"
+        print(f"dict looks like {key_type}:{value_type}")
 
         if method_name == "keys":
             return f"list,{key_type}"
@@ -275,14 +285,37 @@ def get_python_builtin_class_method_type(class_name, method_name):
             return "list,str"
 
     elif core_class == "int":
-        if method_name == "bit_length":
+        if method_name in (
+            "bit_length",
+            "bit_count",
+            "numerator",
+            "denominator",
+            "real",
+            "imag",
+            "conjugate",
+            "from_bytes",
+            "get",
+        ):
             return "int"
-        elif method_name == "to_bytes":
-            return "bytes"
+
+        elif method_name in ("is_integer"):
+            return "bool"
+        elif method_name in ("to_bytes"):
+            return "str"
 
     elif core_class == "float":
         if method_name == "is_integer":
             return "bool"
+
+        elif method_name in ("bit_count", "round", "bit_length"):
+            return "int"
+        elif method_name in ("imag", "str", "to_bytes", "str", "real", "hex"):
+            return "str"
+        elif method_name in ("conjugate", "pow"):
+            return "float"
+
+        elif method_name == "as_integer_ratio":
+            return "list,int"
 
     elif core_class == "range":
         if method_name == "index":
@@ -2420,6 +2453,25 @@ class ArduinoTranspiler(ast.NodeVisitor):
         left = self.visit(node.left)
         right = self.visit(node.right)
 
+        left_type = self.type_analyzer.get_node_type(node.left)
+        right_type = self.type_analyzer.get_node_type(node.right)
+
+        left_type_cpp = get_cpp_python_type(
+            left_type,
+            custom_bool_type=True,
+            custom_type_str=True,
+            custom_int_type=True,
+            custom_float_type=True,
+        )
+
+        right_type_cpp = get_cpp_python_type(
+            right_type,
+            custom_bool_type=True,
+            custom_type_str=True,
+            custom_int_type=True,
+            custom_float_type=True,
+        )
+
         op = node.op
         if isinstance(op, ast.Add):
             operator = "+"
@@ -2433,6 +2485,9 @@ class ArduinoTranspiler(ast.NodeVisitor):
             operator = "/"  # Note: C++ doesn't have Python-style //
         elif isinstance(op, ast.Mod):
             operator = "%"
+            # cpp does not have this operator natively
+            # so we gotta transform left and right side to Py{Type}
+            return f"{left_type_cpp}({left}) {operator} {right_type_cpp}({right})"
         elif isinstance(op, ast.Pow):
             return f"pow({left}, {right})"  # Use C++ std::pow
         elif isinstance(op, ast.LShift):
@@ -2688,6 +2743,8 @@ class ArduinoTranspiler(ast.NodeVisitor):
                                 transformed_core_type,
                                 custom_type_str=True,
                                 custom_bool_type=True,
+                                custom_int_type=True,
+                                custom_float_type=True,
                             )
 
                             joined_args = ",".join(args)
@@ -3114,7 +3171,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 )
 
         # --- Fallback (should rarely happen) ---
-        return f"{value_code}[UNKNOWN]"
+        return f"{value_code}[{self.visit(node.slice)}]"
 
     def visit_While(self, node: ast.While):
         result = []

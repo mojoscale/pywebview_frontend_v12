@@ -41,39 +41,39 @@ public:
     }
 
     // Arithmetic
-    PyInt operator+(const PyInt& other) const {
-        return PyInt(value + other.value);
+    int operator+(const PyInt& other) const {
+        return static_cast<int>(value + other.value);
     }
 
-    PyInt operator-(const PyInt& other) const {
-        return PyInt(value - other.value);
+    int operator-(const PyInt& other) const {
+        return static_cast<int>(value - other.value);
     }
 
-    PyInt operator*(const PyInt& other) const {
-        return PyInt(value * other.value);
+    int operator*(const PyInt& other) const {
+        return static_cast<int>(value * other.value);
     }
 
-    PyInt operator/(const PyInt& other) const {
-        return PyInt(value / other.value);
+    int operator/(const PyInt& other) const {
+        return static_cast<int>(value / other.value);
     }
 
-    PyInt operator%(const PyInt& other) const {
-        return PyInt(value % other.value);
+    int operator%(const PyInt& other) const {
+        return static_cast<int>(value % other.value);
     }
 
-    PyInt pow(PyInt exponent) const {
+    /*int pow(int exponent) const {
         long result = 1;
         long base = value;
-        long exp = exponent.value;
-        for (int i = 0; i < exp; ++i) {
+        for (int i = 0; i < exponent; ++i) {
             result *= base;
         }
-        return PyInt(result);
+        return static_cast<int>(result);
+    }*/
+
+    int operator-() const {
+        return static_cast<int>(-value);
     }
 
-    PyInt operator-() const {
-        return PyInt(-value);
-    }
 
     // Comparisons
     bool operator==(const PyInt& other) const {
@@ -142,14 +142,14 @@ public:
         return 0;
     }
 
-    PyInt conjugate() const {
-        return *this;
+    int conjugate() const {
+        return static_cast<int>(value);
     }
 
-    void as_integer_ratio(long& num, long& denom) const {
+    /*void as_integer_ratio(long& num, long& denom) const {
         num = value;
         denom = 1;
-    }
+    }*/
 
     // Binary conversions
     String to_bytes() const {
@@ -160,12 +160,12 @@ public:
         return s;
     }
 
-    static PyInt from_bytes(const String& s) {
+    static int from_bytes(const String& s) {
         long val = 0;
         for (size_t i = 0; i < s.length(); ++i) {
             val = (val << 8) | (unsigned char)s[i];
         }
-        return PyInt(val);
+        return val;
     }
 
     // Display

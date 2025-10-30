@@ -1229,6 +1229,95 @@
     "classes": [],
     "variables": []
   },
+  "peripherals.esp_camera": {
+    "doc": "ESP32 Camera Peripheral\n=======================\n\nThis module provides a Python-style abstraction for the **ESP32 Camera Peripheral**, \nenabling you to easily capture photos, stream video, and upload images via HTTP.  \nIt wraps Espressif\u2019s low-level `esp_camera` driver and provides high-level access \nthrough the `Camera` and `Image` classes.\n\n**Features**\n- Initialize and configure ESP32 camera (OV2640 and compatible modules)\n- Capture still frames and save locally or upload via HTTP\n- Convert captured images to Base64 (for MQTT/JSON payloads)\n- Start an HTTP MJPEG stream server\n- Automatically manage PSRAM usage and frame buffers\n\n**Dependencies**\n- ESP32 Arduino Core (`esp_camera.h`, `WiFi.h`, `HTTPClient.h`)\n- Internal helper: none (self-contained)\n- Requires hardware camera pins defined in C++ `Camera.h`\n\n**Sample Code**\n```python\nimport peripherals.camera as cam_mod\n\ncam = cam_mod.Camera(\"VGA\", \"JPEG\")\n\ndef setup() -> None:\n\n    #wifi connection is required for http.\n    while not cam.is_wifi_connected():\n        cam.wifi_connect(\"<ssid>\", \"<password>\")\n    if cam.begin():\n        img = cam.capture()\n        img.save(\"/photo.jpg\")\n        cam.send_http(\"http://example.com/upload\")\n\ndef loop() -> None:\n    pass\n```",
+    "functions": [],
+    "classes": [
+      {
+        "name": "Image",
+        "doc": "Represents a captured image frame from the ESP32 camera.\nProvides convenient methods to save, encode, and inspect the image.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self) -> None",
+            "doc": "Creates an empty image container.\n\nNormally returned by `Camera.capture()`."
+          },
+          {
+            "name": "save",
+            "signature": "(self, path: str) -> None",
+            "doc": "Save the captured image to SPIFFS or SD card.\n\nArgs:\n    path (str): File path, e.g. \"/photo.jpg\""
+          },
+          {
+            "name": "base64",
+            "signature": "(self) -> str",
+            "doc": "Convert image data to Base64-encoded string.\n\nReturns:\n    str: Base64-encoded representation of the image"
+          },
+          {
+            "name": "size",
+            "signature": "(self) -> int",
+            "doc": "Get image size in bytes.\n\nReturns:\n    int: Image size"
+          },
+          {
+            "name": "get_width",
+            "signature": "(self) -> int",
+            "doc": "Get image width in pixels.\n\nReturns:\n    int: Width"
+          },
+          {
+            "name": "get_height",
+            "signature": "(self) -> int",
+            "doc": "Get image height in pixels.\n\nReturns:\n    int: Height"
+          }
+        ]
+      },
+      {
+        "name": "Camera",
+        "doc": "Provides a Pythonic interface to initialize, capture, stream, and upload\nframes from the ESP32 camera module.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, resolution: str, format: str) -> None",
+            "doc": "Create a Camera instance.\n\nArgs:\n    resolution (str): Frame size, e.g. \"VGA\", \"SVGA\", \"UXGA\"\n    format (str): Pixel format, e.g. \"JPEG\", \"RGB565\""
+          },
+          {
+            "name": "wifi_connect",
+            "signature": "(self, ssid: str, password: str) -> bool",
+            "doc": "Connect the ESP32 to a Wi-Fi network.\n\nArgs:\n    ssid (str): Wi-Fi SSID.\n    password (str): Wi-Fi password.\n\nReturns:\n    bool: True if the connection succeeded, False otherwise."
+          },
+          {
+            "name": "is_wifi_connected",
+            "signature": "(self) -> bool",
+            "doc": "Check whether the device is currently connected to Wi-Fi.\n\nReturns:\n    bool: True if Wi-Fi is connected."
+          },
+          {
+            "name": "begin",
+            "signature": "(self) -> bool",
+            "doc": "Initialize the camera hardware and configure GPIOs.\n\nReturns:\n    bool: True if successful, False otherwise"
+          },
+          {
+            "name": "capture",
+            "signature": "(self) -> Image",
+            "doc": "Capture a still image frame.\n\nReturns:\n    Image: Captured image object"
+          },
+          {
+            "name": "send_http",
+            "signature": "(self, url: str) -> bool",
+            "doc": "Upload the latest captured image via HTTP POST.\n\nArgs:\n    url (str): Target HTTP endpoint\n\nReturns:\n    bool: True if upload succeeded"
+          },
+          {
+            "name": "stream_http",
+            "signature": "(self, port: int) -> None",
+            "doc": "Start an MJPEG streaming server.\n\nArgs:\n    port (int): Port number for HTTP stream (default: 8080)\n\nNotes:\n    - Accessible via `http://<device_ip>:port`\n    - Stream runs indefinitely unless stopped manually"
+          },
+          {
+            "name": "deinit",
+            "signature": "(self) -> None",
+            "doc": "Deinitialize and release camera resources."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
   "sensors.adxl345": {
     "doc": "ADXL345 Accelerometer Module\n============================\n\nThis module provides a Python-style abstraction for the **Adafruit ADXL345** 3-axis accelerometer, \nallowing you to easily configure range, data rate, and read acceleration data in a Pythonic way.  \nIt wraps the `Adafruit_ADXL345_U` and `Adafruit_Sensor` C++ libraries, enabling usage from \ntranspiled Python code with full compatibility on ESP32/ESP8266 and other Arduino boards.\n\n**Features**\n- 3-axis acceleration measurement (X, Y, Z)\n- Configurable range: \u00b12g, \u00b14g, \u00b18g, \u00b116g\n- Adjustable data output rate\n- Access to raw register-level operations\n- Device ID and configuration helpers\n- I2C communication (default address: 0x53)\n\n**Dependencies**\n- Adafruit ADXL345 (`adafruit/Adafruit ADXL345`)\n- Adafruit Unified Sensor (`Adafruit_Sensor`)\n- Internal helper: `helpers/sensors/ADXL345Helper`\n\n**Sample Code**\n```python\nimport sensors.adxl345 as sensor_adxl\n\nadxl = sensor_adxl.ADXL345Sensor(0x53)\n\ndef setup() -> None:\n    adxl.begin(0x53)\n    adxl.set_range(2)        # \u00b18g\n    adxl.set_data_rate(10)   # Medium speed\n\ndef loop() -> None:\n    accel = adxl.read_acceleration()\n    print(f\"Acceleration: X={accel[0]}, Y={accel[1]}, Z={accel[2]}\")\n```",
     "functions": [],

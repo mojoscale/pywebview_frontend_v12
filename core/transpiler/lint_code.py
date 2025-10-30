@@ -79,6 +79,7 @@ DISALLOWED_NODE_TYPES = [
     "pattern",
     "type_param",
     "withitem",
+    "IfExp",
 ]
 
 
@@ -725,7 +726,15 @@ class LintCode(ast.NodeVisitor):
             error_text = "'If' can only be called within function body."
             self.add_error(node, error_text)
 
+        # visit the condition
+        self.visit(node.test)
+
+        # visit the body
         for stmt in node.body:
+            self.visit(stmt)
+
+        # also visit else/elif blocks if present
+        for stmt in node.orelse:
             self.visit(stmt)
 
         self.is_within_If = False
@@ -772,6 +781,10 @@ class LintCode(ast.NodeVisitor):
             # in arduino, if only works within function/class body
             error_text = "'For' can only be called within function body."
             self.add_error(node, error_text)
+
+        # visit the iterator expression and target
+        self.visit(node.iter)
+        # self.visit(node.target)
 
         for stmt in node.body:
             self.visit(stmt)
@@ -1153,6 +1166,10 @@ class LintCode(ast.NodeVisitor):
 
             if is_builtin_function(method_name):
                 builtin_func_metadata = get_core_func_metadata(method_name)
+
+                print(
+                    f"[CORETYPE]: checking for {method_name}, {builtin_func_metadata}"
+                )
 
                 is_allowed = builtin_func_metadata["is_allowed"]
 

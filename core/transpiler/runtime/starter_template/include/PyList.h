@@ -3,11 +3,14 @@
 
 #include <Arduino.h>
 #include <type_traits>
-#include "PyInt.h"
-#include "PyFloat.h"
-#include "PyBool.h"
+#include <PyInt.h>
+#include <PyBool.h>
 
 class PyString;  // Forward declare
+
+class PyFloat;   // ✅ Add forward declare
+
+
 
 template<typename T>
 class PyList {

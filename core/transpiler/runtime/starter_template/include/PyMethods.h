@@ -283,7 +283,15 @@ inline int py_len(const PyList<T>& list) {
     return list.size();
 }
 
+// ✅ From PyRange → int
+inline int py_len(const PyRange& r) {
+    return r.size();
+}
 
+template<typename T>
+inline int py_len(const PyDict<T>& d) {
+    return d.size();
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -320,9 +328,15 @@ inline PyList<T> py_list(const T (&arr)[N]) {
     return result;
 }
 
-
-
-
+inline PyList<int> py_list(const PyRange& r) {
+    PyList<int> result;
+    PyRange temp = r;       // make a copy since next() modifies state
+    temp.reset();           // ensure iteration starts at beginning
+    while (temp.has_next()) {
+        result.append(temp.next());
+    }
+    return result;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
