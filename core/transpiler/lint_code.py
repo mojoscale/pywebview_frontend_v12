@@ -8,6 +8,7 @@ from .transpiler import (
     TypeAnalyzer,
     is_core_python_type,
     is_builtin_function,
+    extract_annotation_type,
 )
 import importlib
 import os
@@ -78,6 +79,7 @@ DISALLOWED_NODE_TYPES = [
     "pattern",
     "type_param",
     "withitem",
+    "IfExp",
 ]
 
 
@@ -250,24 +252,23 @@ class LintCode(ast.NodeVisitor):
             return False
 
     def visit_Subscript(self, node):
-        expression = node.value
+        pass
+        """expression = node.value
         expression_type = self.type_analyzer.get_node_type(expression)
 
         base_type = expression_type.split(",")[0]
         print(f"found base type {base_type} and expression type {expression_type}")
 
         if base_type not in ("str", "list", "dict"):
-            self.add_error(node, f"Invalid use of Subscript on type '{base_type}.")
+            self.add_error(node, f"Invalid use of Subscript on type '{base_type}.")"""
+
+    def visit_IfExp(self, node):
+        self.add_error(node, f"One lined if expressions are not allowed.")
 
     def visit_List(self, node: ast.List):
         """Validate literal lists: all elements same type, and of allowed scalar types."""
         # ALLOWED_TYPES = (ast.Constant,)
         ALLOWED_VALUE_TYPES = ("str", "int", "float", "bool")
-
-        # Empty list is allowed, but warn if empty
-        if not node.elts:
-            self.add_error(node, "Empty lists are not allowed.")
-            return
 
         element_types = []
 
@@ -313,10 +314,6 @@ class LintCode(ast.NodeVisitor):
     def visit_Dict(self, node: ast.Dict):
         """Validate literal dicts: key/value type restrictions and uniformity."""
         ALLOWED_VALUE_TYPES = ("str", "int", "float", "bool")
-
-        if not node.keys or not node.values:
-            self.add_error(node, "Empty dictionaries are not allowed.")
-            return
 
         key_types = []
         val_types = []
@@ -729,7 +726,15 @@ class LintCode(ast.NodeVisitor):
             error_text = "'If' can only be called within function body."
             self.add_error(node, error_text)
 
+        # visit the condition
+        self.visit(node.test)
+
+        # visit the body
         for stmt in node.body:
+            self.visit(stmt)
+
+        # also visit else/elif blocks if present
+        for stmt in node.orelse:
             self.visit(stmt)
 
         self.is_within_If = False
@@ -777,6 +782,10 @@ class LintCode(ast.NodeVisitor):
             error_text = "'For' can only be called within function body."
             self.add_error(node, error_text)
 
+        # visit the iterator expression and target
+        self.visit(node.iter)
+        # self.visit(node.target)
+
         for stmt in node.body:
             self.visit(stmt)
 
@@ -785,8 +794,83 @@ class LintCode(ast.NodeVisitor):
 
         self.is_within_For = False
 
-    def visit_Assign(self, node):
-        lhs_name = node.targets[0].id
+    def visit_AnnAssign(self, node):
+        """
+        Handles annotated assignments like:
+            x: list[int] = []
+            y: dict[str, int] = {}
+            z: int = 5
+
+        Ensures annotated type matches the assigned type,
+        except when the RHS is an empty list/dict with 'auto' subtype markers.
+        """
+
+        rhs_type = extract_annotation_type(node.annotation)
+        is_lhs_name = isinstance(node.target, ast.Name)
+
+        if not is_lhs_name:
+            return  # Skip unpacking or complex targets
+
+        lhs_name = self.type_analyzer.get_lhs_name(node.target)
+        self.dependency_resolver.insert_variable(
+            lhs_name, rhs_type, self.module_name, "user"
+        )
+
+        # Skip if there's no right-hand side (e.g., `x: int`)
+        if node.value is None:
+            return
+
+        actual_rhs_type = self.type_analyzer.get_node_type(node.value)
+
+        # Handle literal empty list/dict cases gracefully
+        if isinstance(node.value, ast.List) and len(node.value.elts) == 0:
+            actual_rhs_type = "list,auto"
+        elif isinstance(node.value, ast.Dict) and len(node.value.keys) == 0:
+            # If dict has annotation like dict[str, int], the auto subtype can remain
+            # but should not trigger mismatch
+            actual_rhs_type = "dict,auto"
+
+        # Normalize for comparison
+        def normalize(t: str):
+            return [x.strip() for x in t.split(",") if x.strip()]
+
+        expected_parts = normalize(rhs_type)
+        actual_parts = normalize(actual_rhs_type)
+
+        # Handle special rule: skip 'auto' for empty list/dict
+        if "auto" in actual_parts:
+            actual_parts = [x for x in actual_parts if x != "auto"]
+
+        # For dicts, if annotation is dict[str, int] and actual is dict only, allow it
+        if expected_parts and actual_parts:
+            if expected_parts[0] in ("list", "dict") and actual_parts[0] in (
+                "list",
+                "dict",
+            ):
+                # If both are list/dict but lengths differ only because of auto placeholders, skip error
+                if expected_parts[0] == actual_parts[0]:
+                    pass  # same base type — fine
+                else:
+                    self.add_error(
+                        node,
+                        f"Type mismatch in annotated assignment for '{lhs_name}': "
+                        f"expected '{rhs_type}', but got '{actual_rhs_type}'.",
+                    )
+                    return
+            else:
+                # Strict comparison for non-collection types
+                if expected_parts != actual_parts:
+                    self.add_error(
+                        node,
+                        f"Type mismatch in annotated assignment for '{lhs_name}': "
+                        f"expected '{rhs_type}', but got '{actual_rhs_type}'.",
+                    )
+                    return
+
+        self.visit(node.value)
+
+    """def visit_Assign(self, node):
+        lhs_name = self.type_analyzer.get_lhs_name(node.targets[0])
 
         is_lhs_function_name = self.dependency_resolver.get_method_metadata(lhs_name)
         if is_lhs_function_name:
@@ -799,6 +883,110 @@ class LintCode(ast.NodeVisitor):
         self.dependency_resolver.insert_variable(
             lhs_name, rhs_type, self.module_name, "user"
         )
+
+        self.visit(node.value)"""
+
+    def visit_Assign(self, node):
+        # Handle left-hand side safely — may be Name, Subscript, Attribute, etc.
+        target = node.targets[0]
+        is_lhs_name = isinstance(target, ast.Name)
+        is_lhs_subscript = isinstance(target, ast.Subscript)
+        rhs_type = self.type_analyzer.get_node_type(node.value)
+
+        if is_lhs_name:
+            lhs_name = target.id
+
+            is_lhs_function_name = self.dependency_resolver.get_method_metadata(
+                lhs_name
+            )
+
+            variable_exists = self.dependency_resolver.variable_exists(lhs_name)
+            if is_lhs_function_name:
+                self.add_error(
+                    node,
+                    f"'{lhs_name}' is a defined or imported method name. Please rename this variable.",
+                )
+
+            # 🧩 New clause: Detect empty list or dict assignments
+            if isinstance(node.value, ast.List) and len(node.value.elts) == 0:
+                self.add_error(
+                    node,
+                    f"Empty list detected in assignment to '{lhs_name}'. "
+                    "Empty lists must be initialized with an annotation, e.g.:\n"
+                    f"# Example:\n{lhs_name}: list[int] = []",
+                )
+
+            elif isinstance(node.value, ast.Dict) and len(node.value.keys) == 0:
+                self.add_error(
+                    node,
+                    f"Empty dict detected in assignment to '{lhs_name}'. "
+                    "Empty dicts must be initialized with an annotation, e.g.:\n"
+                    f"# Example:\n{lhs_name}: dict[str, int] = {{}}",
+                )
+
+            if not variable_exists:
+                self.dependency_resolver.insert_variable(
+                    lhs_name, rhs_type, self.module_name, "user"
+                )
+
+            if variable_exists:
+                previous_init_type = self.dependency_resolver.get_variable_type(
+                    lhs_name, self.scope
+                )
+
+                if previous_init_type != rhs_type:
+                    self.add_error(
+                        node,
+                        f"Variable '{lhs_name}' was previously defined as type {previous_init_type}, but now you have assigned '{rhs_type}'. You can reassign previously initialized variable with same type, but you cannot reinitialize it as another type. Consider changing the variable name.",
+                    )
+
+        elif is_lhs_subscript:
+            base = node.targets[0].value
+            index = node.targets[0].slice
+
+            base_type = self.type_analyzer.get_node_type(base)
+            index_type = self.type_analyzer.get_node_type(index)
+
+            base_type_split = base_type.split(",")
+
+            if base_type_split[0] not in ("str", "dict", "int"):
+                self.add_error(
+                    node, f"You are calling subscript on non allowed type {base_type}"
+                )
+
+            else:
+                if base_type_split[0] in ("str", "list") and index_type != "int":
+                    self.add_error(
+                        node,
+                        f"Index for type {base_type} subscript can only be of type 'int'. You passed '{index_type}'",
+                    )
+
+                elif base_type_split[0] == "dict" and index_type != "str":
+                    self.add_error(
+                        node,
+                        f"Index for 'dict' subscript can only be of type 'str'. You passed '{index_type}'",
+                    )
+
+                else:
+                    if base_type_split[0] == "str" and rhs_type != "str":
+                        self.add_error(
+                            node,
+                            f"Incompatibe assignment, expected 'str', you passed {rhs_type}",
+                        )
+
+                    elif base_type_split[0] == "list" and len(base_type_split) == 2:
+                        if rhs_type != base_type_split[1]:
+                            self.add_error(
+                                node,
+                                f"Incompatibe assignment, expected '{base_type_split[1]}', you passed {rhs_type}",
+                            )
+
+                    elif base_type_split[0] == "dict" and len(base_type_split) == 3:
+                        if rhs_type != base_type_split[2]:
+                            self.add_error(
+                                node,
+                                f"Incompatibe assignment, expected '{base_type_split[2]}', you passed {rhs_type}",
+                            )
 
         self.visit(node.value)
 
@@ -821,8 +1009,9 @@ class LintCode(ast.NodeVisitor):
                         # func_metadata = self.dependency_resolver.get_method_metadata()
                         print(f"arg looks like {call_args}")
                     else:
+                        print(f"[LINT]arg is {arg}")
                         errors.append(
-                            f'{arg["name"]} is expected of type {arg["arg_type"]}, but you passed {call_args[i]}'
+                            f'{arg["arg_name"]} is expected of type {arg["arg_type"]}, but you passed {call_args[i]}'
                         )
 
         for error in errors:
@@ -843,10 +1032,11 @@ class LintCode(ast.NodeVisitor):
                 # this can be a loop variable
                 # e.g: for x in custom_list
                 # x will be resolved here
-                try:
-                    arg_type = self.loop_variables[arg.id]
-                except KeyError:
-                    pass
+                if isinstance(arg, ast.Name):
+                    try:
+                        arg_type = self.loop_variables[arg.id]
+                    except KeyError:
+                        pass
             call_args.append(arg_type)
             self.visit(arg)
 
@@ -976,6 +1166,10 @@ class LintCode(ast.NodeVisitor):
 
             if is_builtin_function(method_name):
                 builtin_func_metadata = get_core_func_metadata(method_name)
+
+                print(
+                    f"[CORETYPE]: checking for {method_name}, {builtin_func_metadata}"
+                )
 
                 is_allowed = builtin_func_metadata["is_allowed"]
 

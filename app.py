@@ -153,7 +153,8 @@ class Api:
         column: int = None,
         stub_path: str = CORE_STUBS_PATH,
     ):
-        try:
+        return []
+        """try:
             # Parameter validation and correction
             if isinstance(line, str) and "\n" in line:
                 # line parameter actually contains code - parameters are shifted
@@ -213,7 +214,7 @@ class Api:
             for line in tb_lines:
                 if line.strip():
                     print(f"   {line}")
-            return []
+            return []"""
 
     def format_code_simple(self, code: str) -> str:
         """Lightweight fallback formatter (no external deps)."""

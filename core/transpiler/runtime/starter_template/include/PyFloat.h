@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 #include <math.h>
+#include <utility>
+#include <PyList.h>
 
 class PyFloat {
 private:
@@ -92,24 +94,32 @@ public:
     }
 
     // Python-style methods
-    PyFloat pow(PyFloat exponent) const {
-        return PyFloat(powf(value, exponent.get()));
+    float pow(PyFloat exponent) const {
+        return powf(value, exponent.get());
     }
-
+    
     bool is_integer() const {
         return floor(value) == value;
     }
 
-    void as_integer_ratio(long& num, long& denom) const {
+    PyList<int> as_integer_ratio() const {
         double frac = value;
         long n = 1;
+
         while (floor(frac) != frac && n < 1000000) {
             frac *= 10.0;
             n *= 10;
         }
-        num = static_cast<long>(frac);
-        denom = n;
+
+        long num = static_cast<long>(frac);
+        long denom = n;
+
+        // Construct a PyList<int> with two elements
+        PyList<int> result = PyList<int>::from({ static_cast<int>(num),
+                                                 static_cast<int>(denom) });
+        return result;
     }
+
 
     String hex() const {
         char buf[32];
@@ -139,9 +149,10 @@ public:
         return "0";
     }
 
-    PyFloat conjugate() const {
-        return *this;
+    float conjugate() const {
+        return static_cast<float>(value);
     }
+
 
     int bit_length() const {
         long int_val = static_cast<long>(fabs(value));

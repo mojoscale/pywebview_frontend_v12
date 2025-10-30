@@ -396,6 +396,19 @@ public:
         return result;
     }
 
+    String join(const String& s) const {
+        String result = "";
+        for (int i = 0; i < s.length(); ++i) {
+            result += String(s[i]);
+            if (i < s.length() - 1) {
+                result += data;   // ← use this->data as the delimiter
+            }
+        }
+        return result;
+    }
+
+
+
     // ✅ Extended join - for PyList<int>
     String join(const PyList<int>& parts) const {
         String result = "";
@@ -442,13 +455,13 @@ public:
         return data;
     }
 
-    static PyString decode(const String& bytes) {
+    /*static PyString decode(const String& bytes) {
         return PyString(bytes);
     }
 
     static PyString decode(const PyString& bytes) {
         return PyString(bytes.str());
-    }
+    }*/
 
     PyString& operator+=(const String& rhs) {
         data += rhs;

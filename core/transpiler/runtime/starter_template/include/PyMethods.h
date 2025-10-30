@@ -94,6 +94,10 @@ inline bool py_bool(const char* x) {
     return strlen(x) > 0;
 }
 
+inline bool py_bool() {
+    return false;
+}
+
 // ========== py_str ==========
 
 inline String py_str(int x) {
@@ -279,13 +283,21 @@ inline int py_len(const PyList<T>& list) {
     return list.size();
 }
 
+// ✅ From PyRange → int
+inline int py_len(const PyRange& r) {
+    return r.size();
+}
 
+template<typename T>
+inline int py_len(const PyDict<T>& d) {
+    return d.size();
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ========== py_list ==========
+// ================== py_list ==================
 
 // From String → PyList<String> (character split)
 inline PyList<String> py_list(const String& s) {
@@ -296,8 +308,35 @@ inline PyList<String> py_list(const String& s) {
     return result;
 }
 
+// From PyList<T> → PyList<T> (copy)
+template<typename T>
+inline PyList<T> py_list(const PyList<T>& lst) {
+    PyList<T> result;
+    for (int i = 0; i < lst.size(); ++i) {
+        result.append(lst[i]);
+    }
+    return result;
+}
 
+// (Optional) From C++ array → PyList<T>
+template<typename T, size_t N>
+inline PyList<T> py_list(const T (&arr)[N]) {
+    PyList<T> result;
+    for (size_t i = 0; i < N; ++i) {
+        result.append(arr[i]);
+    }
+    return result;
+}
 
+inline PyList<int> py_list(const PyRange& r) {
+    PyList<int> result;
+    PyRange temp = r;       // make a copy since next() modifies state
+    temp.reset();           // ensure iteration starts at beginning
+    while (temp.has_next()) {
+        result.append(temp.next());
+    }
+    return result;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

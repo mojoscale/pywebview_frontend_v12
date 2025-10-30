@@ -19,3 +19,6 @@ to do:
 - linter not able to identify the type of the iterator in for loop. 
 - add the platform level eligiblity to the linter check of imported modules.✅
 - transpiler check of the variables of tfh test stepper motor script.
+
+
+- lint that once value defined as a type cannot be changed later.

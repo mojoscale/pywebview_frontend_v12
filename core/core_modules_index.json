@@ -1,298 +1,4 @@
 {
-  "arduino": {
-    "doc": "No module docstring available",
-    "functions": [
-      {
-        "name": "pinMode",
-        "signature": "(pin: int, mode: int) -> None",
-        "doc": "Configures the specified pin to behave either as an input or an output.\n\nArgs:\n    pin (int): The number of the pin whose mode you want to set.\n    mode (int): The mode to set for the pin. Common values are:\n        - INPUT (0x0): Configures the pin as an input.\n        - OUTPUT (0x1): Configures the pin as an output.\n        - INPUT_PULLUP (0x2): Configures the pin as an input with an internal pull-up resistor.\n\nReturns:\n    None"
-      },
-      {
-        "name": "digitalWrite",
-        "signature": "(pin: int, val: int) -> None",
-        "doc": "Write a HIGH or LOW value to a digital pin.\n\nArgs:\n    pin (int): The number of the digital pin to write to.\n    val (int): The value to write. Use HIGH (1) or LOW (0).\n\nReturns:\n    None"
-      },
-      {
-        "name": "digitalRead",
-        "signature": "(pin: int) -> int",
-        "doc": "Reads the value from a specified digital pin, either HIGH or LOW.\n\nArgs:\n    pin (int): The number of the digital pin to read from.\n\nReturns:\n    int: The value read from the pin \u2014 HIGH (1) or LOW (0)."
-      },
-      {
-        "name": "analogRead",
-        "signature": "(pin: int) -> int",
-        "doc": "Reads the value from the specified analog pin.\n\nArgs:\n    pin (int): The number of the analog pin to read from.\n\nReturns:\n    int: The analog value read from the pin, typically ranging from 0 to 1023 (10-bit ADC),\n         or up to 4095 (12-bit) on some boards like ESP32."
-      },
-      {
-        "name": "analogWrite",
-        "signature": "(pin: int, val: int) -> None",
-        "doc": "Writes an analog value (PWM wave) to a pin.\n\nArgs:\n    pin (int): The number of the digital pin to write to (supports PWM).\n    val (int): The duty cycle: a value between 0 (always off) and 255 (always on) for 8-bit resolution.\n\nReturns:\n    None"
-      },
-      {
-        "name": "delay",
-        "signature": "(ms: int) -> None",
-        "doc": "Pauses the program for the amount of time (in milliseconds) specified.\n\nArgs:\n    ms (int): The number of milliseconds to pause.\n\nReturns:\n    None"
-      },
-      {
-        "name": "delayMicroseconds",
-        "signature": "(us: int) -> None",
-        "doc": "Pauses the program for the specified time in microseconds.\n\nArgs:\n    us (int): The number of microseconds to pause.\n\nReturns:\n    None"
-      },
-      {
-        "name": "millis",
-        "signature": "() -> int",
-        "doc": "Returns the number of milliseconds since the program started running.\n\nReturns:\n    int: Elapsed time in milliseconds."
-      },
-      {
-        "name": "micros",
-        "signature": "() -> int",
-        "doc": "Returns the number of microseconds since the program started running.\n\nReturns:\n    int: Elapsed time in microseconds."
-      },
-      {
-        "name": "shiftOut",
-        "signature": "(dataPin: int, clockPin: int, bitOrder: int, val: int) -> None",
-        "doc": "Shifts out a byte of data one bit at a time.\n\nArgs:\n    dataPin (int): The pin on which to output each bit.\n    clockPin (int): The pin to toggle to signal each bit.\n    bitOrder (int): The order to shift bits out (e.g., MSBFIRST or LSBFIRST).\n    val (int): The byte of data to shift out.\n\nReturns:\n    None"
-      },
-      {
-        "name": "shiftIn",
-        "signature": "(dataPin: int, clockPin: int, bitOrder: int) -> int",
-        "doc": "Shifts in a byte of data one bit at a time.\n\nArgs:\n    dataPin (int): The pin from which to read each bit.\n    clockPin (int): The pin to toggle to signal each bit.\n    bitOrder (int): The order to shift bits in (e.g., MSBFIRST or LSBFIRST).\n\nReturns:\n    int: The byte of data read."
-      },
-      {
-        "name": "pulseIn",
-        "signature": "(pin: int, state: int, timeout: int = 1000000) -> int",
-        "doc": "Reads a pulse (either HIGH or LOW) on a pin.\n\nArgs:\n    pin (int): The pin to read the pulse from.\n    state (int): The type of pulse to read: HIGH or LOW.\n    timeout (int, optional): Timeout in microseconds (default is 1 second).\n\nReturns:\n    int: The length of the pulse in microseconds (or 0 if timeout)."
-      },
-      {
-        "name": "tone",
-        "signature": "(pin: int, frequency: int, duration: int = 0) -> None",
-        "doc": "Generates a square wave of the specified frequency on a pin.\n\nArgs:\n    pin (int): The pin on which to generate the tone.\n    frequency (int): The frequency of the tone in Hz.\n    duration (int, optional): Duration of the tone in milliseconds (0 for continuous).\n\nReturns:\n    None"
-      },
-      {
-        "name": "noTone",
-        "signature": "(pin: int) -> None",
-        "doc": "Stops the generation of a tone on a pin.\n\nArgs:\n    pin (int): The pin to stop the tone on.\n\nReturns:\n    None"
-      },
-      {
-        "name": "noInterrupts",
-        "signature": "() -> None",
-        "doc": "Disables all interrupts on the microcontroller.\n\nThis function is typically used to ensure atomic access to shared resources\nor to prevent interruptions during critical timing-sensitive operations.\n\nReturns:\n    None"
-      },
-      {
-        "name": "interrupts",
-        "signature": "() -> None",
-        "doc": "Re-enables interrupts on the microcontroller.\n\nThis should be called after `noInterrupts()` to restore normal interrupt behavior.\n\nReturns:\n    None"
-      },
-      {
-        "name": "attachInterrupt",
-        "signature": "(pin: int, ISR: callable, mode: int) -> None",
-        "doc": "Attaches an interrupt to a pin, triggered on a particular mode.\n\nArgs:\n    pin (int): The pin to attach the interrupt to.\n    ISR (Callable): A function to call when the interrupt is triggered.\n    mode (int): The condition to trigger the interrupt (RISING, FALLING, or CHANGE).\n\nReturns:\n    None"
-      },
-      {
-        "name": "detachInterrupt",
-        "signature": "(pin: int) -> None",
-        "doc": "Disables the interrupt for a given pin.\n\nArgs:\n    pin (int): The pin to detach the interrupt from.\n\nReturns:\n    None"
-      },
-      {
-        "name": "math_min",
-        "signature": "(a: float, b: float) -> float",
-        "doc": "Returns the smaller of two values.\n\nArgs:\n    a (Any): First value.\n    b (Any): Second value.\n\nReturns:\n    Any: Smaller of the two values."
-      },
-      {
-        "name": "math_max",
-        "signature": "(a: float, b: float) -> float",
-        "doc": "Returns the larger of two values.\n\nArgs:\n    a (Any): First value.\n    b (Any): Second value.\n\nReturns:\n    Any: Larger of the two values."
-      },
-      {
-        "name": "math_abs",
-        "signature": "(x: float) -> float",
-        "doc": "Returns the absolute value.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: Absolute value of x."
-      },
-      {
-        "name": "math_constrain",
-        "signature": "(x: float, a: float, b: float) -> float",
-        "doc": "Constrains a number to be within a range.\n\nArgs:\n    x (float): Value to constrain.\n    a (float): Minimum limit.\n    b (float): Maximum limit.\n\nReturns:\n    float: Constrained value."
-      },
-      {
-        "name": "math_map",
-        "signature": "(x: float, in_min: float, in_max: float, out_min: float, out_max: float) -> float",
-        "doc": "Re-maps a number from one range to another.\n\nArgs:\n    x (float): Value to map.\n    in_min (float): Input range min.\n    in_max (float): Input range max.\n    out_min (float): Output range min.\n    out_max (float): Output range max.\n\nReturns:\n    float: Mapped output."
-      },
-      {
-        "name": "math_pow",
-        "signature": "(base: float, exponent: float) -> float",
-        "doc": "Returns base raised to the power of exponent.\n\nArgs:\n    base (float): The base value.\n    exponent (float): The exponent.\n\nReturns:\n    float: base ** exponent."
-      },
-      {
-        "name": "math_sqrt",
-        "signature": "(x: float) -> float",
-        "doc": "Returns the square root of x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: Square root of x."
-      },
-      {
-        "name": "math_sq",
-        "signature": "(x: float) -> float",
-        "doc": "Returns the square of x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: x * x"
-      },
-      {
-        "name": "math_sin",
-        "signature": "(radians: float) -> float",
-        "doc": "Computes sine of an angle in radians.\n\nArgs:\n    radians (float): Angle in radians.\n\nReturns:\n    float: sin(radians)"
-      },
-      {
-        "name": "math_cos",
-        "signature": "(radians: float) -> float",
-        "doc": "Computes cosine of an angle in radians.\n\nArgs:\n    radians (float): Angle in radians.\n\nReturns:\n    float: cos(radians)"
-      },
-      {
-        "name": "math_tan",
-        "signature": "(radians: float) -> float",
-        "doc": "Computes tangent of an angle in radians.\n\nArgs:\n    radians (float): Angle in radians.\n\nReturns:\n    float: tan(radians)"
-      },
-      {
-        "name": "math_radians",
-        "signature": "(degrees: float) -> float",
-        "doc": "Converts degrees to radians.\n\nArgs:\n    degrees (float): Angle in degrees.\n\nReturns:\n    float: Angle in radians."
-      },
-      {
-        "name": "math_degrees",
-        "signature": "(radians: float) -> float",
-        "doc": "Converts radians to degrees.\n\nArgs:\n    radians (float): Angle in radians.\n\nReturns:\n    float: Angle in degrees."
-      },
-      {
-        "name": "math_round",
-        "signature": "(x: float) -> int",
-        "doc": "Rounds to the nearest integer.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    int: Rounded value."
-      },
-      {
-        "name": "math_ceil",
-        "signature": "(x: float) -> int",
-        "doc": "Returns the smallest integer not less than x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    int: Ceil value."
-      },
-      {
-        "name": "math_floor",
-        "signature": "(x: float) -> int",
-        "doc": "Returns the largest integer not greater than x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    int: Floor value."
-      },
-      {
-        "name": "math_fmod",
-        "signature": "(x: float, y: float) -> float",
-        "doc": "Returns the floating-point remainder of x / y.\n\nArgs:\n    x (float): Dividend.\n    y (float): Divisor.\n\nReturns:\n    float: Remainder."
-      },
-      {
-        "name": "math_log",
-        "signature": "(x: float) -> float",
-        "doc": "Returns natural logarithm (base e).\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: ln(x)"
-      },
-      {
-        "name": "math_log10",
-        "signature": "(x: float) -> float",
-        "doc": "Returns base-10 logarithm.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: log\u2081\u2080(x)"
-      },
-      {
-        "name": "math_exp",
-        "signature": "(x: float) -> float",
-        "doc": "Returns e raised to the power of x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: e^x"
-      },
-      {
-        "name": "serial_begin",
-        "signature": "(baudrate: int) -> None",
-        "doc": "Sets the data rate in bits per second (baud) for serial data transmission.\n\nArgs:\n    baudrate (int): The baud rate (e.g., 9600, 115200)\n\nReturns:\n    None"
-      },
-      {
-        "name": "serial_end",
-        "signature": "() -> None",
-        "doc": "Disables serial communication and releases the TX/RX pins.\n\nReturns:\n    None"
-      },
-      {
-        "name": "serial_available",
-        "signature": "() -> int",
-        "doc": "Returns the number of bytes available for reading from the serial buffer.\n\nReturns:\n    int: Number of bytes available to read."
-      },
-      {
-        "name": "serial_read",
-        "signature": "() -> int",
-        "doc": "Reads incoming serial data.\n\nReturns:\n    int: The first byte of incoming serial data, or -1 if no data is available."
-      },
-      {
-        "name": "serial_peek",
-        "signature": "() -> int",
-        "doc": "Returns the next byte of incoming serial data without removing it from the internal buffer.\n\nReturns:\n    int: Next byte of incoming serial data, or -1 if no data is available."
-      },
-      {
-        "name": "serial_flush",
-        "signature": "() -> None",
-        "doc": "Waits for the transmission of outgoing serial data to complete.\n\nReturns:\n    None"
-      },
-      {
-        "name": "serial_print",
-        "signature": "(data: str) -> None",
-        "doc": "Prints data to the serial port as human-readable ASCII text.\n\nArgs:\n    data (str): The data to send.\n\nReturns:\n    None"
-      },
-      {
-        "name": "serial_println",
-        "signature": "(data: str) -> None",
-        "doc": "Prints data to the serial port followed by a newline character.\n\nArgs:\n    data (str): The data to send.\n\nReturns:\n    None"
-      },
-      {
-        "name": "arduino_bit",
-        "signature": "(n: int) -> int",
-        "doc": "Returns a value with a single bit set.\n\nArgs:\n    n (int): Bit position (0 = least significant bit).\n\nReturns:\n    int: A value with the nth bit set (1 << n)."
-      },
-      {
-        "name": "arduino_bitRead",
-        "signature": "(value: int, bit: int) -> int",
-        "doc": "Reads a specific bit from a value.\n\nArgs:\n    value (int): The input integer.\n    bit (int): Bit position to read.\n\nReturns:\n    int: 0 or 1, the value of the bit at the given position."
-      },
-      {
-        "name": "arduino_bitSet",
-        "signature": "(value: int, bit: int) -> int",
-        "doc": "Sets a specific bit in a value.\n\nArgs:\n    value (int): The input integer.\n    bit (int): Bit position to set.\n\nReturns:\n    int: Modified value with bit set."
-      },
-      {
-        "name": "arduino_bitClear",
-        "signature": "(value: int, bit: int) -> int",
-        "doc": "Clears a specific bit in a value.\n\nArgs:\n    value (int): The input integer.\n    bit (int): Bit position to clear.\n\nReturns:\n    int: Modified value with bit cleared."
-      },
-      {
-        "name": "arduino_bitWrite",
-        "signature": "(value: int, bit: int, bitvalue: int) -> int",
-        "doc": "Writes a 0 or 1 to a specific bit position in a value.\n\nArgs:\n    value (int): The input integer.\n    bit (int): Bit position to write to.\n    bitvalue (int): Either 0 (clear bit) or 1 (set bit).\n\nReturns:\n    int: Modified value."
-      },
-      {
-        "name": "arduino_lowByte",
-        "signature": "(val: int) -> int",
-        "doc": "Returns the low byte (least significant 8 bits) of a 16-bit value.\n\nArgs:\n    val (int): A 16-bit integer.\n\nReturns:\n    int: The lower 8 bits of the input value."
-      },
-      {
-        "name": "arduino_highByte",
-        "signature": "(val: int) -> int",
-        "doc": "Returns the high byte (most significant 8 bits) of a 16-bit value.\n\nArgs:\n    val (int): A 16-bit integer.\n\nReturns:\n    int: The upper 8 bits of the input value."
-      },
-      {
-        "name": "arduino_random",
-        "signature": "(min_val: int, max_val: int) -> int",
-        "doc": "Generates a random integer between min_val (inclusive) and max_val (exclusive).\n\nArgs:\n    min_val (int): Minimum value (inclusive).\n    max_val (int): Maximum value (exclusive).\n\nReturns:\n    int: A random integer in the given range."
-      },
-      {
-        "name": "arduino_randomSeed",
-        "signature": "(seed: int) -> None",
-        "doc": "Seeds the random number generator with a given seed.\n\nArgs:\n    seed (int): The seed value.\n\nReturns:\n    None"
-      }
-    ],
-    "classes": [],
-    "variables": []
-  },
-  "env_vars": {
-    "doc": "No module docstring available",
-    "functions": [
-      {
-        "name": "get_env_var",
-        "signature": "(var_name: str) -> str",
-        "doc": "No docstring available"
-      }
-    ],
-    "classes": [],
-    "variables": []
-  },
   "actuators.fast_accel_stepper": {
     "doc": "FastAccelStepper Python Wrapper for ESP32 and Arduino boards.\n\nA high-speed stepper motor control library providing acceleration/deceleration,\nnon-blocking movement, and multi-motor support. This wrapper provides a Pythonic\ninterface to the underlying C++ FastAccelStepper library.\n\nClasses:\n    FastAccelStepperEngine: Factory and resource manager for stepper motors\n    FastAccelStepper: Individual stepper motor controller\n\nExample:\n    Basic usage with blocking movement:\n    \n    >>> engine = FastAccelStepperEngine()\n    >>> engine.init()\n    >>> stepper = engine.stepper_connect_to_pin(9)\n    >>> if stepper:\n    ...     stepper.set_direction_pin(5)\n    ...     stepper.set_enable_pin(6)\n    ...     stepper.set_speed_hz(500)\n    ...     stepper.set_acceleration(100)\n    ...     stepper.move_to(1000, True)  # Blocking move\n\n    Non-blocking movement with status polling:\n    \n    >>> stepper.move_to(5000)  # Start non-blocking move\n    >>> while stepper.is_running():\n    ...     # Do other work\n    ...     pass",
     "functions": [],
@@ -655,12 +361,6 @@
         ]
       }
     ],
-    "variables": []
-  },
-  "actuators.__init__": {
-    "doc": "No module docstring available",
-    "functions": [],
-    "classes": [],
     "variables": []
   },
   "comms.async_webserver": {
@@ -1229,6 +929,389 @@
             "name": "set_minimum_signal_quality",
             "signature": "(self, quality: int) -> None",
             "doc": "Only show WiFi networks above this signal quality (in percent)."
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
+  "core.arduino": {
+    "doc": "No module docstring available",
+    "functions": [
+      {
+        "name": "pinMode",
+        "signature": "(pin: int, mode: int) -> None",
+        "doc": "Configures the specified pin to behave either as an input or an output.\n\nArgs:\n    pin (int): The number of the pin whose mode you want to set.\n    mode (int): The mode to set for the pin. Common values are:\n        - INPUT (0x0): Configures the pin as an input.\n        - OUTPUT (0x1): Configures the pin as an output.\n        - INPUT_PULLUP (0x2): Configures the pin as an input with an internal pull-up resistor.\n\nReturns:\n    None"
+      },
+      {
+        "name": "digitalWrite",
+        "signature": "(pin: int, val: int) -> None",
+        "doc": "Write a HIGH or LOW value to a digital pin.\n\nArgs:\n    pin (int): The number of the digital pin to write to.\n    val (int): The value to write. Use HIGH (1) or LOW (0).\n\nReturns:\n    None"
+      },
+      {
+        "name": "digitalRead",
+        "signature": "(pin: int) -> int",
+        "doc": "Reads the value from a specified digital pin, either HIGH or LOW.\n\nArgs:\n    pin (int): The number of the digital pin to read from.\n\nReturns:\n    int: The value read from the pin \u2014 HIGH (1) or LOW (0)."
+      },
+      {
+        "name": "analogRead",
+        "signature": "(pin: int) -> int",
+        "doc": "Reads the value from the specified analog pin.\n\nArgs:\n    pin (int): The number of the analog pin to read from.\n\nReturns:\n    int: The analog value read from the pin, typically ranging from 0 to 1023 (10-bit ADC),\n         or up to 4095 (12-bit) on some boards like ESP32."
+      },
+      {
+        "name": "analogWrite",
+        "signature": "(pin: int, val: int) -> None",
+        "doc": "Writes an analog value (PWM wave) to a pin.\n\nArgs:\n    pin (int): The number of the digital pin to write to (supports PWM).\n    val (int): The duty cycle: a value between 0 (always off) and 255 (always on) for 8-bit resolution.\n\nReturns:\n    None"
+      },
+      {
+        "name": "delay",
+        "signature": "(ms: int) -> None",
+        "doc": "Pauses the program for the amount of time (in milliseconds) specified.\n\nArgs:\n    ms (int): The number of milliseconds to pause.\n\nReturns:\n    None"
+      },
+      {
+        "name": "delayMicroseconds",
+        "signature": "(us: int) -> None",
+        "doc": "Pauses the program for the specified time in microseconds.\n\nArgs:\n    us (int): The number of microseconds to pause.\n\nReturns:\n    None"
+      },
+      {
+        "name": "millis",
+        "signature": "() -> int",
+        "doc": "Returns the number of milliseconds since the program started running.\n\nReturns:\n    int: Elapsed time in milliseconds."
+      },
+      {
+        "name": "micros",
+        "signature": "() -> int",
+        "doc": "Returns the number of microseconds since the program started running.\n\nReturns:\n    int: Elapsed time in microseconds."
+      },
+      {
+        "name": "shiftOut",
+        "signature": "(dataPin: int, clockPin: int, bitOrder: int, val: int) -> None",
+        "doc": "Shifts out a byte of data one bit at a time.\n\nArgs:\n    dataPin (int): The pin on which to output each bit.\n    clockPin (int): The pin to toggle to signal each bit.\n    bitOrder (int): The order to shift bits out (e.g., MSBFIRST or LSBFIRST).\n    val (int): The byte of data to shift out.\n\nReturns:\n    None"
+      },
+      {
+        "name": "shiftIn",
+        "signature": "(dataPin: int, clockPin: int, bitOrder: int) -> int",
+        "doc": "Shifts in a byte of data one bit at a time.\n\nArgs:\n    dataPin (int): The pin from which to read each bit.\n    clockPin (int): The pin to toggle to signal each bit.\n    bitOrder (int): The order to shift bits in (e.g., MSBFIRST or LSBFIRST).\n\nReturns:\n    int: The byte of data read."
+      },
+      {
+        "name": "pulseIn",
+        "signature": "(pin: int, state: int, timeout: int = 1000000) -> int",
+        "doc": "Reads a pulse (either HIGH or LOW) on a pin.\n\nArgs:\n    pin (int): The pin to read the pulse from.\n    state (int): The type of pulse to read: HIGH or LOW.\n    timeout (int, optional): Timeout in microseconds (default is 1 second).\n\nReturns:\n    int: The length of the pulse in microseconds (or 0 if timeout)."
+      },
+      {
+        "name": "tone",
+        "signature": "(pin: int, frequency: int, duration: int = 0) -> None",
+        "doc": "Generates a square wave of the specified frequency on a pin.\n\nArgs:\n    pin (int): The pin on which to generate the tone.\n    frequency (int): The frequency of the tone in Hz.\n    duration (int, optional): Duration of the tone in milliseconds (0 for continuous).\n\nReturns:\n    None"
+      },
+      {
+        "name": "noTone",
+        "signature": "(pin: int) -> None",
+        "doc": "Stops the generation of a tone on a pin.\n\nArgs:\n    pin (int): The pin to stop the tone on.\n\nReturns:\n    None"
+      },
+      {
+        "name": "noInterrupts",
+        "signature": "() -> None",
+        "doc": "Disables all interrupts on the microcontroller.\n\nThis function is typically used to ensure atomic access to shared resources\nor to prevent interruptions during critical timing-sensitive operations.\n\nReturns:\n    None"
+      },
+      {
+        "name": "interrupts",
+        "signature": "() -> None",
+        "doc": "Re-enables interrupts on the microcontroller.\n\nThis should be called after `noInterrupts()` to restore normal interrupt behavior.\n\nReturns:\n    None"
+      },
+      {
+        "name": "attachInterrupt",
+        "signature": "(pin: int, ISR: callable, mode: int) -> None",
+        "doc": "Attaches an interrupt to a pin, triggered on a particular mode.\n\nArgs:\n    pin (int): The pin to attach the interrupt to.\n    ISR (Callable): A function to call when the interrupt is triggered.\n    mode (int): The condition to trigger the interrupt (RISING, FALLING, or CHANGE).\n\nReturns:\n    None"
+      },
+      {
+        "name": "detachInterrupt",
+        "signature": "(pin: int) -> None",
+        "doc": "Disables the interrupt for a given pin.\n\nArgs:\n    pin (int): The pin to detach the interrupt from.\n\nReturns:\n    None"
+      },
+      {
+        "name": "math_min",
+        "signature": "(a: float, b: float) -> float",
+        "doc": "Returns the smaller of two values.\n\nArgs:\n    a (Any): First value.\n    b (Any): Second value.\n\nReturns:\n    Any: Smaller of the two values."
+      },
+      {
+        "name": "math_max",
+        "signature": "(a: float, b: float) -> float",
+        "doc": "Returns the larger of two values.\n\nArgs:\n    a (Any): First value.\n    b (Any): Second value.\n\nReturns:\n    Any: Larger of the two values."
+      },
+      {
+        "name": "math_abs",
+        "signature": "(x: float) -> float",
+        "doc": "Returns the absolute value.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: Absolute value of x."
+      },
+      {
+        "name": "math_constrain",
+        "signature": "(x: float, a: float, b: float) -> float",
+        "doc": "Constrains a number to be within a range.\n\nArgs:\n    x (float): Value to constrain.\n    a (float): Minimum limit.\n    b (float): Maximum limit.\n\nReturns:\n    float: Constrained value."
+      },
+      {
+        "name": "math_map",
+        "signature": "(x: float, in_min: float, in_max: float, out_min: float, out_max: float) -> float",
+        "doc": "Re-maps a number from one range to another.\n\nArgs:\n    x (float): Value to map.\n    in_min (float): Input range min.\n    in_max (float): Input range max.\n    out_min (float): Output range min.\n    out_max (float): Output range max.\n\nReturns:\n    float: Mapped output."
+      },
+      {
+        "name": "math_pow",
+        "signature": "(base: float, exponent: float) -> float",
+        "doc": "Returns base raised to the power of exponent.\n\nArgs:\n    base (float): The base value.\n    exponent (float): The exponent.\n\nReturns:\n    float: base ** exponent."
+      },
+      {
+        "name": "math_sqrt",
+        "signature": "(x: float) -> float",
+        "doc": "Returns the square root of x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: Square root of x."
+      },
+      {
+        "name": "math_sq",
+        "signature": "(x: float) -> float",
+        "doc": "Returns the square of x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: x * x"
+      },
+      {
+        "name": "math_sin",
+        "signature": "(radians: float) -> float",
+        "doc": "Computes sine of an angle in radians.\n\nArgs:\n    radians (float): Angle in radians.\n\nReturns:\n    float: sin(radians)"
+      },
+      {
+        "name": "math_cos",
+        "signature": "(radians: float) -> float",
+        "doc": "Computes cosine of an angle in radians.\n\nArgs:\n    radians (float): Angle in radians.\n\nReturns:\n    float: cos(radians)"
+      },
+      {
+        "name": "math_tan",
+        "signature": "(radians: float) -> float",
+        "doc": "Computes tangent of an angle in radians.\n\nArgs:\n    radians (float): Angle in radians.\n\nReturns:\n    float: tan(radians)"
+      },
+      {
+        "name": "math_radians",
+        "signature": "(degrees: float) -> float",
+        "doc": "Converts degrees to radians.\n\nArgs:\n    degrees (float): Angle in degrees.\n\nReturns:\n    float: Angle in radians."
+      },
+      {
+        "name": "math_degrees",
+        "signature": "(radians: float) -> float",
+        "doc": "Converts radians to degrees.\n\nArgs:\n    radians (float): Angle in radians.\n\nReturns:\n    float: Angle in degrees."
+      },
+      {
+        "name": "math_round",
+        "signature": "(x: float) -> int",
+        "doc": "Rounds to the nearest integer.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    int: Rounded value."
+      },
+      {
+        "name": "math_ceil",
+        "signature": "(x: float) -> int",
+        "doc": "Returns the smallest integer not less than x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    int: Ceil value."
+      },
+      {
+        "name": "math_floor",
+        "signature": "(x: float) -> int",
+        "doc": "Returns the largest integer not greater than x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    int: Floor value."
+      },
+      {
+        "name": "math_fmod",
+        "signature": "(x: float, y: float) -> float",
+        "doc": "Returns the floating-point remainder of x / y.\n\nArgs:\n    x (float): Dividend.\n    y (float): Divisor.\n\nReturns:\n    float: Remainder."
+      },
+      {
+        "name": "math_log",
+        "signature": "(x: float) -> float",
+        "doc": "Returns natural logarithm (base e).\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: ln(x)"
+      },
+      {
+        "name": "math_log10",
+        "signature": "(x: float) -> float",
+        "doc": "Returns base-10 logarithm.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: log\u2081\u2080(x)"
+      },
+      {
+        "name": "math_exp",
+        "signature": "(x: float) -> float",
+        "doc": "Returns e raised to the power of x.\n\nArgs:\n    x (float): Input value.\n\nReturns:\n    float: e^x"
+      },
+      {
+        "name": "serial_begin",
+        "signature": "(baudrate: int) -> None",
+        "doc": "Sets the data rate in bits per second (baud) for serial data transmission.\n\nArgs:\n    baudrate (int): The baud rate (e.g., 9600, 115200)\n\nReturns:\n    None"
+      },
+      {
+        "name": "serial_end",
+        "signature": "() -> None",
+        "doc": "Disables serial communication and releases the TX/RX pins.\n\nReturns:\n    None"
+      },
+      {
+        "name": "serial_available",
+        "signature": "() -> int",
+        "doc": "Returns the number of bytes available for reading from the serial buffer.\n\nReturns:\n    int: Number of bytes available to read."
+      },
+      {
+        "name": "serial_read",
+        "signature": "() -> int",
+        "doc": "Reads incoming serial data.\n\nReturns:\n    int: The first byte of incoming serial data, or -1 if no data is available."
+      },
+      {
+        "name": "serial_peek",
+        "signature": "() -> int",
+        "doc": "Returns the next byte of incoming serial data without removing it from the internal buffer.\n\nReturns:\n    int: Next byte of incoming serial data, or -1 if no data is available."
+      },
+      {
+        "name": "serial_flush",
+        "signature": "() -> None",
+        "doc": "Waits for the transmission of outgoing serial data to complete.\n\nReturns:\n    None"
+      },
+      {
+        "name": "serial_print",
+        "signature": "(data: str) -> None",
+        "doc": "Prints data to the serial port as human-readable ASCII text.\n\nArgs:\n    data (str): The data to send.\n\nReturns:\n    None"
+      },
+      {
+        "name": "serial_println",
+        "signature": "(data: str) -> None",
+        "doc": "Prints data to the serial port followed by a newline character.\n\nArgs:\n    data (str): The data to send.\n\nReturns:\n    None"
+      },
+      {
+        "name": "arduino_bit",
+        "signature": "(n: int) -> int",
+        "doc": "Returns a value with a single bit set.\n\nArgs:\n    n (int): Bit position (0 = least significant bit).\n\nReturns:\n    int: A value with the nth bit set (1 << n)."
+      },
+      {
+        "name": "arduino_bitRead",
+        "signature": "(value: int, bit: int) -> int",
+        "doc": "Reads a specific bit from a value.\n\nArgs:\n    value (int): The input integer.\n    bit (int): Bit position to read.\n\nReturns:\n    int: 0 or 1, the value of the bit at the given position."
+      },
+      {
+        "name": "arduino_bitSet",
+        "signature": "(value: int, bit: int) -> int",
+        "doc": "Sets a specific bit in a value.\n\nArgs:\n    value (int): The input integer.\n    bit (int): Bit position to set.\n\nReturns:\n    int: Modified value with bit set."
+      },
+      {
+        "name": "arduino_bitClear",
+        "signature": "(value: int, bit: int) -> int",
+        "doc": "Clears a specific bit in a value.\n\nArgs:\n    value (int): The input integer.\n    bit (int): Bit position to clear.\n\nReturns:\n    int: Modified value with bit cleared."
+      },
+      {
+        "name": "arduino_bitWrite",
+        "signature": "(value: int, bit: int, bitvalue: int) -> int",
+        "doc": "Writes a 0 or 1 to a specific bit position in a value.\n\nArgs:\n    value (int): The input integer.\n    bit (int): Bit position to write to.\n    bitvalue (int): Either 0 (clear bit) or 1 (set bit).\n\nReturns:\n    int: Modified value."
+      },
+      {
+        "name": "arduino_lowByte",
+        "signature": "(val: int) -> int",
+        "doc": "Returns the low byte (least significant 8 bits) of a 16-bit value.\n\nArgs:\n    val (int): A 16-bit integer.\n\nReturns:\n    int: The lower 8 bits of the input value."
+      },
+      {
+        "name": "arduino_highByte",
+        "signature": "(val: int) -> int",
+        "doc": "Returns the high byte (most significant 8 bits) of a 16-bit value.\n\nArgs:\n    val (int): A 16-bit integer.\n\nReturns:\n    int: The upper 8 bits of the input value."
+      },
+      {
+        "name": "arduino_random",
+        "signature": "(min_val: int, max_val: int) -> int",
+        "doc": "Generates a random integer between min_val (inclusive) and max_val (exclusive).\n\nArgs:\n    min_val (int): Minimum value (inclusive).\n    max_val (int): Maximum value (exclusive).\n\nReturns:\n    int: A random integer in the given range."
+      },
+      {
+        "name": "arduino_randomSeed",
+        "signature": "(seed: int) -> None",
+        "doc": "Seeds the random number generator with a given seed.\n\nArgs:\n    seed (int): The seed value.\n\nReturns:\n    None"
+      }
+    ],
+    "classes": [],
+    "variables": []
+  },
+  "core.env_vars": {
+    "doc": "No module docstring available",
+    "functions": [
+      {
+        "name": "get_env_var",
+        "signature": "(var_name: str) -> str",
+        "doc": "No docstring available"
+      }
+    ],
+    "classes": [],
+    "variables": []
+  },
+  "peripherals.esp_camera": {
+    "doc": "ESP32 Camera Peripheral\n=======================\n\nThis module provides a Python-style abstraction for the **ESP32 Camera Peripheral**, \nenabling you to easily capture photos, stream video, and upload images via HTTP.  \nIt wraps Espressif\u2019s low-level `esp_camera` driver and provides high-level access \nthrough the `Camera` and `Image` classes.\n\n**Features**\n- Initialize and configure ESP32 camera (OV2640 and compatible modules)\n- Capture still frames and save locally or upload via HTTP\n- Convert captured images to Base64 (for MQTT/JSON payloads)\n- Start an HTTP MJPEG stream server\n- Automatically manage PSRAM usage and frame buffers\n\n**Dependencies**\n- ESP32 Arduino Core (`esp_camera.h`, `WiFi.h`, `HTTPClient.h`)\n- Internal helper: none (self-contained)\n- Requires hardware camera pins defined in C++ `Camera.h`\n\n**Sample Code**\n```python\nimport peripherals.camera as cam_mod\n\ncam = cam_mod.Camera(\"VGA\", \"JPEG\")\n\ndef setup() -> None:\n\n    #wifi connection is required for http.\n    while not cam.is_wifi_connected():\n        cam.wifi_connect(\"<ssid>\", \"<password>\")\n    if cam.begin():\n        img = cam.capture()\n        img.save(\"/photo.jpg\")\n        cam.send_http(\"http://example.com/upload\")\n\ndef loop() -> None:\n    pass\n```",
+    "functions": [],
+    "classes": [
+      {
+        "name": "Image",
+        "doc": "Represents a captured image frame from the ESP32 camera.\nProvides convenient methods to save, encode, and inspect the image.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self) -> None",
+            "doc": "Creates an empty image container.\n\nNormally returned by `Camera.capture()`."
+          },
+          {
+            "name": "save",
+            "signature": "(self, path: str) -> None",
+            "doc": "Save the captured image to SPIFFS or SD card.\n\nArgs:\n    path (str): File path, e.g. \"/photo.jpg\""
+          },
+          {
+            "name": "base64",
+            "signature": "(self) -> str",
+            "doc": "Convert image data to Base64-encoded string.\n\nReturns:\n    str: Base64-encoded representation of the image"
+          },
+          {
+            "name": "size",
+            "signature": "(self) -> int",
+            "doc": "Get image size in bytes.\n\nReturns:\n    int: Image size"
+          },
+          {
+            "name": "get_width",
+            "signature": "(self) -> int",
+            "doc": "Get image width in pixels.\n\nReturns:\n    int: Width"
+          },
+          {
+            "name": "get_height",
+            "signature": "(self) -> int",
+            "doc": "Get image height in pixels.\n\nReturns:\n    int: Height"
+          }
+        ]
+      },
+      {
+        "name": "Camera",
+        "doc": "Provides a Pythonic interface to initialize, capture, stream, and upload\nframes from the ESP32 camera module.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, resolution: str, format: str) -> None",
+            "doc": "Create a Camera instance.\n\nArgs:\n    resolution (str): Frame size, e.g. \"VGA\", \"SVGA\", \"UXGA\"\n    format (str): Pixel format, e.g. \"JPEG\", \"RGB565\""
+          },
+          {
+            "name": "wifi_connect",
+            "signature": "(self, ssid: str, password: str) -> bool",
+            "doc": "Connect the ESP32 to a Wi-Fi network.\n\nArgs:\n    ssid (str): Wi-Fi SSID.\n    password (str): Wi-Fi password.\n\nReturns:\n    bool: True if the connection succeeded, False otherwise."
+          },
+          {
+            "name": "is_wifi_connected",
+            "signature": "(self) -> bool",
+            "doc": "Check whether the device is currently connected to Wi-Fi.\n\nReturns:\n    bool: True if Wi-Fi is connected."
+          },
+          {
+            "name": "begin",
+            "signature": "(self) -> bool",
+            "doc": "Initialize the camera hardware and configure GPIOs.\n\nReturns:\n    bool: True if successful, False otherwise"
+          },
+          {
+            "name": "capture",
+            "signature": "(self) -> Image",
+            "doc": "Capture a still image frame.\n\nReturns:\n    Image: Captured image object"
+          },
+          {
+            "name": "send_http",
+            "signature": "(self, url: str) -> bool",
+            "doc": "Upload the latest captured image via HTTP POST.\n\nArgs:\n    url (str): Target HTTP endpoint\n\nReturns:\n    bool: True if upload succeeded"
+          },
+          {
+            "name": "stream_http",
+            "signature": "(self, port: int) -> None",
+            "doc": "Start an MJPEG streaming server.\n\nArgs:\n    port (int): Port number for HTTP stream (default: 8080)\n\nNotes:\n    - Accessible via `http://<device_ip>:port`\n    - Stream runs indefinitely unless stopped manually"
+          },
+          {
+            "name": "deinit",
+            "signature": "(self) -> None",
+            "doc": "Deinitialize and release camera resources."
           }
         ]
       }
