@@ -1599,7 +1599,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, address: int)",
+            "signature": "(self, address: int = 35)",
             "doc": "Create a BH1750 light sensor object.\n\nArgs:\n    address (int): I2C address of the sensor. Default is 0x23."
           },
           {
@@ -1806,7 +1806,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, pin: int, type: str) -> None",
+            "signature": "(self, pin: int, type: str = 'DHT11') -> None",
             "doc": "Initialize the DHT sensor on a specific GPIO pin.\n\nArgs:\n    pin (int): GPIO pin connected to the sensor.\n    type (str): Type of the sensor: \"DHT11\" or \"DHT22\"."
           },
           {
@@ -1816,8 +1816,8 @@
           },
           {
             "name": "read_temperature",
-            "signature": "(self, is_fahrenheit: bool) -> float",
-            "doc": "Read the temperature.\n\nArgs:\n    is_fahrenheit (bool): Whether to read in Fahrenheit.\n\nReturns:\n    float: Temperature value."
+            "signature": "(self, is_fahrenheit: bool = False) -> float",
+            "doc": "Read the temperature.\n\nArgs:\n    is_fahrenheit (bool): Whether to read in Fahrenheit.\n    Default is False\n\nReturns:\n    float: Temperature value."
           },
           {
             "name": "read_humidity",

@@ -4,7 +4,7 @@ __include_internal_modules__ = "helpers/sensors/BH1750Helper"
 
 
 class BH1750Sensor:
-    def __init__(self, address: int):
+    def __init__(self, address: int = 0x23):
         """
         Create a BH1750 light sensor object.
 
@@ -13,7 +13,7 @@ class BH1750Sensor:
         """
         __use_as_is__ = False
         __class_actual_type__ = "BH1750"
-        __translation__ = "({1})"
+        __translation__ = "({address})"
 
     def begin(self, mode_index: int = 1, address: int = 0x23) -> bool:
         """
@@ -36,7 +36,7 @@ class BH1750Sensor:
             Uses internal helper `bh1750_map_mode(mode_index)` to convert to BH1750::Mode.
         """
         __use_as_is__ = False
-        __translation__ = "custom_bh1750_helper_begin({0}, {1}, {2})"
+        __translation__ = "custom_bh1750_helper_begin({self}, {mode_index}, {address})"
 
     def configure(self, mode: int) -> bool:
         """

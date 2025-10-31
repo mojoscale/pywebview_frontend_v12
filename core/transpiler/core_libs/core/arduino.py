@@ -223,7 +223,7 @@ def tone(pin: int, frequency: int, duration: int = 0) -> None:
         None
     """
     __use_as_is__: bool = True
-    __translation__ = "tone({0}, {1}, {2})"
+    __translation__ = "tone({pin}, {frequency}, {duration})"
     raise NotImplementedError("tone is not implemented")
 
 
