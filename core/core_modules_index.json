@@ -1329,16 +1329,16 @@
           {
             "name": "__init__",
             "signature": "(self, id: int) -> None",
-            "doc": "Create an instance of the ADXL345 sensor."
+            "doc": "Create an instance of the ADXL345 sensor.\n\nArgs:\n    id (int): Identifier for the sensor. Just pick\n             a unique integer."
           },
           {
             "name": "begin",
-            "signature": "(self, address: int) -> bool",
+            "signature": "(self, address: int = 83) -> bool",
             "doc": "Initializes the sensor.\n\nArgs:\n    address (int): I2C address (default is 0x53)\n\nReturns:\n    bool: True if successful, False if not"
           },
           {
             "name": "set_range",
-            "signature": "(self, range_val: int) -> None",
+            "signature": "(self, range_val: int = 0) -> None",
             "doc": "Set the ADXL345 sensor's measurement range.\n\nThe measurement range determines the maximum acceleration (in g) that\nthe sensor can detect on each axis. Larger ranges allow detection of\nstronger motion but reduce resolution.\n\nArgs:\n    range_val (int): Range selector value from 0\u20133, corresponding to:\n        0 \u2192 \u00b12g\n        1 \u2192 \u00b14g\n        2 \u2192 \u00b18g\n        3 \u2192 \u00b116g\n\nExample:\n    ```python\n    adxl.set_range(2)  # sets range to \u00b18g\n    ```\n\nNotes:\n    - Defaults to \u00b12g if the value is invalid.\n    - Internally maps to the Adafruit `range_t` enum."
           },
           {
@@ -1348,7 +1348,7 @@
           },
           {
             "name": "set_data_rate",
-            "signature": "(self, rate: int) -> None",
+            "signature": "(self, rate: int = 10) -> None",
             "doc": "Set the ADXL345 sensor's data output rate.\n\nThe data rate determines how frequently acceleration data is updated and made\navailable for reading. Higher rates improve responsiveness but increase power\nconsumption.\n\nArgs:\n    rate (int): Data rate selector value from 0\u201315, corresponding to:\n        0 \u2192 0.10 Hz\n        1 \u2192 0.20 Hz\n        2 \u2192 0.39 Hz\n        3 \u2192 0.78 Hz\n        4 \u2192 1.56 Hz\n        5 \u2192 3.13 Hz\n        6 \u2192 6.25 Hz\n        7 \u2192 12.5 Hz\n        8 \u2192 25 Hz\n        9 \u2192 50 Hz\n        10 \u2192 100 Hz\n        11 \u2192 200 Hz\n        12 \u2192 400 Hz\n        13 \u2192 800 Hz\n        14 \u2192 1600 Hz\n        15 \u2192 3200 Hz\n\nExample:\n    ```python\n    adxl.set_data_rate(10)  # sets update rate to 100 Hz\n    ```\n\nNotes:\n    - Defaults to 100 Hz if the rate value is invalid.\n    - Internally maps to the Adafruit `dataRate_t` enum."
           },
           {
@@ -1416,8 +1416,8 @@
           },
           {
             "name": "begin",
-            "signature": "(self, iTimeMS: int, gain: int, address: int) -> bool",
-            "doc": "Initialize the APDS9960 sensor.\n\nArgs:\n    iTimeMS (int): Integration time in milliseconds. Typical range is 10\u2013700 ms.\n    gain (int): Analog gain value:\n        - 0 \u2192 1x gain\n        - 1 \u2192 4x gain\n        - 2 \u2192 16x gain\n        - 3 \u2192 64x gain\n    address (int): I2C address of the sensor (default is 0x39).\n\nReturns:\n    bool: True if initialization succeeded, False otherwise.\n\nTranslation:\n    custom_apds9960_helper_begin(sensor_instance, iTimeMS, gain, address)"
+            "signature": "(self, iTimeMS: int = 10, gain: int = 1, address: int = 57) -> bool",
+            "doc": "Initialize the APDS9960 sensor.\n\nArgs:\n    iTimeMS (int): Integration time in milliseconds. Typical range is 10\u2013700 ms.\n          Default 10 ms.\n    gain (int): Analog gain value:\n        - 0 \u2192 1x gain\n        - 1 \u2192 4x gain\n        - 2 \u2192 16x gain\n        - 3 \u2192 64x gain\n        default 1(4x)\n    address (int): I2C address of the sensor (default is 0x39).\n\nReturns:\n    bool: True if initialization succeeded, False otherwise.\n\nTranslation:\n    custom_apds9960_helper_begin(sensor_instance, iTimeMS, gain, address)"
           },
           {
             "name": "set_adc_integration_time",
@@ -1481,8 +1481,8 @@
           },
           {
             "name": "set_proximity_interrupt_threshold",
-            "signature": "(self, low: int, high: int, persistence: int) -> None",
-            "doc": "Configures the proximity interrupt trigger conditions.\n\nThis sets the low and high threshold values that determine\nwhen the proximity interrupt fires, along with a persistence\nvalue that controls how many consecutive readings must exceed\nthose thresholds before triggering.\n\nArgs:\n    low (int): Lower threshold (0\u2013255). The interrupt will trigger\n        when proximity values fall below this limit.\n    high (int): Upper threshold (0\u2013255). The interrupt will trigger\n        when proximity values exceed this limit.\n    persistence (int): Number of consecutive readings (0\u201315)\n        required to confirm the threshold condition before\n        generating an interrupt.\n\nReturns:\n    None\n\nNotes:\n    Use this to avoid false triggers from transient movements\n    by setting appropriate threshold limits and persistence\n    for stable proximity event detection."
+            "signature": "(self, low: int, high: int, persistence: int = 4) -> None",
+            "doc": "Configures the proximity interrupt trigger conditions.\n\nThis sets the low and high threshold values that determine\nwhen the proximity interrupt fires, along with a persistence\nvalue that controls how many consecutive readings must exceed\nthose thresholds before triggering.\n\nArgs:\n    low (int): Lower threshold (0\u2013255). The interrupt will trigger\n        when proximity values fall below this limit.\n    high (int): Upper threshold (0\u2013255). The interrupt will trigger\n        when proximity values exceed this limit.\n    persistence (int): Number of consecutive readings (0\u201315)\n        required to confirm the threshold condition before\n        generating an interrupt. Default 4.\n\nReturns:\n    None\n\nNotes:\n    Use this to avoid false triggers from transient movements\n    by setting appropriate threshold limits and persistence\n    for stable proximity event detection."
           },
           {
             "name": "get_proximity_interrupt",
@@ -1647,8 +1647,8 @@
           },
           {
             "name": "begin",
-            "signature": "(self, address: int) -> bool",
-            "doc": "Initializes communication with the BME280 sensor.\n\nArgs:\n    address (int): I2C address of the sensor (usually 0x76 or 0x77).\n\nReturns:\n    bool: True if sensor initialized correctly, False otherwise."
+            "signature": "(self, address: int = 118) -> bool",
+            "doc": "Initializes communication with the BME280 sensor.\n\nArgs:\n    address (int): I2C address of the sensor (usually 0x76 or 0x77).\n                   Default to 0x76\n\nReturns:\n    bool: True if sensor initialized correctly, False otherwise."
           },
           {
             "name": "read_temperature",
@@ -1739,57 +1739,57 @@
     "variables": []
   },
   "sensors.ccs811": {
-    "doc": "No module docstring available",
+    "doc": "CCS811 Sensor Module\n====================\n\nThis module provides a Python-style abstraction for the **Adafruit CCS811 Air Quality Sensor**, \nenabling seamless integration within the transpiler framework.\n\nThe CCS811 is a digital gas sensor capable of measuring **eCO\u2082 (equivalent CO\u2082)** and \n**TVOC (Total Volatile Organic Compounds)** concentrations. It communicates via I\u00b2C \nand benefits from environmental compensation inputs (humidity and temperature) for optimal accuracy.\n\nFeatures\n--------\n- Initialize and configure the CCS811 sensor.\n- Read eCO\u2082 (ppm) and TVOC (ppb) air quality measurements.\n- Supply temperature and humidity compensation data.\n- Retrieve thermistor-based temperature readings.\n- Configure measurement frequency using drive modes.\n\nDependencies\n------------\n- Adafruit_CCS811\n- Adafruit_I2CDevice\n- adafruit/Adafruit BusIO (PlatformIO dependency)\n\nExample\n-------\n```python\nimport sensors.ccs811 as ccs\n\nsensor = ccs.CCS811Sensor()\n\ndef setup()->None:\n    sensor.begin()\n\n    while sensor.available():\n        eco2 = sensor.get_eco2()\n        tvoc = sensor.get_tvoc()\n\n\ndef loop()->None:\n    pass \n\n\n\n```",
     "functions": [],
     "classes": [
       {
         "name": "CCS811Sensor",
-        "doc": "No docstring available",
+        "doc": "High-level Python wrapper for the Adafruit CCS811 gas sensor.\n\nProvides a convenient interface to initialize, read, and configure\nthe CCS811 air quality sensor over I\u00b2C.",
         "methods": [
           {
             "name": "__init__",
             "signature": "(self)",
-            "doc": "Initialize the CCS811 sensor. Use begin() after this to start communication."
+            "doc": "Initialize a CCS811 sensor instance."
           },
           {
             "name": "begin",
             "signature": "(self) -> bool",
-            "doc": "Initialize the CCS811 sensor over I2C.\n\nReturns:\n    bool: True if sensor initialized successfully."
+            "doc": "Initialize communication with the CCS811 sensor via I\u00b2C."
           },
           {
             "name": "available",
             "signature": "(self) -> bool",
-            "doc": "Check whether new measurement data is available.\n\nReturns:\n    bool: True if new data is available."
+            "doc": "Check whether new measurement data is available from the CCS811 sensor."
           },
           {
             "name": "read_data",
             "signature": "(self) -> bool",
-            "doc": "Read the latest data sample from the sensor.\n\nReturns:\n    bool: True if the read succeeded."
+            "doc": "Read the latest available data sample from the CCS811 sensor."
           },
           {
             "name": "get_eco2",
             "signature": "(self) -> int",
-            "doc": "Get the equivalent CO2 (eCO2) reading in parts per million (ppm).\n\nReturns:\n    int: eCO2 concentration in ppm."
+            "doc": "Retrieve the equivalent CO\u2082 (eCO\u2082) reading in parts per million (ppm)."
           },
           {
             "name": "get_tvoc",
             "signature": "(self) -> int",
-            "doc": "Get the Total Volatile Organic Compounds (TVOC) reading in parts per billion (ppb).\n\nReturns:\n    int: TVOC concentration in ppb."
+            "doc": "Retrieve the Total Volatile Organic Compounds (TVOC) reading in parts per billion (ppb)."
           },
           {
             "name": "set_environmental_data",
             "signature": "(self, humidity: float, temperature: float) -> None",
-            "doc": "Provide humidity (%) and temperature (\u00b0C) data for compensation.\n\nArgs:\n    humidity (float): Relative humidity percentage.\n    temperature (float): Ambient temperature in \u00b0C."
+            "doc": "Provide humidity (%) and temperature (\u00b0C) data for compensation."
           },
           {
             "name": "calculate_temperature",
             "signature": "(self) -> float",
-            "doc": "Calculate temperature using the onboard thermistor.\n\nReturns:\n    float: Temperature in Celsius."
+            "doc": "Calculate temperature using the onboard thermistor."
           },
           {
             "name": "set_drive_mode",
             "signature": "(self, mode: int) -> None",
-            "doc": "Set the sensor\u2019s drive mode.\n\nArgs:\n    mode (int): Drive mode (0\u20134). Each mode defines a different measurement frequency."
+            "doc": "Set the sensor\u2019s drive mode (0\u20134) to define measurement frequency."
           }
         ]
       }
@@ -1844,7 +1844,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, onewire_instance: OneWire) -> None",
+            "signature": "(self, onewire_pin: int) -> None",
             "doc": "Initialize the DS18B20 sensor on a specific GPIO pin.\n\nArgs:\n    pin (int): GPIO pin connected to the OneWire data line."
           },
           {
@@ -1859,7 +1859,7 @@
           },
           {
             "name": "read_temperature",
-            "signature": "(self, index: int) -> float",
+            "signature": "(self, index: int = 1) -> float",
             "doc": "Read the temperature in Celsius from a specific sensor (index-based).\n\nArgs:\n    index (int): Sensor index (useful if multiple sensors on the same bus).\n\nReturns:\n    float: Temperature in Celsius."
           }
         ]
@@ -1900,7 +1900,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, stream: HardwareSerial)",
+            "signature": "(self, rx: int, tx: int, baud: int = 9600)",
             "doc": "Initialize the MHZ19 CO\u2082 sensor.\n\nArgs:\n    stream: A serial stream object (e.g., Serial1 or SoftwareSerial)."
           },
           {
@@ -1930,7 +1930,7 @@
           },
           {
             "name": "auto_calibration",
-            "signature": "(self, enable: bool) -> None",
+            "signature": "(self, enable: bool = True) -> None",
             "doc": "Enable or disable Automatic Baseline Calibration (ABC) mode.\n\nArgs:\n    enable (bool): True to enable ABC, False to disable."
           }
         ]
@@ -2008,7 +2008,7 @@
           },
           {
             "name": "calc_offsets",
-            "signature": "(self, calc_gyro: bool, calc_acc: bool) -> None",
+            "signature": "(self, calc_gyro: bool = True, calc_acc: bool = True) -> None",
             "doc": "Automatically calculate gyro and/or accelerometer offsets.\nSensor must be stable during this process.\n\nArgs:\n    calc_gyro (bool): Calibrate gyroscope\n    calc_acc (bool): Calibrate accelerometer"
           },
           {
@@ -2315,7 +2315,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, address: int = 68) -> None",
+            "signature": "(self) -> None",
             "doc": "Initialize SHT31 instance.\n\nArgs:\n    address (int): I2C address of the sensor (default 0x44)"
           },
           {
@@ -2411,7 +2411,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, trigger_pin: int, echo_pin: int, max_cm_distance: int)",
+            "signature": "(self, trigger_pin: int, echo_pin: int, max_cm_distance: int = 500)",
             "doc": "Represents an ultrasonic distance sensor using the NewPing library.\n\nThis class supports low-level ultrasonic sensors that work via\ndigital pulse duration, specifically those with a trigger pin and\necho pin.\n\n\u2705 Supported sensor models:\n- HC-SR04\n- SRF05\n- DYP-ME007\n- Parallax PING)))\u2122 (single-pin supported)\n- SRF06 (with capacitor or dual-pin mode only)\n\n\u274c Not supported:\n- Analog sensors (e.g., Sharp GP2Y series)\n- I2C/SPI ToF sensors (e.g., VL53L0X, VL6180X)\n\nArgs:\n    trigger_pin (int): GPIO pin used to send trigger pulse.\n    echo_pin (int): GPIO pin used to receive echo pulse.\n    max_cm_distance (int, optional): Maximum measurable distance in cm. Default is 500."
           },
           {
@@ -2431,7 +2431,7 @@
           },
           {
             "name": "ping_median",
-            "signature": "(self, iterations: int) -> int",
+            "signature": "(self, iterations: int = 5) -> int",
             "doc": "Perform multiple pings and return the median echo time (in microseconds).\nHelps filter out invalid readings.\n\nArgs:\n    iterations (int): Number of pings to average. Default is 5.\n\nReturns:\n    int: Median echo time in microseconds."
           },
           {
@@ -2464,7 +2464,7 @@
           },
           {
             "name": "begin",
-            "signature": "(self, i2c_addr: int, debug: bool) -> bool",
+            "signature": "(self, i2c_addr: int = 41, debug: bool = True) -> bool",
             "doc": "Initialize the sensor.\n\nArgs:\n    i2c_addr (int): I2C address (default 0x29).\n    debug (bool): Enable debug logging.\n\nReturns:\n    bool: True if initialization succeeded."
           },
           {
@@ -2504,7 +2504,7 @@
           },
           {
             "name": "start_range_continuous",
-            "signature": "(self, period_ms: int) -> bool",
+            "signature": "(self, period_ms: int = 50) -> bool",
             "doc": "Start continuous ranging mode.\n\nArgs:\n    period_ms (int): Delay between measurements. Default 50.\n\nReturns:\n    bool: True if successful."
           },
           {
@@ -2519,7 +2519,7 @@
           },
           {
             "name": "config_sensor",
-            "signature": "(self, mode: int) -> bool",
+            "signature": "(self, mode: int = 0) -> bool",
             "doc": "Configure predefined sensor mode.\n\nArgs:\n    mode (int): One of:\n        - 0 = default\n        - 1 = long range\n        - 2 = high speed\n        - 3 = high accuracy\n\nReturns:\n    bool: True if configuration successful."
           },
           {

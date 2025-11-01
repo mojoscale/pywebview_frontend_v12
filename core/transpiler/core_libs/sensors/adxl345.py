@@ -55,13 +55,17 @@ class ADXL345Sensor:
     def __init__(self, id: int) -> None:
         """
         Create an instance of the ADXL345 sensor.
+
+        Args:
+            id (int): Identifier for the sensor. Just pick
+                     a unique integer.
         """
         __use_as_is__ = False
         __class_actual_type__ = "Adafruit_ADXL345_Unified"
         __construct_with_equal_to__ = True
-        __translation__ = "Adafruit_ADXL345_Unified({1})"
+        __translation__ = "Adafruit_ADXL345_Unified({id})"
 
-    def begin(self, address: int) -> bool:
+    def begin(self, address: int = 0x53) -> bool:
         """
         Initializes the sensor.
 
@@ -72,10 +76,10 @@ class ADXL345Sensor:
             bool: True if successful, False if not
         """
         __use_as_is__ = False
-        __translation__ = "{0}.begin({1})"
+        __translation__ = "{self}.begin({address})"
         return True
 
-    def set_range(self, range_val: int) -> None:
+    def set_range(self, range_val: int = 0) -> None:
         """
         Set the ADXL345 sensor's measurement range.
 
@@ -100,7 +104,7 @@ class ADXL345Sensor:
             - Internally maps to the Adafruit `range_t` enum.
         """
         __use_as_is__ = False
-        __translation__ = "setADXLRange({0},{1})"
+        __translation__ = "setADXLRange({self},{range_val})"
 
     def get_range(self) -> str:
         """
@@ -110,10 +114,10 @@ class ADXL345Sensor:
             int: Current range value
         """
         __use_as_is__ = False
-        __translation__ = "getADXLRangeText({0})"
+        __translation__ = "getADXLRangeText({self})"
         return 0
 
-    def set_data_rate(self, rate: int) -> None:
+    def set_data_rate(self, rate: int = 10) -> None:
         """
         Set the ADXL345 sensor's data output rate.
 
@@ -150,7 +154,7 @@ class ADXL345Sensor:
             - Internally maps to the Adafruit `dataRate_t` enum.
         """
         __use_as_is__ = False
-        __translation__ = "setADXLDataRate({0}, {1})"
+        __translation__ = "setADXLDataRate({self}, {rate})"
 
     def get_data_rate(self) -> str:
         """
@@ -160,7 +164,7 @@ class ADXL345Sensor:
             int: Data rate value
         """
         __use_as_is__ = False
-        __translation__ = "getADXLDataRateText({0})"
+        __translation__ = "getADXLDataRateText({self})"
         return 0
 
     def read_acceleration(self) -> list[float]:
@@ -171,7 +175,7 @@ class ADXL345Sensor:
             list[float]: [x, y, z] in g
         """
         __use_as_is__ = False
-        __translation__ = "custom_adxl345_helper_read_acceleration(&{0})"
+        __translation__ = "custom_adxl345_helper_read_acceleration(&{self})"
 
     def get_device_id(self) -> int:
         """
@@ -181,7 +185,7 @@ class ADXL345Sensor:
             int: Device ID
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getDeviceID()"
+        __translation__ = "{self}.getDeviceID()"
         return 0xE5
 
     def write_register(self, reg: int, value: int) -> None:
@@ -193,7 +197,7 @@ class ADXL345Sensor:
             value (int): Value to write
         """
         __use_as_is__ = False
-        __translation__ = "{0}.writeRegister({1}, {2})"
+        __translation__ = "{self}.writeRegister({reg}, {value})"
 
     def read_register(self, reg: int) -> int:
         """
@@ -206,7 +210,7 @@ class ADXL345Sensor:
             int: Register value
         """
         __use_as_is__ = False
-        __translation__ = "{0}.readRegister({1})"
+        __translation__ = "{self}.readRegister({reg})"
         return 0
 
     def read16(self, reg: int) -> int:
@@ -220,7 +224,7 @@ class ADXL345Sensor:
             int: 16-bit value
         """
         __use_as_is__ = False
-        __translation__ = "{0}.read16({1})"
+        __translation__ = "{self}.read16({reg})"
         return 0
 
     def get_x(self) -> int:
@@ -231,7 +235,7 @@ class ADXL345Sensor:
             int: Raw X value
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getX()"
+        __translation__ = "{self}.getX()"
         return 0
 
     def get_y(self) -> int:
@@ -242,7 +246,7 @@ class ADXL345Sensor:
             int: Raw Y value
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getY()"
+        __translation__ = "{self}.getY()"
         return 0
 
     def get_z(self) -> int:
@@ -253,5 +257,5 @@ class ADXL345Sensor:
             int: Raw Z value
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getZ()"
+        __translation__ = "{self}.getZ()"
         return 0

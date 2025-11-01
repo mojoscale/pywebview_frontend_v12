@@ -22,7 +22,7 @@ class SGP30Sensor:
             bool: True if initialization succeeded, False otherwise.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.begin()"
+        __translation__ = "{self}.begin()"
 
     def is_connected(self) -> bool:
         """
@@ -32,7 +32,7 @@ class SGP30Sensor:
             bool: True if the device is found on the I2C bus.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.isConnected()"
+        __translation__ = "{self}.isConnected()"
 
     def generic_reset(self) -> None:
         """
@@ -42,7 +42,7 @@ class SGP30Sensor:
         Use with caution in multi-device setups.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.GenericReset()"
+        __translation__ = "{self}.GenericReset()"
 
     def get_id(self) -> bool:
         """
@@ -52,7 +52,7 @@ class SGP30Sensor:
             bool: True if ID was successfully read.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getID()"
+        __translation__ = "{self}.getID()"
 
     def get_feature_set(self) -> int:
         """
@@ -62,7 +62,7 @@ class SGP30Sensor:
             int: Feature set code (e.g., 0x0020).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getFeatureSet()"
+        __translation__ = "{self}.getFeatureSet()"
 
     def measure_test(self) -> bool:
         """
@@ -72,7 +72,7 @@ class SGP30Sensor:
             bool: True if test passed, False if failed.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.measureTest()"
+        __translation__ = "{self}.measureTest()"
 
     def last_measurement(self) -> int:
         """
@@ -82,7 +82,7 @@ class SGP30Sensor:
             int: Milliseconds since boot of last measurement.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.lastMeasurement()"
+        __translation__ = "{self}.lastMeasurement()"
 
     def measure(self, all: bool = False) -> bool:
         """
@@ -95,14 +95,14 @@ class SGP30Sensor:
             bool: True if measurement succeeded.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.measure({1})"
+        __translation__ = "{self}.measure({all})"
 
     def request(self) -> None:
         """
         Request async measurement (non-blocking). Use `.read()` to get the result later.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.request()"
+        __translation__ = "{self}.request()"
 
     def read(self) -> bool:
         """
@@ -112,14 +112,14 @@ class SGP30Sensor:
             bool: True if data was available and read successfully.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.read()"
+        __translation__ = "{self}.read()"
 
     def request_raw(self) -> None:
         """
         Request a raw gas resistance measurement. Use `.read_raw()` to collect results.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.requestRaw()"
+        __translation__ = "{self}.requestRaw()"
 
     def read_raw(self) -> bool:
         """
@@ -129,7 +129,7 @@ class SGP30Sensor:
             bool: True if raw data was read successfully.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.readRaw()"
+        __translation__ = "{self}.readRaw()"
 
     def get_tvoc(self) -> int:
         """
@@ -139,7 +139,7 @@ class SGP30Sensor:
             int: TVOC value in parts per billion (ppb).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getTVOC()"
+        __translation__ = "{self}.getTVOC()"
 
     def get_co2(self) -> int:
         """
@@ -149,7 +149,7 @@ class SGP30Sensor:
             int: CO2 concentration in parts per million (ppm).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getCO2()"
+        __translation__ = "{self}.getCO2()"
 
     def get_h2_raw(self) -> int:
         """
@@ -159,7 +159,7 @@ class SGP30Sensor:
             int: Raw ADC units (hardware specific, not in ppm).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getH2_raw()"
+        __translation__ = "{self}.getH2_raw()"
 
     def get_ethanol_raw(self) -> int:
         """
@@ -169,7 +169,7 @@ class SGP30Sensor:
             int: Raw ADC units.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getEthanol_raw()"
+        __translation__ = "{self}.getEthanol_raw()"
 
     def get_h2(self) -> float:
         """
@@ -179,7 +179,7 @@ class SGP30Sensor:
             float: Hydrogen gas in PPM (experimental).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getH2()"
+        __translation__ = "{self}.getH2()"
 
     def get_ethanol(self) -> float:
         """
@@ -189,7 +189,7 @@ class SGP30Sensor:
             float: Ethanol concentration in PPM (experimental).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getEthanol()"
+        __translation__ = "{self}.getEthanol()"
 
     def set_rel_humidity(self, temperature: float, rh: float) -> float:
         """
@@ -203,7 +203,7 @@ class SGP30Sensor:
             float: Converted absolute humidity (g/m³).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setRelHumidity({1}, {2})"
+        __translation__ = "{self}.setRelHumidity({temperature}, {rh})"
 
     def set_abs_humidity(self, abs_humidity: float) -> None:
         """
@@ -214,7 +214,7 @@ class SGP30Sensor:
                                   Set to 0 to disable humidity compensation.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setAbsHumidity({1})"
+        __translation__ = "{self}.setAbsHumidity({abs_humidity})"
 
     def set_baseline(self, co2: int, tvoc: int) -> None:
         """
@@ -225,7 +225,7 @@ class SGP30Sensor:
             tvoc (int): Baseline TVOC in ppb.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setBaseline({1}, {2})"
+        __translation__ = "{self}.setBaseline({co2}, {tvoc})"
 
     def get_baseline(self, co2_ptr, tvoc_ptr) -> bool:
         """
@@ -239,7 +239,7 @@ class SGP30Sensor:
             bool: True if successful.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getBaseline({1}, {2})"
+        __translation__ = "{self}.getBaseline({co2_ptr}, {tvoc_ptr})"
 
     def set_tvoc_baseline(self, tvoc: int) -> None:
         """
@@ -249,7 +249,7 @@ class SGP30Sensor:
             tvoc (int): TVOC baseline in ppb.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setTVOCBaseline({1})"
+        __translation__ = "{self}.setTVOCBaseline({tvoc})"
 
     def get_tvoc_baseline(self, tvoc_ptr) -> bool:
         """
@@ -262,7 +262,7 @@ class SGP30Sensor:
             bool: True if successful.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getTVOCBaseline({1})"
+        __translation__ = "{self}.getTVOCBaseline({tvoc_ptr})"
 
     def set_sref_h2(self, s: int) -> None:
         """
@@ -272,7 +272,7 @@ class SGP30Sensor:
             s (int): Raw average value from clean H₂ environment (e.g., 13119).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setSrefH2({1})"
+        __translation__ = "{self}.setSrefH2({s})"
 
     def get_sref_h2(self) -> int:
         """
@@ -282,7 +282,7 @@ class SGP30Sensor:
             int: Raw reference value.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getSrefH2()"
+        __translation__ = "{self}.getSrefH2()"
 
     def set_sref_ethanol(self, s: int) -> None:
         """
@@ -292,7 +292,7 @@ class SGP30Sensor:
             s (int): Raw average ethanol baseline value.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setSrefEthanol({1})"
+        __translation__ = "{self}.setSrefEthanol({s})"
 
     def get_sref_ethanol(self) -> int:
         """
@@ -302,7 +302,7 @@ class SGP30Sensor:
             int: Raw baseline value.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getSrefEthanol()"
+        __translation__ = "{self}.getSrefEthanol()"
 
     def last_error(self) -> int:
         """
@@ -312,4 +312,4 @@ class SGP30Sensor:
             int: 0 = OK, 0xFE = I2C error, 0xFF = CRC error.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.lastError()"
+        __translation__ = "{self}.lastError()"

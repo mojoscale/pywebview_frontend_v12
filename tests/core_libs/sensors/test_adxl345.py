@@ -4,10 +4,10 @@ import sensors.adxl345 as sensor_adxl
 def setup() -> None:
     adxl = sensor_adxl.ADXL345Sensor(1)
 
-    adxl.begin(0x53)
-    adxl.set_range(2)
+    adxl.begin(address=0x53)
+    adxl.set_range()
     adxl.get_range()
-    adxl.set_data_rate(10)
+    adxl.set_data_rate()
     adxl.get_data_rate()
     adxl.read_acceleration()
     adxl.get_device_id()

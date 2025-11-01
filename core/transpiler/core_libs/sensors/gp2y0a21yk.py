@@ -20,4 +20,4 @@ class GP2Y0A21YKSensor:
         Returns:
             float: Distance in centimeters.
         """
-        __translation__ = "{0}.distance()"
+        __translation__ = "{self}.distance()"

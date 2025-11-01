@@ -4,7 +4,7 @@ import sensors.vl53l0x as vl
 def setup() -> None:
     sensor = vl.VL53L0XSensor()
 
-    sensor.begin(0x29, False)
+    sensor.begin(debug=False)
     sensor.set_address(0x30)
     sensor.read_range()
     sensor.read_range_status()
@@ -12,7 +12,7 @@ def setup() -> None:
     sensor.is_range_complete()
     sensor.wait_range_complete()
     sensor.read_range_result()
-    sensor.start_range_continuous(50)
+    sensor.start_range_continuous(period_ms=30)
     sensor.stop_range_continuous()
     sensor.timeout_occurred()
     sensor.config_sensor(1)

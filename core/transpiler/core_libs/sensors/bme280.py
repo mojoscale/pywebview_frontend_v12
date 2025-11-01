@@ -16,18 +16,19 @@ class BME280Sensor:
         __translation__ = ""  # Translates to global object
         pass
 
-    def begin(self, address: int) -> bool:
+    def begin(self, address: int = 0x76) -> bool:
         """
         Initializes communication with the BME280 sensor.
 
         Args:
             address (int): I2C address of the sensor (usually 0x76 or 0x77).
+                           Default to 0x76
 
         Returns:
             bool: True if sensor initialized correctly, False otherwise.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.begin({1})"
+        __translation__ = "{self}.begin({address})"
         return False
 
     def read_temperature(self) -> float:
@@ -38,7 +39,7 @@ class BME280Sensor:
             float: Temperature in °C.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.readTemperature()"
+        __translation__ = "{self}.readTemperature()"
         return 0.0
 
     def read_humidity(self) -> float:
@@ -49,7 +50,7 @@ class BME280Sensor:
             float: Humidity percentage.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.readHumidity()"
+        __translation__ = "{self}.readHumidity()"
         return 0.0
 
     def read_pressure(self) -> float:
@@ -60,7 +61,7 @@ class BME280Sensor:
             float: Atmospheric pressure in Pa.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.readPressure()"
+        __translation__ = "{self}.readPressure()"
         return 0.0
 
     def read_altitude(self, sea_level_hpa: float) -> float:
@@ -74,5 +75,5 @@ class BME280Sensor:
             float: Estimated altitude in meters.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.readAltitude({1})"
+        __translation__ = "{self}.readAltitude({sea_level_hpa})"
         return 0.0

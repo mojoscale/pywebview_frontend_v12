@@ -32,7 +32,7 @@ class BMP085Sensor:
             bool: True if initialized successfully
         """
         __use_as_is__ = False
-        __translation__ = "custom_bmp085_helper_begin(&{0}, {1})"
+        __translation__ = "custom_bmp085_helper_begin(&{self}, {mode})"
         return True
 
     def get_temperature(self) -> float:
@@ -43,7 +43,7 @@ class BMP085Sensor:
             float: Temperature in Celsius
         """
         __use_as_is__ = False
-        __translation__ = "custom_bmp085_helper_get_temperature(&{0})"
+        __translation__ = "custom_bmp085_helper_get_temperature(&{self})"
         return 0.0
 
     def get_pressure(self) -> float:
@@ -54,7 +54,7 @@ class BMP085Sensor:
             float: Pressure in Pa
         """
         __use_as_is__ = False
-        __translation__ = "custom_bmp085_helper_get_pressure(&{0})"
+        __translation__ = "custom_bmp085_helper_get_pressure(&{self})"
         return 0.0
 
     def pressure_to_altitude(self, sea_level: float, atmospheric: float) -> float:
@@ -69,7 +69,7 @@ class BMP085Sensor:
             float: Altitude in meters
         """
         __use_as_is__ = False
-        __translation__ = "{0}.pressureToAltitude({1}, {2})"
+        __translation__ = "{self}.pressureToAltitude({sea_level}, {atmospheric})"
         return 0.0
 
     def pressure_to_altitude_with_temp(
@@ -87,7 +87,9 @@ class BMP085Sensor:
             float: Altitude in meters
         """
         __use_as_is__ = False
-        __translation__ = "{0}.pressureToAltitude({1}, {2}, {3})"
+        __translation__ = (
+            "{self}.pressureToAltitude({sea_level}, {atmospheric}, {temp})"
+        )
         return 0.0
 
     def sea_level_for_altitude(self, altitude: float, atmospheric: float) -> float:
@@ -102,7 +104,7 @@ class BMP085Sensor:
             float: Sea level pressure
         """
         __use_as_is__ = False
-        __translation__ = "{0}.seaLevelForAltitude({1}, {2})"
+        __translation__ = "{self}.seaLevelForAltitude({altitude}, {atmospheric})"
         return 0.0
 
     def sea_level_for_altitude_with_temp(
@@ -120,7 +122,9 @@ class BMP085Sensor:
             float: Sea level pressure
         """
         __use_as_is__ = False
-        __translation__ = "{0}.seaLevelForAltitude({1}, {2}, {3})"
+        __translation__ = (
+            "{self}.seaLevelForAltitude({altitude}, {atmospheric}, {temp})"
+        )
         return 0.0
 
     def get_event(self) -> dict[str, float]:
@@ -131,7 +135,7 @@ class BMP085Sensor:
             dict: {'pressure': float, 'temperature': float}
         """
         __use_as_is__ = False
-        __translation__ = "custom_bmp085_helper_get_event(&{0})"
+        __translation__ = "custom_bmp085_helper_get_event(&{self})"
         return {"pressure": 0.0, "temperature": 0.0}
 
     def get_sensor_info(self) -> dict[str, str]:
@@ -142,5 +146,5 @@ class BMP085Sensor:
             dict: Metadata dictionary
         """
         __use_as_is__ = False
-        __translation__ = "custom_bmp085_helper_get_sensor_info(&{0})"
+        __translation__ = "custom_bmp085_helper_get_sensor_info(&{self})"
         return {"name": "BMP085", "type": "pressure"}

@@ -3,7 +3,7 @@ __dependencies__ = ""  # Adjust version to your PlatformIO setup
 
 
 class UltrasonicSensor:
-    def __init__(self, trigger_pin: int, echo_pin: int, max_cm_distance: int):
+    def __init__(self, trigger_pin: int, echo_pin: int, max_cm_distance: int = 500):
         """
         Represents an ultrasonic distance sensor using the NewPing library.
 
@@ -29,7 +29,7 @@ class UltrasonicSensor:
         """
         __use_as_is__ = False
         __class_actual_type__ = "NewPing"
-        __translation__ = "({1}, {2})"
+        __translation__ = "({trigger_pin}, {echo_pin}, {max_cm_distance})"
 
     def ping(self) -> int:
         """
@@ -38,7 +38,7 @@ class UltrasonicSensor:
         Returns:
             int: Echo duration in microseconds.
         """
-        __translation__ = "{0}.ping()"
+        __translation__ = "{self}.ping()"
 
     def ping_in(self) -> int:
         """
@@ -47,7 +47,7 @@ class UltrasonicSensor:
         Returns:
             int: Distance in inches.
         """
-        __translation__ = "{0}.ping_in()"
+        __translation__ = "{self}.ping_in()"
 
     def ping_cm(self) -> int:
         """
@@ -56,9 +56,9 @@ class UltrasonicSensor:
         Returns:
             int: Distance in centimeters.
         """
-        __translation__ = "{0}.ping_cm()"
+        __translation__ = "{self}.ping_cm()"
 
-    def ping_median(self, iterations: int) -> int:
+    def ping_median(self, iterations: int = 5) -> int:
         """
         Perform multiple pings and return the median echo time (in microseconds).
         Helps filter out invalid readings.
@@ -69,7 +69,7 @@ class UltrasonicSensor:
         Returns:
             int: Median echo time in microseconds.
         """
-        __translation__ = "{0}.ping_median({1})"
+        __translation__ = "{self}.ping_median({iterations})"
 
     def convert_in(self, echo_time: int) -> int:
         """
@@ -81,7 +81,7 @@ class UltrasonicSensor:
         Returns:
             int: Distance in inches.
         """
-        __translation__ = "{0}.convert_in({1})"
+        __translation__ = "{self}.convert_in({echo_time})"
 
     def convert_cm(self, echo_time: int) -> int:
         """
@@ -93,4 +93,4 @@ class UltrasonicSensor:
         Returns:
             int: Distance in centimeters.
         """
-        __translation__ = "{0}.convert_cm({1})"
+        __translation__ = "{self}.convert_cm({echo_time})"

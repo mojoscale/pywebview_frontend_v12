@@ -88,7 +88,7 @@ class FastAccelStepperEngine:
             >>> engine = FastAccelStepperEngine()
             >>> engine.init()
         """
-        __translation__ = "{0}.init()"
+        __translation__ = "{self}.init()"
         pass
 
     def stepper_connect_to_pin(self, step_pin: int) -> FastAccelStepper:
@@ -116,7 +116,7 @@ class FastAccelStepperEngine:
             >>> if stepper:
             ...     stepper.set_direction_pin(5)
         """
-        __translation__ = "{0}.stepperConnectToPin({1})"
+        __translation__ = "{self}.stepperConnectToPin({step_pin})"
         pass
 
 
@@ -157,7 +157,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_direction_pin(5)
         """
-        __translation__ = "{0}->setDirectionPin({1})"
+        __translation__ = "{self}->setDirectionPin({pin})"
 
     def get_direction_pin(self) -> int:
         """
@@ -174,7 +174,7 @@ class FastAccelStepper:
         Example:
             >>> pin = stepper.get_direction_pin()
         """
-        __translation__ = "{0}->getDirectionPin()"
+        __translation__ = "{self}->getDirectionPin()"
 
     def direction_pin_high_counts_up(self) -> bool:
         """
@@ -192,7 +192,7 @@ class FastAccelStepper:
             >>> if stepper.direction_pin_high_counts_up():
             ...     print("HIGH = forward")
         """
-        __translation__ = "{0}->directionPinHighCountsUp()"
+        __translation__ = "{self}->directionPinHighCountsUp()"
 
     def set_enable_pin(self, pin: int, low_active: bool = True) -> None:
         """
@@ -213,7 +213,7 @@ class FastAccelStepper:
             >>> stepper.set_enable_pin(6)
             >>> stepper.set_enable_pin(6, False)  # HIGH enables
         """
-        __translation__ = "{0}->setEnablePin({1}, {2})"
+        __translation__ = "{self}->setEnablePin({pin}, {low_active})"
 
     def get_enable_pin_low_active(self) -> int:
         """
@@ -230,7 +230,7 @@ class FastAccelStepper:
         Example:
             >>> pin = stepper.get_enable_pin_low_active()
         """
-        __translation__ = "{0}->getEnablePinLowActive()"
+        __translation__ = "{self}->getEnablePinLowActive()"
 
     def get_enable_pin_high_active(self) -> int:
         """
@@ -247,7 +247,7 @@ class FastAccelStepper:
         Example:
             >>> pin = stepper.get_enable_pin_high_active()
         """
-        __translation__ = "{0}->getEnablePinHighActive()"
+        __translation__ = "{self}->getEnablePinHighActive()"
 
     def set_auto_enable(self, enable: bool) -> None:
         """
@@ -266,7 +266,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_auto_enable(True)
         """
-        __translation__ = "{0}->setAutoEnable({1})"
+        __translation__ = "{self}->setAutoEnable({enable})"
 
     def set_delay_to_enable(self, delay_us: int) -> int:
         """
@@ -284,7 +284,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_delay_to_enable(500)  # 500 microseconds
         """
-        __translation__ = "{0}->setDelayToEnable({1})"
+        __translation__ = "{self}->setDelayToEnable({delay_us})"
 
     def set_delay_to_disable(self, delay_ms: int) -> None:
         """
@@ -301,7 +301,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_delay_to_disable(5)  # 5 milliseconds
         """
-        __translation__ = "{0}->setDelayToDisable({1})"
+        __translation__ = "{self}->setDelayToDisable({delay_ms})"
 
     # ========== SPEED CONTROL ==========
 
@@ -327,7 +327,7 @@ class FastAccelStepper:
             >>> if result == 0:
             ...     print("Speed set successfully")
         """
-        __translation__ = "{0}->setSpeedInHz({1})"
+        __translation__ = "{self}->setSpeedInHz({1})"
 
     def set_speed_us(self, step_us: int) -> int:
         """
@@ -345,7 +345,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_speed_us(2000)  # 2ms per step = 500 Hz
         """
-        __translation__ = "{0}->setSpeedInUs({1})"
+        __translation__ = "{self}->setSpeedInUs({1})"
 
     def set_speed_ticks(self, step_ticks: int) -> int:
         """
@@ -363,7 +363,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_speed_ticks(3200)
         """
-        __translation__ = "{0}->setSpeedInTicks({1})"
+        __translation__ = "{self}->setSpeedInTicks({1})"
 
     def set_speed_millihz(self, speed_millihz: int) -> int:
         """
@@ -381,7 +381,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_speed_millihz(100)  # 0.1 steps per second
         """
-        __translation__ = "{0}->setSpeedInMilliHz({1})"
+        __translation__ = "{self}->setSpeedInMilliHz({1})"
 
     def get_speed_us(self) -> int:
         """
@@ -398,7 +398,7 @@ class FastAccelStepper:
         Example:
             >>> speed_us = stepper.get_speed_us()
         """
-        __translation__ = "{0}->getSpeedInUs()"
+        __translation__ = "{self}->getSpeedInUs()"
 
     def get_speed_ticks(self) -> int:
         """
@@ -415,7 +415,7 @@ class FastAccelStepper:
         Example:
             >>> speed_ticks = stepper.get_speed_ticks()
         """
-        __translation__ = "{0}->getSpeedInTicks()"
+        __translation__ = "{self}->getSpeedInTicks()"
 
     def get_speed_millihz(self) -> int:
         """
@@ -432,7 +432,7 @@ class FastAccelStepper:
         Example:
             >>> speed_mhz = stepper.get_speed_millihz()
         """
-        __translation__ = "{0}->getSpeedInMilliHz()"
+        __translation__ = "{self}->getSpeedInMilliHz()"
 
     def get_current_speed_us(self) -> int:
         """
@@ -451,7 +451,7 @@ class FastAccelStepper:
         Example:
             >>> current_speed = stepper.get_current_speed_us()
         """
-        __translation__ = "{0}->getCurrentSpeedInUs()"
+        __translation__ = "{self}->getCurrentSpeedInUs()"
 
     def get_current_speed_millihz(self) -> int:
         """
@@ -468,7 +468,7 @@ class FastAccelStepper:
         Example:
             >>> current_speed = stepper.get_current_speed_millihz()
         """
-        __translation__ = "{0}->getCurrentSpeedInMilliHz()"
+        __translation__ = "{self}->getCurrentSpeedInMilliHz()"
 
     def get_max_speed_hz(self) -> int:
         """
@@ -485,7 +485,7 @@ class FastAccelStepper:
         Example:
             >>> max_hz = stepper.get_max_speed_hz()
         """
-        __translation__ = "{0}->getMaxSpeedInHz()"
+        __translation__ = "{self}->getMaxSpeedInHz()"
 
     def get_max_speed_us(self) -> int:
         """
@@ -502,7 +502,7 @@ class FastAccelStepper:
         Example:
             >>> max_speed_us = stepper.get_max_speed_us()
         """
-        __translation__ = "{0}->getMaxSpeedInUs()"
+        __translation__ = "{self}->getMaxSpeedInUs()"
 
     def get_max_speed_ticks(self) -> int:
         """
@@ -519,7 +519,7 @@ class FastAccelStepper:
         Example:
             >>> max_speed_ticks = stepper.get_max_speed_ticks()
         """
-        __translation__ = "{0}->getMaxSpeedInTicks()"
+        __translation__ = "{self}->getMaxSpeedInTicks()"
 
     def get_max_speed_millihz(self) -> int:
         """
@@ -536,7 +536,7 @@ class FastAccelStepper:
         Example:
             >>> max_speed_mhz = stepper.get_max_speed_millihz()
         """
-        __translation__ = "{0}->getMaxSpeedInMilliHz()"
+        __translation__ = "{self}->getMaxSpeedInMilliHz()"
 
     # ========== ACCELERATION CONTROL ==========
 
@@ -558,7 +558,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_acceleration(500)  # Ramp up 500 steps/s each second
         """
-        __translation__ = "{0}->setAcceleration({1})"
+        __translation__ = "{self}->setAcceleration({1})"
 
     def get_acceleration(self) -> int:
         """
@@ -575,7 +575,7 @@ class FastAccelStepper:
         Example:
             >>> accel = stepper.get_acceleration()
         """
-        __translation__ = "{0}->getAcceleration()"
+        __translation__ = "{self}->getAcceleration()"
 
     def get_current_acceleration(self) -> int:
         """
@@ -593,7 +593,7 @@ class FastAccelStepper:
         Example:
             >>> current_accel = stepper.get_current_acceleration()
         """
-        __translation__ = "{0}->getCurrentAcceleration()"
+        __translation__ = "{self}->getCurrentAcceleration()"
 
     def set_linear_acceleration(self, linear_accel_steps: int) -> None:
         """
@@ -611,7 +611,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_linear_acceleration(100)  # Ramp over 100 steps
         """
-        __translation__ = "{0}->setLinearAcceleration({1})"
+        __translation__ = "{self}->setLinearAcceleration({1})"
 
     def set_jump_start(self, jump_step: int) -> None:
         """
@@ -629,7 +629,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_jump_start(10)
         """
-        __translation__ = "{0}->setJumpStart({1})"
+        __translation__ = "{self}->setJumpStart({1})"
 
     def apply_speed_acceleration(self) -> None:
         """
@@ -648,7 +648,7 @@ class FastAccelStepper:
             >>> stepper.set_speed_hz(1000)
             >>> stepper.apply_speed_acceleration()
         """
-        __translation__ = "{0}->applySpeedAcceleration()"
+        __translation__ = "{self}->applySpeedAcceleration()"
 
     # ========== MOVEMENT COMMANDS ==========
 
@@ -670,7 +670,7 @@ class FastAccelStepper:
             >>> stepper.move(500)  # Move 500 steps forward
             >>> stepper.move(-100)  # Move 100 steps backward
         """
-        __translation__ = "custom_stepper_move({0}, {1}, {2})"
+        __translation__ = "custom_stepper_move({self}, {1}, {2})"
 
     def move_to(self, position: int, blocking: bool) -> dict[str, int]:
         """
@@ -689,7 +689,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.move_to(5000)  # Move to position 5000
         """
-        __translation__ = "custom_stepper_move_to({0}, {1}, {2})"
+        __translation__ = "custom_stepper_move_to({self}, {1}, {2})"
 
     def run_forward(self) -> dict[str, int]:
         """
@@ -708,7 +708,7 @@ class FastAccelStepper:
             >>> # ... later ...
             >>> stepper.stop_move()
         """
-        __translation__ = "custom_stepper_run_forward({0})"
+        __translation__ = "custom_stepper_run_forward({self})"
 
     def run_backward(self) -> dict[str, int]:
         """
@@ -728,7 +728,7 @@ class FastAccelStepper:
             >>> # ... later ...
             >>> stepper.stop_move()
         """
-        __translation__ = "custom_stepper_run_backward({0})"
+        __translation__ = "custom_stepper_run_backward({self})"
 
     def keep_running(self) -> None:
         """
@@ -745,7 +745,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.keep_running()
         """
-        __translation__ = "{0}->keepRunning()"
+        __translation__ = "{self}->keepRunning()"
 
     def is_running_continuously(self) -> bool:
         """
@@ -763,7 +763,7 @@ class FastAccelStepper:
             >>> if stepper.is_running_continuously():
             ...     print("Motor is in continuous run mode")
         """
-        __translation__ = "{0}->isRunningContinuously()"
+        __translation__ = "{self}->isRunningContinuously()"
 
     def forward_step(self, blocking: bool = False) -> None:
         """
@@ -780,7 +780,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.forward_step()
         """
-        __translation__ = "{0}->forwardStep({1})"
+        __translation__ = "{self}->forwardStep({1})"
 
     def backward_step(self, blocking: bool = False) -> None:
         """
@@ -798,7 +798,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.backward_step()
         """
-        __translation__ = "{0}->backwardStep({1})"
+        __translation__ = "{self}->backwardStep({1})"
 
     def move_by_acceleration(
         self, acceleration: int, allow_reverse: bool
@@ -821,7 +821,7 @@ class FastAccelStepper:
             >>> stepper.move_by_acceleration(1000)  # Accelerate forward
             >>> stepper.move_by_acceleration(-500)  # Decelerate
         """
-        __translation__ = "custom_stepper_move_by_acceleration({0}, {1}, {2})"
+        __translation__ = "custom_stepper_move_by_acceleration({self}, {1}, {2})"
 
     def stop_move(self) -> None:
         """
@@ -839,7 +839,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.stop_move()
         """
-        __translation__ = "{0}->stopMove()"
+        __translation__ = "{self}->stopMove()"
 
     def is_stopping(self) -> bool:
         """
@@ -857,7 +857,7 @@ class FastAccelStepper:
             >>> if stepper.is_stopping():
             ...     print("Motor is slowing down")
         """
-        __translation__ = "{0}->isStopping()"
+        __translation__ = "{self}->isStopping()"
 
     def force_stop(self) -> None:
         """
@@ -875,7 +875,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.force_stop()
         """
-        __translation__ = "{0}->forceStop()"
+        __translation__ = "{self}->forceStop()"
 
     def force_stop_and_new_position(self, new_pos: int) -> None:
         """
@@ -893,7 +893,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.force_stop_and_new_position(0)
         """
-        __translation__ = "{0}->forceStopAndNewPosition({1})"
+        __translation__ = "{self}->forceStopAndNewPosition({1})"
 
     def steps_to_stop(self) -> int:
         """
@@ -913,7 +913,7 @@ class FastAccelStepper:
             >>> if stepper.get_current_position() + remaining > limit:
             ...     stepper.stop_move()
         """
-        __translation__ = "{0}->stepsToStop()"
+        __translation__ = "{self}->stepsToStop()"
 
     # ========== POSITION QUERIES ==========
 
@@ -932,7 +932,7 @@ class FastAccelStepper:
         Example:
             >>> pos = stepper.get_current_position()
         """
-        __translation__ = "{0}->getCurrentPosition()"
+        __translation__ = "{self}->getCurrentPosition()"
 
     def get_target_position(self) -> int:
         """
@@ -949,7 +949,7 @@ class FastAccelStepper:
         Example:
             >>> target = stepper.get_target_position()
         """
-        __translation__ = "{0}->targetPos()"
+        __translation__ = "{self}->targetPos()"
 
     def set_current_position(self, position: int) -> None:
         """
@@ -968,7 +968,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_current_position(0)  # Reset to origin
         """
-        __translation__ = "{0}->setCurrentPosition({1})"
+        __translation__ = "{self}->setCurrentPosition({1})"
 
     def distance_to_go(self) -> int:
         """
@@ -989,7 +989,7 @@ class FastAccelStepper:
             ...     print("Motor reached target")
         """
         __translation__ = (
-            "{0}->getPositionAfterCommandsCompleted() - {0}->getCurrentPosition()"
+            "{self}->getPositionAfterCommandsCompleted() - {self}->getCurrentPosition()"
         )
 
     # ========== STATUS QUERIES ==========
@@ -1014,7 +1014,7 @@ class FastAccelStepper:
             ...     # Do other work while motor moves
             ...     pass
         """
-        __translation__ = "{0}->isRunning()"
+        __translation__ = "{self}->isRunning()"
 
     def ticks_in_queue(self) -> int:
         """
@@ -1032,7 +1032,7 @@ class FastAccelStepper:
         Example:
             >>> queue_ticks = stepper.ticks_in_queue()
         """
-        __translation__ = "{0}->ticksInQueue()"
+        __translation__ = "{self}->ticksInQueue()"
 
     def has_ticks_in_queue(self, min_ticks: int) -> bool:
         """
@@ -1050,7 +1050,7 @@ class FastAccelStepper:
             >>> if stepper.has_ticks_in_queue(1000):
             ...     print("Queue is well-stocked")
         """
-        __translation__ = "{0}->hasTicksInQueue({1})"
+        __translation__ = "{self}->hasTicksInQueue({1})"
 
     def queue_entries(self) -> int:
         """
@@ -1069,7 +1069,7 @@ class FastAccelStepper:
         Example:
             >>> entries = stepper.queue_entries()
         """
-        __translation__ = "{0}->queueEntries()"
+        __translation__ = "{self}->queueEntries()"
 
     def get_period_after_commands_us(self) -> int:
         """
@@ -1088,7 +1088,7 @@ class FastAccelStepper:
         Example:
             >>> wait_time_us = stepper.get_period_after_commands_us()
         """
-        __translation__ = "{0}->getPeriodInUsAfterCommandsCompleted()"
+        __translation__ = "{self}->getPeriodInUsAfterCommandsCompleted()"
 
     def get_period_after_commands_ticks(self) -> int:
         """
@@ -1106,7 +1106,7 @@ class FastAccelStepper:
         Example:
             >>> wait_time_ticks = stepper.get_period_after_commands_ticks()
         """
-        __translation__ = "{0}->getPeriodInTicksAfterCommandsCompleted()"
+        __translation__ = "{self}->getPeriodInTicksAfterCommandsCompleted()"
 
     def get_position_after_commands_completed(self) -> int:
         """
@@ -1124,7 +1124,7 @@ class FastAccelStepper:
         Example:
             >>> future_pos = stepper.get_position_after_commands_completed()
         """
-        __translation__ = "{0}->getPositionAfterCommandsCompleted()"
+        __translation__ = "{self}->getPositionAfterCommandsCompleted()"
 
     def set_position_after_commands_completed(self, new_pos: int) -> None:
         """
@@ -1142,7 +1142,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_position_after_commands_completed(0)
         """
-        __translation__ = "{0}->setPositionAfterCommandsCompleted({1})"
+        __translation__ = "{self}->setPositionAfterCommandsCompleted({1})"
 
     # ========== RAMP STATE QUERIES ==========
 
@@ -1162,7 +1162,7 @@ class FastAccelStepper:
         Example:
             >>> state = stepper.ramp_state()
         """
-        __translation__ = "{0}->rampState()"
+        __translation__ = "{self}->rampState()"
 
     def is_ramp_generator_active(self) -> bool:
         """
@@ -1180,7 +1180,7 @@ class FastAccelStepper:
             >>> if stepper.is_ramp_generator_active():
             ...     print("Motor is accelerating/decelerating")
         """
-        __translation__ = "{0}->isRampGeneratorActive()"
+        __translation__ = "{self}->isRampGeneratorActive()"
 
     # ========== MOTOR CONTROL ==========
 
@@ -1200,7 +1200,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.enable_outputs()
         """
-        __translation__ = "{0}->enableOutputs()"
+        __translation__ = "{self}->enableOutputs()"
 
     def disable_outputs(self) -> bool:
         """
@@ -1218,7 +1218,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.disable_outputs()
         """
-        __translation__ = "{0}->disableOutputs()"
+        __translation__ = "{self}->disableOutputs()"
 
     # ========== ADVANCED CONFIGURATION ==========
 
@@ -1242,7 +1242,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.set_forward_planning_time_ms(30)
         """
-        __translation__ = "{0}->setForwardPlanningTimeInMs({1})"
+        __translation__ = "{self}->setForwardPlanningTimeInMs({1})"
 
     def detach_from_pin(self) -> None:
         """
@@ -1259,7 +1259,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.detach_from_pin()
         """
-        __translation__ = "{0}->detachFromPin()"
+        __translation__ = "{self}->detachFromPin()"
 
     def reattach_to_pin(self) -> None:
         """
@@ -1276,7 +1276,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.reattach_to_pin()
         """
-        __translation__ = "{0}->reAttachToPin()"
+        __translation__ = "{self}->reAttachToPin()"
 
     # ========== ESP32 PULSE COUNTER (ESP32 only) ==========
 
@@ -1307,7 +1307,7 @@ class FastAccelStepper:
             >>> stepper.attach_to_pulse_counter()
             >>> stepper.attach_to_pulse_counter(low_value=-3200, high_value=3200)
         """
-        __translation__ = "{0}->attachToPulseCounter({1}, {2}, {3})"
+        __translation__ = "{self}->attachToPulseCounter({1}, {2}, {3})"
 
     def read_pulse_counter(self) -> int:
         """
@@ -1324,7 +1324,7 @@ class FastAccelStepper:
         Example:
             >>> count = stepper.read_pulse_counter()
         """
-        __translation__ = "{0}->readPulseCounter()"
+        __translation__ = "{self}->readPulseCounter()"
 
     def clear_pulse_counter(self) -> None:
         """
@@ -1341,7 +1341,7 @@ class FastAccelStepper:
         Example:
             >>> stepper.clear_pulse_counter()
         """
-        __translation__ = "{0}->clearPulseCounter()"
+        __translation__ = "{self}->clearPulseCounter()"
 
     def pulse_counter_attached(self) -> bool:
         """
@@ -1359,4 +1359,4 @@ class FastAccelStepper:
             >>> if stepper.pulse_counter_attached():
             ...     print("Pulse counter is active")
         """
-        __translation__ = "{0}->pulseCounterAttached()"
+        __translation__ = "{self}->pulseCounterAttached()"
