@@ -1339,6 +1339,7 @@ class LintCode(ast.NodeVisitor):
         Check if a bare function name is used illegally (not called, not passed as arg, not assigned).
         Only check right-hand side since LHS is likely being defined.
         """
+        parent = getattr(node, "parent", None)
         if isinstance(node.ctx, ast.Load):  # Right-hand side (being read)
             var_name = node.id
 
@@ -1353,6 +1354,27 @@ class LintCode(ast.NodeVisitor):
                 self.add_error(
                     node, f"'{var_name}' is not defined anywhere. This could be a typo."
                 )
+
+            elif not is_variable_defined and is_function_defined:
+                # this is a callable, which are only allowed as arg or kwarg
+
+                if isinstance(parent, ast.Call) and node in parent.args:
+                    # is a positional argument in a function call
+                    # do nothing
+                    pass
+
+                # 2️Check if it's a keyword argument
+                elif isinstance(parent, ast.keyword) and parent.value is node:
+                    # is a keyword argument for key
+                    # do nothing
+                    pass
+
+                else:
+                    # its being used incorrectly.
+                    self.add_error(
+                        node,
+                        f"Calling method '{var_name}' without parentheses is not allowed.",
+                    )
 
             else:
                 return

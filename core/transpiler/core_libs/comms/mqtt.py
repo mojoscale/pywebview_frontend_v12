@@ -28,7 +28,7 @@ class PubSubClient:
         __translation__ = "{self}.setServer({host}.c_str(), {port})"
         pass
 
-    def set_callback(self, callback_func: callable) -> None:
+    def set_callback(self, callback_func: callable[[str, str], None]) -> None:
         """
         Set the callback function for received MQTT messages.
         """

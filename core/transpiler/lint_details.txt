@@ -17,3 +17,8 @@
 13, for the transpiler any args without `=` are args , and those with are kwargs. Kwargs should always follow args.
 14, args should be all there for a call, kwargs are optional. 
 15, calling functions as name is not allowed except for when it is passed as callable. 
+16, callback args check.
+17. callback functions should only have args.
+18, callback functions should always return None
+19, 
+

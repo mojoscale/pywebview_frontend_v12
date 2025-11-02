@@ -424,7 +424,7 @@
           },
           {
             "name": "set_filter",
-            "signature": "(self, filter_func: callable) -> AsyncWebHandler",
+            "signature": "(self, filter_func: callable[[AsyncWebServerRequest], None]) -> AsyncWebHandler",
             "doc": "Assign a filter function that decides if this handler should process a request.\n\nArgs:\n    filter_func (ArRequestFilterFunction): The filtering function.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {self}.setFilter({1})"
           },
           {
@@ -476,7 +476,7 @@
           },
           {
             "name": "on",
-            "signature": "(self, path: str, method: str, handler: callable) -> None",
+            "signature": "(self, path: str, method: str, handler: callable[[AsyncWebServerRequest], None]) -> None",
             "doc": "Registers a request handler for a specific path and method.\n\nArgs:\n    path (str): The URL path to handle.\n    method (str): HTTP method as string (e.g., \"GET\", \"POST\").\n    handler (function): Function to call when the request is received.\n\nReturns:\n    None"
           },
           {
@@ -569,22 +569,22 @@
           },
           {
             "name": "on_connect",
-            "signature": "(self, callback: callable) -> None",
+            "signature": "(self, callback: callable[[], None]) -> None",
             "doc": "Register a function to call on connection.\n\nArgs:\n    callback (callable): Function with **no arguments**.\n        Example:\n            def handler(): ..."
           },
           {
             "name": "on_disconnect",
-            "signature": "(self, callback: callable) -> None",
+            "signature": "(self, callback: callable[[], None]) -> None",
             "doc": "Register a function to call on disconnect.\n\nArgs:\n    callback (callable): Function with **no arguments**.\n        Example:\n            def handler(): ..."
           },
           {
             "name": "on_write",
-            "signature": "(self, uuid: str, callback: callable) -> None",
+            "signature": "(self, uuid: str, callback: callable[[str], None]) -> None",
             "doc": "Set a callback for write events.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    callback (callable): Function that takes **one argument (str)** \u2013 the value written by central.\n        Example:\n            def handler(value: str): ..."
           },
           {
             "name": "on_notify",
-            "signature": "(self, uuid: str, callback: callable) -> None",
+            "signature": "(self, uuid: str, callback: callable[[str], None]) -> None",
             "doc": "Set a callback for notify events.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    callback (callable): Function that takes **one argument (str)** \u2013 the notified value received.\n        Example:\n            def handler(value: str): ..."
           },
           {
@@ -622,7 +622,7 @@
           },
           {
             "name": "set_callback",
-            "signature": "(self, callback_func: callable) -> None",
+            "signature": "(self, callback_func: callable[[str, str], None]) -> None",
             "doc": "Set the callback function for received MQTT messages."
           },
           {
@@ -695,7 +695,7 @@
           },
           {
             "name": "on",
-            "signature": "(self, path: str, method: str, handler: callable) -> WebServer",
+            "signature": "(self, path: str, method: str, handler: callable[[], None]) -> WebServer",
             "doc": "Registers a handler function for the given URL path.\n\nArgs:\n    path (str): The URL endpoint (e.g., \"/status\").\n    method (str): \"HTTP_GET\" or \"HTTP_POST\"\n    handler (callable): A function with no parameters that handles the request.\n\nExample:\n    server.on(\"/hello\", handle_hello)"
           },
           {

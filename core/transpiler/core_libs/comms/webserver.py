@@ -36,7 +36,7 @@ class WebServer:
         __translation__ = "({port})"
         pass
 
-    def on(self, path: str, method: str, handler: callable) -> WebServer:
+    def on(self, path: str, method: str, handler: callable[[], None]) -> WebServer:
         """
         Registers a handler function for the given URL path.
 
