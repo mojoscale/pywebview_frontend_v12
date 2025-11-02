@@ -1913,7 +1913,21 @@ class TypeAnalyzer:
                 if var_name in self.loop_variables.keys():
                     return self.loop_variables[var_name]
 
-            return self.dependency_resolver.get_variable_type(var_name, self.scope)
+            variable_type = self.dependency_resolver.get_variable_type(
+                var_name, self.scope
+            )
+
+            if variable_type:
+                return variable_type
+
+            # if not variable, it can be a function and being passed as callable.
+
+            is_function = self.dependency_resolver.get_method_metadata(var_name)
+
+            if is_function:
+                return "callable"
+
+            return
 
         elif isinstance(node, ast.Compare):
             # Comparisons always result in boolean

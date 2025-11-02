@@ -1343,8 +1343,9 @@ class LintCode(ast.NodeVisitor):
             var_name = node.id
 
             is_variable_defined = self.dependency_resolver.variable_exists(var_name)
+            is_function_defined = self.dependency_resolver.get_method_metadata(var_name)
 
-            if not is_variable_defined:
+            if not is_variable_defined and not is_function_defined:
                 if self.is_within_For:
                     if var_name in self.loop_variables:
                         return
