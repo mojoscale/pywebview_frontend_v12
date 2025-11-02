@@ -292,6 +292,19 @@ class LintCode(ast.NodeVisitor):
     def visit_List(self, node: ast.List):
         """Validate literal lists: all elements same type, and of allowed scalar types."""
         # ALLOWED_TYPES = (ast.Constant,)
+
+        # ✅ Detect empty list
+        if len(node.elts) == 0:
+            parent = getattr(node, "parent", None)
+            # Not assigned, not part of an annotation, not in a call, not in return
+            if not isinstance(
+                parent, (ast.Assign, ast.AnnAssign, ast.Call, ast.Return, ast.keyword)
+            ):
+                self.add_error(
+                    node,
+                    "Empty list literal '[]' used as a standalone expression. "
+                    "It must be assigned or annotated explicitly.",
+                )
         ALLOWED_VALUE_TYPES = ("str", "int", "float", "bool")
 
         element_types = []
@@ -337,6 +350,17 @@ class LintCode(ast.NodeVisitor):
 
     def visit_Dict(self, node: ast.Dict):
         """Validate literal dicts: key/value type restrictions and uniformity."""
+        # ✅ Detect empty dict
+        if len(node.keys) == 0:
+            parent = getattr(node, "parent", None)
+            if not isinstance(
+                parent, (ast.Assign, ast.AnnAssign, ast.Call, ast.Return, ast.keyword)
+            ):
+                self.add_error(
+                    node,
+                    "Empty dict literal '{}' used as a standalone expression. "
+                    "It must be assigned or annotated explicitly.",
+                )
         ALLOWED_VALUE_TYPES = ("str", "int", "float", "bool")
 
         key_types = []
