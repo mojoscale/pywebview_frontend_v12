@@ -1,4 +1,60 @@
-# __include_modules__ = "ESPAsyncWebServer"
+"""
+Async Web Server Stubs for ESP32 / ESP8266
+==========================================
+
+This module provides Python-style stubs for the **ESPAsyncWebServer** library, 
+enabling non-blocking, event-driven HTTP handling in Arduino-compatible 
+firmware for ESP32 and ESP8266 boards.
+
+These classes are designed to mirror the underlying C++ APIs used in the 
+`ESPAsyncWebServer` ecosystem, allowing the Python-to-Arduino transpiler 
+to generate valid C++ code for asynchronous networking tasks such as 
+serving files, handling REST endpoints, and implementing real-time dashboards.
+
+Supported platforms:
+    - **ESP32** (uses AsyncTCP backend)
+    - **ESP8266** (uses ESPAsyncTCP backend)
+
+Main Components:
+----------------
+- **AsyncWebServer** — main HTTP server class for route registration and startup.
+- **AsyncWebServerRequest** — represents a client request, used to read parameters and send responses.
+- **AsyncWebHandler** — abstract base for custom or callback-based request handlers.
+- **AsyncStaticWebHandler** — serves files directly from the filesystem (SPIFFS, LittleFS, etc.).
+
+Example
+-------
+```python
+import comms.async_webserver as aw
+
+server = aw.AsyncWebServer(80)
+
+def handle_root(request: aw.AsyncWebServerRequest) -> None:
+    request.send(200, "text/plain", "Hello from ESP!")
+
+def handle_about(request: aw.AsyncWebServerRequest) -> None:
+    html = "<html><body><h1>About</h1><p>We are alrite!.</p></body></html>"
+    request.send(200, "text/html", html)
+
+def setup() -> None:
+    # Register route and start server
+    server.on("/", "HTTP_GET", handle_root)
+    server.on("/about", "HTTP_GET", handle_about)
+    server.begin()
+
+    # Serve static files from filesystem
+    static_page = server.serve_static("/files", "/")
+    static_page.set_default_file("index.html")
+    static_page.set_cache_control(86400)
+    static_page.set_last_modified(1700000000)
+
+def loop() -> None:
+    # No blocking code needed — server runs asynchronously
+    pass
+
+```
+"""
+
 
 __include_modules__ = {
     "espressif8266": "ESPAsyncWebServer,LITTLEFS",
@@ -73,7 +129,9 @@ class AsyncWebServerRequest:
             None
         """
         __use_as_is__ = False
-        __translation__ = "{0}->send({1}, {2}.c_str(), {3}.c_str())"
+        __translation__ = (
+            "{self}->send({status_code}, {content_type}.c_str(), {body}.c_str())"
+        )
 
         pass
 
@@ -88,7 +146,7 @@ class AsyncWebServerRequest:
             str: Value of the argument or empty string if not found.
         """
         __use_as_is__ = False
-        __translation__ = "{0}->arg({1}.c_str())"
+        __translation__ = "{self}->arg({name}.c_str())"
         return ""
 
     def has_param(self, name: str) -> bool:
@@ -102,7 +160,7 @@ class AsyncWebServerRequest:
             bool: True if parameter exists, False otherwise.
         """
         __use_as_is__ = False
-        __translation__ = "{0}->hasParam({1}.c_str())"
+        __translation__ = "{self}->hasParam({name}.c_str())"
         return False
 
 
@@ -147,9 +205,9 @@ class AsyncWebHandler:
             bool: True if the handler can handle the request; False otherwise.
 
         Translation:
-            {0}.canHandle({1})
+            {self}.canHandle({1})
         """
-        __translation__ = "{0}.canHandle({1})"
+        __translation__ = "{self}.canHandle({request})"
 
     def handle_request(self, request: AsyncWebServerRequest) -> None:
         """
@@ -159,9 +217,9 @@ class AsyncWebHandler:
             request (AsyncWebServerRequest): The HTTP request to process.
 
         Translation:
-            {0}.handleRequest({1})
+            {self}.handleRequest({1})
         """
-        __translation__ = "{0}.handleRequest({1})"
+        __translation__ = "{self}.handleRequest({request})"
 
     def is_request_handler_trivial(self) -> bool:
         """
@@ -171,9 +229,9 @@ class AsyncWebHandler:
             bool: True if the handler is trivial; False otherwise.
 
         Translation:
-            {0}.isRequestHandlerTrivial()
+            {self}.isRequestHandlerTrivial()
         """
-        __translation__ = "{0}.isRequestHandlerTrivial()"
+        __translation__ = "{self}.isRequestHandlerTrivial()"
 
     # --- Authentication Methods ---
 
@@ -189,13 +247,13 @@ class AsyncWebHandler:
             AsyncWebHandler: The same handler instance (for chaining).
 
         Translation:
-            {0}.setAuthentication({1}, {2})
+            {self}.setAuthentication({1}, {2})
         """
-        __translation__ = "{0}.setAuthentication({1}, {2})"
+        __translation__ = "{self}.setAuthentication({username}, {password})"
 
     # --- Filtering ---
 
-    def set_filter(self, filter_func) -> AsyncWebHandler:
+    def set_filter(self, filter_func: callable) -> AsyncWebHandler:
         """
         Assign a filter function that decides if this handler should process a request.
 
@@ -206,9 +264,9 @@ class AsyncWebHandler:
             AsyncWebHandler: The same handler instance (for chaining).
 
         Translation:
-            {0}.setFilter({1})
+            {self}.setFilter({1})
         """
-        __translation__ = "{0}.setFilter({1})"
+        __translation__ = "{self}.setFilter({filter_func})"
 
     def filter(self, request: AsyncWebServerRequest) -> bool:
         """
@@ -221,55 +279,9 @@ class AsyncWebHandler:
             bool: True if the handler should process this request.
 
         Translation:
-            {0}.filter({1})
+            {self}.filter({1})
         """
-        __translation__ = "{0}.filter({1})"
-
-    # --- Priority ---
-
-    def set_priority(self, priority: int) -> AsyncWebHandler:
-        """
-        Assign a priority level to this handler.
-
-        Args:
-            priority (int): The priority value (higher = earlier execution).
-
-        Returns:
-            AsyncWebHandler: The same handler instance (for chaining).
-
-        Translation:
-            {0}.setPriority({1})
-        """
-        __translation__ = "{0}.setPriority({1})"
-
-    def priority(self) -> int:
-        """
-        Get the priority value assigned to this handler.
-
-        Returns:
-            int: The priority level.
-
-        Translation:
-            {0}.priority()
-        """
-        __translation__ = "{0}.priority()"
-
-    # --- Request Callback (Optional) ---
-
-    def on_request(self) -> AsyncWebHandler:
-        """
-        Assign a custom callback to handle incoming requests.
-
-        Args:
-            callback (ArRequestHandlerFunction): The function that processes the request.
-
-        Returns:
-            AsyncWebHandler: The same handler instance (for chaining).
-
-        Translation:
-            {0}.onRequest({1})
-        """
-        __translation__ = "{0}.onRequest({1})"
+        __translation__ = "{self}.filter({request})"
 
 
 class AsyncStaticWebHandler:
@@ -310,15 +322,13 @@ class AsyncStaticWebHandler:
         Returns:
             AsyncStaticWebHandler: Reference to the same handler (for chaining).
 
-
-
-
         """
+
         __use_as_is__ = False
-        __translation__ = "{0}.setDefaultFile({1}.c_str())"
+        __translation__ = "{self}.setDefaultFile({filename}.c_str())"
         return self
 
-    def set_cache_control(self, cache_seconds: int) -> AsyncStaticWebHandler:
+    def set_cache_control(self, cache_seconds: int = 86400) -> AsyncStaticWebHandler:
         """
         Sets the cache control duration for static files.
 
@@ -334,7 +344,7 @@ class AsyncStaticWebHandler:
                 `.setCacheControl("max-age=<cache_seconds>")`
         """
         __use_as_is__ = False
-        __translation__ = "setCacheControlSeconds({0}, {1})"
+        __translation__ = "setCacheControlSeconds({self}, {cache_seconds})"
         return self
 
     def set_last_modified(self, timestamp: int) -> AsyncStaticWebHandler:
@@ -349,7 +359,7 @@ class AsyncStaticWebHandler:
             AsyncStaticWebHandler: Reference to the same handler (for chaining).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setLastModified({1})"
+        __translation__ = "{self}.setLastModified({timestamp})"
         return self
 
     def set_authentication(self, user: str, password: str) -> AsyncWebHandler:
@@ -364,7 +374,7 @@ class AsyncStaticWebHandler:
             AsyncStaticWebHandler: Reference to the same handler (for chaining).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setAuthentication({1}.c_str(), {2}.c_str())"
+        __translation__ = "{self}.setAuthentication({user}.c_str(), {password}.c_str())"
         return self
 
 
@@ -376,7 +386,7 @@ class AsyncWebServer:
     Represents the HTTP server for asynchronous request handling.
     """
 
-    def __init__(self, port: int):
+    def __init__(self, port: int = 80):
         """
         Initializes the server on a given port.
 
@@ -384,13 +394,13 @@ class AsyncWebServer:
             port (int): Port number for the HTTP server (e.g., 80).
         """
         __use_as_is__ = False
-        __translation__ = "({1})"
+        __translation__ = "({port})"
         __class_actual_type__ = "AsyncWebServer"
         __construct_with_equal_to__ = False
 
         pass
 
-    def on(self, path: str, method: str, handler) -> None:
+    def on(self, path: str, method: str, handler: callable) -> None:
         """
         Registers a request handler for a specific path and method.
 
@@ -403,8 +413,8 @@ class AsyncWebServer:
             None
         """
         __use_as_is__ = False
-        # __translation__ = "{0}.on({1}.c_str(), {2}, {3})"
-        __translation__ = "async_server_on({0}, {1}, {2}, {3})"
+        # __translation__ = "{self}.on({1}.c_str(), {2}, {3})"
+        __translation__ = "async_server_on({self}, {path}, {method}, {handler})"
         pass
 
     def begin(self) -> None:
@@ -415,7 +425,7 @@ class AsyncWebServer:
             None
         """
         __use_as_is__ = True
-        __translation__ = "{0}.begin()"
+        __translation__ = "{self}.begin()"
         pass
 
     def serve_static(self, uri: str, file_path: str) -> AsyncStaticWebHandler:
@@ -431,4 +441,4 @@ class AsyncWebServer:
             None
         """
         __use_as_is__ = False
-        __translation__ = "custom_serve_static({0}, {1}, {2})"
+        __translation__ = "custom_serve_static({self}, {uri}, {file_path})"

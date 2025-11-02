@@ -17,15 +17,15 @@ class PubSubClient:
         """
         __use_as_is__ = False
         __class_actual_type__ = "PubSubClient"
-        __translation__ = "({1})"
+        __translation__ = "({wifi_client})"
         pass
 
-    def set_server(self, host: str, port: int) -> None:
+    def set_server(self, host: str, port: int = 1883) -> None:
         """
         Set the MQTT broker address and port.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setServer({1}.c_str(), {2})"
+        __translation__ = "{self}.setServer({host}.c_str(), {port})"
         pass
 
     def set_callback(self, callback_func: callable) -> None:
@@ -33,87 +33,73 @@ class PubSubClient:
         Set the callback function for received MQTT messages.
         """
         __use_as_is__ = False
-        __translation__ = "setupSimpleCallback({0}, {1})"
+        __translation__ = "setupSimpleCallback({self}, {callback_func})"
         pass
 
-    def connect_simple(self, client_id: str) -> bool:
-        """
-        Connect to the MQTT broker with just a client ID.
-        """
-        __use_as_is__ = False
-        __translation__ = "{0}.connect({1}.c_str())"
-        return False
-
-    def connect_with_auth(self, client_id: str, username: str, password: str) -> bool:
-        """
-        Connect to the MQTT broker with authentication.
-        """
-        __use_as_is__ = False
-        __translation__ = "{0}.connect({1}.c_str(), {2}.c_str(), {3}.c_str())"
-        return False
-
-    def connect_with_last_will(
+    def connect(
         self,
         client_id: str,
-        will_topic: str,
-        will_qos: int,
-        will_retain: bool,
-        will_message: str,
+        username: str = "",
+        password: str = "",
+        will_topic: str = "",
+        will_qos: int = 0,
+        will_retain: bool = False,
+        will_message: str = "",
     ) -> bool:
         """
-        Connect with a last will message, no authentication.
+        Connect to the MQTT broker using PubSubClient.
+
+        This unified method replaces all connect variants:
+          - Simple connect with only `client_id`
+          - Connect with authentication
+          - Connect with a last will message (with or without auth)
+
+        All parameters are optional except `client_id`.
+        The correct underlying overload is automatically chosen
+        based on which arguments are provided.
+
+        Args:
+            client_id (str): Unique client identifier.
+            username (str, optional): MQTT username. Defaults to "".
+            password (str, optional): MQTT password. Defaults to "".
+            will_topic (str, optional): Topic for the Last Will message. Defaults to "".
+            will_qos (int, optional): QoS for the Last Will message. Defaults to 0.
+            will_retain (bool, optional): Retain flag for Last Will. Defaults to False.
+            will_message (str, optional): Message content for Last Will. Defaults to "".
+
+        Returns:
+            bool: True if connection was successful, False otherwise.
+
+        Examples:
+            >>> client.connect("esp32_1")
+            >>> client.connect("esp32_2", username="user", password="pass")
+            >>> client.connect("esp32_3", will_topic="status", will_message="offline")
+            >>> client.connect("esp32_4", username="user", password="pass",
+            ...                will_topic="status", will_qos=1, will_retain=True,
+            ...                will_message="offline")
         """
         __use_as_is__ = False
-        __translation__ = "{0}.connect({1}.c_str(), {2}.c_str(), {3}, {4}, {5}.c_str())"
+
+        # --- Translation logic for the transpiler ---
+        __translation__ = "custom_mqtt_connect({self}, {client_id}, {username}, {password}, {will_topic}, {will_qos}, {will_retain}, {will_message})"
         return False
 
-    def connect_full(
-        self,
-        client_id: str,
-        username: str,
-        password: str,
-        will_topic: str,
-        will_qos: int,
-        will_retain: bool,
-        will_message: str,
-    ) -> bool:
-        """
-        Connect with auth and last will message.
-        """
-        __use_as_is__ = False
-        __translation__ = "{0}.connect({1}.c_str(), {2}.c_str(), {3}.c_str(), {4}.c_str(), {5}, {6}, {7}.c_str())"
-        return False
-
-    def publish_simple(self, topic: str, payload: str) -> bool:
+    def publish(self, topic: str, payload: str, retained: bool = False) -> bool:
         """
         Publish a plain string payload to a topic.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.publish({1}.c_str(), {2}.c_str())"
+        __translation__ = (
+            "{self}.publish({topic}.c_str(), {payload}.c_str(), {retained})"
+        )
         return False
 
-    def publish_retained(self, topic: str, payload: str, retained: bool) -> bool:
-        """
-        Publish with retained flag.
-        """
-        __use_as_is__ = False
-        __translation__ = "{0}.publish({1}.c_str(), {2}.c_str(), {3})"
-        return False
-
-    def subscribe(self, topic: str) -> bool:
+    def subscribe(self, topic: str, qos: int = 0) -> bool:
         """
         Subscribe to a topic (QoS 0).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.subscribe({1}.c_str())"
-        return False
-
-    def subscribe_with_qos(self, topic: str, qos: int) -> bool:
-        """
-        Subscribe with a specific QoS.
-        """
-        __use_as_is__ = False
-        __translation__ = "{0}.subscribe({1}.c_str(), {2})"
+        __translation__ = "{self}.subscribe({topic}.c_str(), {qos})"
         return False
 
     def unsubscribe(self, topic: str) -> bool:
@@ -121,7 +107,7 @@ class PubSubClient:
         Unsubscribe from a topic.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.unsubscribe({1}.c_str())"
+        __translation__ = "{self}.unsubscribe({topic}.c_str())"
         return False
 
     def connected(self) -> bool:
@@ -129,14 +115,14 @@ class PubSubClient:
         Check if still connected to the MQTT broker.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.connected()"
+        __translation__ = "{self}.connected()"
 
     def disconnect(self) -> None:
         """
         Disconnect from the broker.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.disconnect()"
+        __translation__ = "{self}.disconnect()"
 
     def loop(self) -> None:
         """
@@ -144,25 +130,25 @@ class PubSubClient:
         Must be called regularly in `loop()`.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.loop()"
+        __translation__ = "{self}.loop()"
 
     def set_keep_alive(self, keepalive_secs: int) -> None:
         """
         Set MQTT keep-alive interval (seconds).
         """
         __use_as_is__ = True
-        __translation__ = "{0}.setKeepAlive({1})"
+        __translation__ = "{self}.setKeepAlive({keepalive_secs})"
 
     def setSocketTimeout(self, timeout_secs: int) -> None:
         """
         Set socket timeout in seconds.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.setSocketTimeout({1})"
+        __translation__ = "{self}.setSocketTimeout({timeout_secs})"
 
     def set_buffer_size(self, size: int) -> None:
         """
         Set internal MQTT buffer size (bytes).
         """
         __use_as_is__ = True
-        __translation__ = "{0}.setBufferSize({1})"
+        __translation__ = "{self}.setBufferSize({size})"

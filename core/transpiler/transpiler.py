@@ -2244,6 +2244,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 or stripped.endswith("}")
                 or stripped.endswith("{")
                 or stripped.endswith(":")
+                or stripped.endswith(">")
             ):
                 line = stripped + ";"
 
@@ -2803,6 +2804,9 @@ class ArduinoTranspiler(ast.NodeVisitor):
                             )
 
                             prev_type = method_name  # this is class name itself
+                            print(
+                                f"[CA] translation is {called_entity_translation} and args kwargs are {method_args_kwargs}"
+                            )
                             prev_statement = f"{called_entity_translation.format(**method_args_kwargs)}"
 
                         else:
@@ -2884,6 +2888,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                             method_data = self.dependency_resolver.get_method_metadata(
                                 method_name, class_name=prev_type
                             )
+                            print(f"[CAA] method data is {method_data}")
                             saved_args_kwargs = method_data["args"]
 
                             saved_args_kwargs.pop(

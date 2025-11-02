@@ -1011,7 +1011,7 @@ class LintCode(ast.NodeVisitor):
                     else:
                         print(f"[LINT]arg is {arg}")
                         errors.append(
-                            f'{arg["arg_name"]} is expected of type {arg["arg_type"]}, but you passed {call_args[i]}'
+                            f'{arg["name"]} is expected of type {arg["arg_type"]}, but you passed {call_args[i]}'
                         )
 
         for error in errors:
