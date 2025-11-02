@@ -1,0 +1,19 @@
+
+
+
+
+1, setup(), loop() function should be present
+2, import should always be in form of `import lib as l`
+3, empty list and dict should always be init with a variable which is annotated. These should not be present just as constant.
+4, function def should always have return annotated, and all the args and kwargs should have type annotated.
+5, dict should be annotated with key and value type -- `dict[str, int]
+6, list should be annotated with element type == `list[int]`
+7, dict should only have string key. the values can be only of type -- int, float, str, bool
+8, list should only have element types of -- string, int, float, bool
+9, if a method or entity returns None, it should not be assigned. 
+10, class instance can be inititalized globally, but the methods can only be called within a function body.
+11, if, and for loops can only be called from within function body.
+12, function within function not allowed.
+13, for the transpiler any args without `=` are args , and those with are kwargs. Kwargs should always follow args.
+14, args should be all there for a call, kwargs are optional. 
+15, 

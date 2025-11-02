@@ -75,6 +75,8 @@ def is_core_python_type(type_string):
         "bool",
         "dict_items",
         "range",
+        "None",
+        "NoneType",
     ]:
         return True
 
@@ -190,6 +192,8 @@ def get_cpp_python_type(
         "range": "PyRange",
         "list": "PyList",
         "dict": "PyDict",
+        "None": "auto",
+        "NoneType": "auto",
     }
 
     if len(python_type_list) == 1:
