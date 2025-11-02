@@ -13,17 +13,19 @@ class APDS9960Sensor:
         __class_actual_type__ = "Adafruit_APDS9960"
         __translation__ = ""
 
-    def begin(self, iTimeMS: int, gain: int, address: int) -> bool:
+    def begin(self, iTimeMS: int = 10, gain: int = 1, address: int = 0x39) -> bool:
         """
         Initialize the APDS9960 sensor.
 
         Args:
             iTimeMS (int): Integration time in milliseconds. Typical range is 10–700 ms.
+                  Default 10 ms.
             gain (int): Analog gain value:
                 - 0 → 1x gain
                 - 1 → 4x gain
                 - 2 → 16x gain
                 - 3 → 64x gain
+                default 1(4x)
             address (int): I2C address of the sensor (default is 0x39).
 
         Returns:
@@ -32,7 +34,9 @@ class APDS9960Sensor:
         Translation:
             custom_apds9960_helper_begin(sensor_instance, iTimeMS, gain, address)
         """
-        __translation__ = "custom_apds9960_helper_begin({0}, {1}, {2}, {3})"
+        __translation__ = (
+            "custom_apds9960_helper_begin({self}, {iTimeMS}, {gain}, {address})"
+        )
 
     def set_adc_integration_time(self, time_ms: int) -> None:
         """
@@ -41,7 +45,7 @@ class APDS9960Sensor:
         Args:
             time_ms (int): Integration time in milliseconds.
         """
-        __translation__ = "{0}.setADCIntegrationTime({1})"
+        __translation__ = "{self}.setADCIntegrationTime({time_ms})"
 
     def get_adc_integration_time(self) -> int:
         """
@@ -50,7 +54,7 @@ class APDS9960Sensor:
         Returns:
             float: Integration time in milliseconds.
         """
-        __translation__ = "{0}.getADCIntegrationTime()"
+        __translation__ = "{self}.getADCIntegrationTime()"
 
     def set_adc_gain(self, gain: int) -> None:
         """
@@ -76,7 +80,7 @@ class APDS9960Sensor:
             - Defaults to 1× if an invalid value is provided.
             - Internally maps to the Adafruit `apds9960AGain_t` enum.
         """
-        __translation__ = "setAPDS9960ADCGain({0}, {1})"
+        __translation__ = "setAPDS9960ADCGain({self}, {gain})"
 
     def get_adc_gain(self) -> int:
         """
@@ -85,7 +89,7 @@ class APDS9960Sensor:
         Returns:
             int: Gain value.
         """
-        __translation__ = "{0}.getADCGain()"
+        __translation__ = "{self}.getADCGain()"
 
     def set_led(self, drive: int, boost: int) -> None:
         """
@@ -116,7 +120,7 @@ class APDS9960Sensor:
             None
 
         """
-        __translation__ = "configureAPDS9960LED({0}, {1}, {2})"
+        __translation__ = "configureAPDS9960LED({self}, {drive}, {boost})"
 
     def enable_proximity(self, enable: bool = True) -> None:
         """
@@ -125,7 +129,7 @@ class APDS9960Sensor:
         Args:
             enable (bool): Set to True to enable.
         """
-        __translation__ = "{0}.enableProximity({1})"
+        __translation__ = "{self}.enableProximity({enable})"
 
     def set_prox_gain(self, gain: int) -> None:
         """
@@ -134,7 +138,7 @@ class APDS9960Sensor:
         Args:
             gain (int): Gain (0=1x, 1=2x, 2=4x, 3=8x).
         """
-        __translation__ = "configureAPDS9960ProxGain({0}, {1})"
+        __translation__ = "configureAPDS9960ProxGain({self}, {gain})"
 
     def get_prox_gain(self) -> int:
         """
@@ -150,7 +154,7 @@ class APDS9960Sensor:
             raw register code, allowing users to work directly with familiar
             gain factors used in proximity configuration.
         """
-        __translation__ = "{0}.getProxGain()"
+        __translation__ = "{self}.getProxGain()"
 
     def set_prox_pulse(self, pulse_len: int, pulses: int) -> None:
         """
@@ -181,15 +185,15 @@ class APDS9960Sensor:
             proximity sensor’s performance by combining pulse width and
             count into a single configuration call.
         """
-        __translation__ = "configureAPDS9960ProxPulse({0}, {1}, {2})"
+        __translation__ = "configureAPDS9960ProxPulse({self}, {pulse_len}, {pulses})"
 
     def enable_proximity_interrupt(self) -> None:
         """Enable interrupt when proximity crosses threshold."""
-        __translation__ = "{0}.enableProximityInterrupt()"
+        __translation__ = "{self}.enableProximityInterrupt()"
 
     def disable_proximity_interrupt(self) -> None:
         """Disable proximity threshold interrupt."""
-        __translation__ = "{0}.disableProximityInterrupt()"
+        __translation__ = "{self}.disableProximityInterrupt()"
 
     def read_proximity(self) -> int:
         """
@@ -198,10 +202,10 @@ class APDS9960Sensor:
         Returns:
             int: Raw proximity measurement.
         """
-        __translation__ = "{0}.readProximity()"
+        __translation__ = "{self}.readProximity()"
 
     def set_proximity_interrupt_threshold(
-        self, low: int, high: int, persistence: int
+        self, low: int, high: int, persistence: int = 4
     ) -> None:
         """
         Configures the proximity interrupt trigger conditions.
@@ -218,7 +222,7 @@ class APDS9960Sensor:
                 when proximity values exceed this limit.
             persistence (int): Number of consecutive readings (0–15)
                 required to confirm the threshold condition before
-                generating an interrupt.
+                generating an interrupt. Default 4.
 
         Returns:
             None
@@ -228,7 +232,9 @@ class APDS9960Sensor:
             by setting appropriate threshold limits and persistence
             for stable proximity event detection.
         """
-        __translation__ = "{0}.setProximityInterruptThreshold({1}, {2}, {3})"
+        __translation__ = (
+            "{self}.setProximityInterruptThreshold({low}, {high}, {persistence})"
+        )
 
     def get_proximity_interrupt(self) -> bool:
         """
@@ -237,7 +243,7 @@ class APDS9960Sensor:
         Returns:
             bool: True if triggered.
         """
-        __translation__ = "{0}.getProximityInterrupt()"
+        __translation__ = "{self}.getProximityInterrupt()"
 
     def enable_gesture(self, enable: bool = True) -> None:
         """
@@ -246,7 +252,7 @@ class APDS9960Sensor:
         Args:
             enable (bool): True to enable gesture sensing.
         """
-        __translation__ = "{0}.enableGesture({1})"
+        __translation__ = "{self}.enableGesture({enable})"
 
     def gesture_valid(self) -> bool:
         """
@@ -255,7 +261,7 @@ class APDS9960Sensor:
         Returns:
             bool: True if a gesture is available.
         """
-        __translation__ = "{0}.gestureValid()"
+        __translation__ = "{self}.gestureValid()"
 
     def set_gesture_dimensions(self, dims: int) -> None:
         """
@@ -264,7 +270,7 @@ class APDS9960Sensor:
         Args:
             dims (int): Bitmask of axes to use.
         """
-        __translation__ = "{0}.setGestureDimensions({1})"
+        __translation__ = "{self}.setGestureDimensions({dims})"
 
     def set_gesture_fifo_threshold(self, threshold: int) -> None:
         """
@@ -273,7 +279,7 @@ class APDS9960Sensor:
         Args:
             threshold (int): Threshold level.
         """
-        __translation__ = "{0}.setGestureFIFOThreshold({1})"
+        __translation__ = "{self}.setGestureFIFOThreshold({threshold})"
 
     def set_gesture_gain(self, gain: int) -> None:
         """
@@ -282,7 +288,7 @@ class APDS9960Sensor:
         Args:
             gain (int): Gain level.
         """
-        __translation__ = "{0}.setGestureGain({1})"
+        __translation__ = "{self}.setGestureGain({gain})"
 
     def set_gesture_proximity_threshold(self, threshold: int) -> None:
         """
@@ -291,7 +297,7 @@ class APDS9960Sensor:
         Args:
             threshold (int): Proximity threshold.
         """
-        __translation__ = "{0}.setGestureProximityThreshold({1})"
+        __translation__ = "{self}.setGestureProximityThreshold({threshold})"
 
     def set_gesture_offset(self, up: int, down: int, left: int, right: int) -> None:
         """
@@ -303,7 +309,7 @@ class APDS9960Sensor:
             left (int): Left offset.
             right (int): Right offset.
         """
-        __translation__ = "{0}.setGestureOffset({1}, {2}, {3}, {4})"
+        __translation__ = "{self}.setGestureOffset({up}, {down}, {left}, {right})"
 
     def read_gesture(self) -> int:
         """
@@ -312,13 +318,13 @@ class APDS9960Sensor:
         Returns:
             int: Gesture code (e.g., up, down, left, right).
         """
-        __translation__ = "{0}.readGesture()"
+        __translation__ = "{self}.readGesture()"
 
     def reset_counts(self) -> None:
         """
         Reset gesture detection internal counters.
         """
-        __translation__ = "{0}.resetCounts()"
+        __translation__ = "{self}.resetCounts()"
 
     def enable_color(self, enable: bool = True) -> None:
         """
@@ -327,7 +333,7 @@ class APDS9960Sensor:
         Args:
             enable (bool): True to enable.
         """
-        __translation__ = "{0}.enableColor({1})"
+        __translation__ = "{self}.enableColor({enable})"
 
     def color_data_ready(self) -> bool:
         """
@@ -336,7 +342,7 @@ class APDS9960Sensor:
         Returns:
             bool: True if data is ready.
         """
-        __translation__ = "{0}.colorDataReady()"
+        __translation__ = "{self}.colorDataReady()"
 
     def get_color_data(self) -> list[int]:
         """
@@ -345,7 +351,7 @@ class APDS9960Sensor:
         Returns:
             list[int]: [r, g, b, c] (red, green, blue, clear).
         """
-        __translation__ = "custom_apds9960_helper_get_color_data({0})"
+        __translation__ = "custom_apds9960_helper_get_color_data({self})"
 
     def calculate_color_temperature(self, r: int, g: int, b: int) -> int:
         """
@@ -359,7 +365,7 @@ class APDS9960Sensor:
         Returns:
             int: Color temperature in Kelvin.
         """
-        __translation__ = "{0}.calculateColorTemperature({1}, {2}, {3})"
+        __translation__ = "{self}.calculateColorTemperature({g}, {g}, {b})"
 
     def calculate_lux(self, r: int, g: int, b: int) -> int:
         """
@@ -373,19 +379,19 @@ class APDS9960Sensor:
         Returns:
             int: Lux value.
         """
-        __translation__ = "{0}.calculateLux({1}, {2}, {3})"
+        __translation__ = "{self}.calculateLux({r}, {g}, {b})"
 
     def enable_color_interrupt(self) -> None:
         """Enable interrupt on color thresholds."""
-        __translation__ = "{0}.enableColorInterrupt()"
+        __translation__ = "{self}.enableColorInterrupt()"
 
     def disable_color_interrupt(self) -> None:
         """Disable color interrupt."""
-        __translation__ = "{0}.disableColorInterrupt()"
+        __translation__ = "{self}.disableColorInterrupt()"
 
     def clear_interrupt(self) -> None:
         """Clear all interrupt flags."""
-        __translation__ = "{0}.clearInterrupt()"
+        __translation__ = "{self}.clearInterrupt()"
 
     def set_int_limits(self, low: int, high: int) -> None:
         """
@@ -395,7 +401,7 @@ class APDS9960Sensor:
             low (int): Lower threshold.
             high (int): Upper threshold.
         """
-        __translation__ = "{0}.setIntLimits({1}, {2})"
+        __translation__ = "{self}.setIntLimits({low}, {high})"
 
     def enable(self, enable: bool = True) -> None:
         """
@@ -404,4 +410,4 @@ class APDS9960Sensor:
         Args:
             enable (bool): True to turn on all functions.
         """
-        __translation__ = "{0}.enable({1})"
+        __translation__ = "{self}.enable({enable})"

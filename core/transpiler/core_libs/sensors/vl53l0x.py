@@ -13,7 +13,7 @@ class VL53L0XSensor:
         __class_actual_type__ = "Adafruit_VL53L0X"
         __translation__ = ""
 
-    def begin(self, i2c_addr: int, debug: bool) -> bool:
+    def begin(self, i2c_addr: int = 0x29, debug: bool = True) -> bool:
         """
         Initialize the sensor.
 
@@ -24,7 +24,7 @@ class VL53L0XSensor:
         Returns:
             bool: True if initialization succeeded.
         """
-        __translation__ = "{0}.begin({1}, {2})"
+        __translation__ = "{self}.begin({i2c_addr}, {debug})"
 
     def set_address(self, new_addr: int) -> bool:
         """
@@ -36,7 +36,7 @@ class VL53L0XSensor:
         Returns:
             bool: True if successful.
         """
-        __translation__ = "{0}.setAddress({1})"
+        __translation__ = "{self}.setAddress({new_addr})"
 
     def read_range(self) -> int:
         """
@@ -45,7 +45,7 @@ class VL53L0XSensor:
         Returns:
             int: Distance in millimeters.
         """
-        __translation__ = "{0}.readRange()"
+        __translation__ = "{self}.readRange()"
 
     def read_range_status(self) -> int:
         """
@@ -54,7 +54,7 @@ class VL53L0XSensor:
         Returns:
             int: Status code (0 = OK).
         """
-        __translation__ = "{0}.readRangeStatus()"
+        __translation__ = "{self}.readRangeStatus()"
 
     def start_range(self) -> bool:
         """
@@ -63,7 +63,7 @@ class VL53L0XSensor:
         Returns:
             bool: True if started.
         """
-        __translation__ = "{0}.startRange()"
+        __translation__ = "{self}.startRange()"
 
     def is_range_complete(self) -> bool:
         """
@@ -72,7 +72,7 @@ class VL53L0XSensor:
         Returns:
             bool: True if complete.
         """
-        __translation__ = "{0}.isRangeComplete()"
+        __translation__ = "{self}.isRangeComplete()"
 
     def wait_range_complete(self) -> bool:
         """
@@ -81,7 +81,7 @@ class VL53L0XSensor:
         Returns:
             bool: True if completed.
         """
-        __translation__ = "{0}.waitRangeComplete()"
+        __translation__ = "{self}.waitRangeComplete()"
 
     def read_range_result(self) -> int:
         """
@@ -90,9 +90,9 @@ class VL53L0XSensor:
         Returns:
             int: Distance in millimeters.
         """
-        __translation__ = "{0}.readRangeResult()"
+        __translation__ = "{self}.readRangeResult()"
 
-    def start_range_continuous(self, period_ms: int) -> bool:
+    def start_range_continuous(self, period_ms: int = 50) -> bool:
         """
         Start continuous ranging mode.
 
@@ -102,13 +102,13 @@ class VL53L0XSensor:
         Returns:
             bool: True if successful.
         """
-        __translation__ = "{0}.startRangeContinuous({1})"
+        __translation__ = "{self}.startRangeContinuous({period_ms})"
 
     def stop_range_continuous(self) -> None:
         """
         Stop continuous ranging mode.
         """
-        __translation__ = "{0}.stopRangeContinuous()"
+        __translation__ = "{self}.stopRangeContinuous()"
 
     def timeout_occurred(self) -> bool:
         """
@@ -117,9 +117,9 @@ class VL53L0XSensor:
         Returns:
             bool: True if timeout occurred.
         """
-        __translation__ = "{0}.timeoutOccurred()"
+        __translation__ = "{self}.timeoutOccurred()"
 
-    def config_sensor(self, mode: int) -> bool:
+    def config_sensor(self, mode: int = 0) -> bool:
         """
         Configure predefined sensor mode.
 
@@ -133,7 +133,7 @@ class VL53L0XSensor:
         Returns:
             bool: True if configuration successful.
         """
-        __translation__ = "custom_vl53l0x_helper_config_sensor({0}, {1})"
+        __translation__ = "custom_vl53l0x_helper_config_sensor({self}, {mode})"
 
     def set_measurement_timing_budget(self, budget_us: int) -> bool:
         """
@@ -145,7 +145,7 @@ class VL53L0XSensor:
         Returns:
             bool: True if set.
         """
-        __translation__ = "{0}.setMeasurementTimingBudgetMicroSeconds({1})"
+        __translation__ = "{self}.setMeasurementTimingBudgetMicroSeconds({budget_us})"
 
     def get_measurement_timing_budget(self) -> int:
         """
@@ -154,7 +154,7 @@ class VL53L0XSensor:
         Returns:
             int: Time budget in µs.
         """
-        __translation__ = "{0}.getMeasurementTimingBudgetMicroSeconds()"
+        __translation__ = "{self}.getMeasurementTimingBudgetMicroSeconds()"
 
     def set_vcsel_pulse_period(self, period_type: int, pulse_period: int) -> bool:
         """
@@ -167,7 +167,7 @@ class VL53L0XSensor:
         Returns:
             bool: True if set.
         """
-        __translation__ = "{0}.setVcselPulsePeriod({1}, {2})"
+        __translation__ = "{self}.setVcselPulsePeriod({period_type}, {pulse_period})"
 
     def get_vcsel_pulse_period(self, period_type: int) -> int:
         """
@@ -179,4 +179,4 @@ class VL53L0XSensor:
         Returns:
             int: Pulse period value.
         """
-        __translation__ = "{0}.getVcselPulsePeriod({1})"
+        __translation__ = "{self}.getVcselPulsePeriod({period_type})"

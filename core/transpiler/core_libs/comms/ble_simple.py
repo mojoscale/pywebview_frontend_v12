@@ -44,7 +44,7 @@ __available_platforms__ = "espressif32"
 
 
 class BLESimple:
-    def __init__(self, name: str, mode: str):
+    def __init__(self, name: str, mode: str = "peripheral"):
         """
         Initialize a BLE device in either 'central' or 'peripheral' mode.
 
@@ -54,24 +54,24 @@ class BLESimple:
         """
         __use_as_is__ = False
         __construct_with_equal_to__ = False
-        __translation__ = "({1}, {2})"
+        __translation__ = "({name}, {mode})"
 
     def init_ble(self) -> None:
         """
         Custom Initializer, call this inside setup.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.init_ble()"
+        __translation__ = "{self}.init_ble()"
 
     def start(self) -> None:
         """Start BLE advertising or scanning based on the mode."""
         __use_as_is__ = False
-        __translation__ = "{0}.start()"
+        __translation__ = "{self}.start()"
 
     def stop(self) -> None:
         """Stop BLE services or connections."""
         __use_as_is__ = False
-        __translation__ = "{0}.stop()"
+        __translation__ = "{self}.stop()"
 
     def scan(self, timeout: int) -> list[str]:
         """
@@ -84,7 +84,7 @@ class BLESimple:
             list[str]: List of device names or IDs.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.scan({1})"
+        __translation__ = "{self}.scan({timeout})"
         return []
 
     def connect_to(self, name_or_uuid: str) -> bool:
@@ -98,13 +98,13 @@ class BLESimple:
             bool: True if successful.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.connect_to({1})"
+        __translation__ = "{self}.connect_to({name_or_uuid})"
         return False
 
     def disconnect(self) -> None:
         """Disconnect from any connected BLE device."""
         __use_as_is__ = False
-        __translation__ = "{0}.disconnect()"
+        __translation__ = "{self}.disconnect()"
 
     def is_connected(self) -> bool:
         """
@@ -114,7 +114,7 @@ class BLESimple:
             bool: Connection status.
         """
         __use_as_is__ = False
-        __translation__ = "ble_is_connected({0})"
+        __translation__ = "ble_is_connected({self})"
         return False
 
     def add_service(self, uuid: str) -> None:
@@ -125,16 +125,16 @@ class BLESimple:
             uuid (str): UUID of the service.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.add_service({1})"
+        __translation__ = "{self}.add_service({uuid})"
 
     def add_characteristic(
         self,
         service_uuid: str,
         uuid: str,
         value: str,
-        readable: bool,
-        writable: bool,
-        notify: bool,
+        readable: bool = True,
+        writable: bool = False,
+        notify: bool = False,
     ) -> None:
         """
         Add a characteristic to the last-defined service.
@@ -148,7 +148,7 @@ class BLESimple:
             notify (bool): Whether peripheral can send notify updates.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.add_characteristic({1}, {2}, {3}, {4}, {5})"
+        __translation__ = "{self}.add_characteristic({service_uuid}, {uuid}, {value}, {readable}, {writable}, {notify})"
 
     def read(self, uuid: str) -> str:
         """
@@ -161,7 +161,7 @@ class BLESimple:
             str: Value.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.read({1})"
+        __translation__ = "{self}.read({uuid})"
         return ""
 
     def write(self, uuid: str, value: str) -> None:
@@ -173,7 +173,7 @@ class BLESimple:
             value (str): Value to write.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.write({1}, {2})"
+        __translation__ = "{self}.write({uuid}, {value})"
 
     def notify(self, uuid: str, value: str) -> None:
         """
@@ -184,9 +184,9 @@ class BLESimple:
             value (str): Value to send.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.notify({1}, {2})"
+        __translation__ = "{self}.notify({uuid}, {value})"
 
-    def on_connect(self, callback) -> None:
+    def on_connect(self, callback: callable) -> None:
         """
         Register a function to call on connection.
 
@@ -196,9 +196,9 @@ class BLESimple:
                     def handler(): ...
         """
         __use_as_is__ = False
-        __translation__ = "{0}.on_connect({1})"
+        __translation__ = "{self}.on_connect({callback})"
 
-    def on_disconnect(self, callback) -> None:
+    def on_disconnect(self, callback: callable) -> None:
         """
         Register a function to call on disconnect.
 
@@ -208,9 +208,9 @@ class BLESimple:
                     def handler(): ...
         """
         __use_as_is__ = False
-        __translation__ = "{0}.on_disconnect({1})"
+        __translation__ = "{self}.on_disconnect({callback})"
 
-    def on_write(self, uuid: str, callback) -> None:
+    def on_write(self, uuid: str, callback: callable) -> None:
         """
         Set a callback for write events.
 
@@ -221,9 +221,9 @@ class BLESimple:
                     def handler(value: str): ...
         """
         __use_as_is__ = False
-        __translation__ = "{0}.on_write({1}, {2})"
+        __translation__ = "{self}.on_write({uuid}, {callback})"
 
-    def on_notify(self, uuid: str, callback) -> None:
+    def on_notify(self, uuid: str, callback: callable) -> None:
         """
         Set a callback for notify events.
 
@@ -234,7 +234,7 @@ class BLESimple:
                     def handler(value: str): ...
         """
         __use_as_is__ = False
-        __translation__ = "{0}.on_notify({1}, {2})"
+        __translation__ = "{self}.on_notify({uuid}, {callback})"
 
     def get_services(self) -> list[str]:
         """
@@ -244,7 +244,7 @@ class BLESimple:
             list[str]: UUIDs
         """
         __use_as_is__ = False
-        __translation__ = "get_all_ble_services({0})"
+        __translation__ = "get_all_ble_services({self})"
         return []
 
     def get_characteristics(self, service_uuid: str) -> dict[str, str]:
@@ -258,5 +258,5 @@ class BLESimple:
             list[str]: Characteristic UUIDs.
         """
         __use_as_is__ = False
-        __translation__ = "get_characteristics_for_service({0}, {1})"
+        __translation__ = "get_characteristics_for_service({self}, {service_uuid})"
         return []

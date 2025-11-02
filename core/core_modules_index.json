@@ -175,23 +175,23 @@
           },
           {
             "name": "move",
-            "signature": "(self, steps: int, blocking: bool) -> dict[str, int]",
-            "doc": "Move stepper by relative number of steps.\n\nIf motor is running, updates the target relative to current target.\nDoes not allow reversing direction of ongoing movement.\n\nArgs:\n    steps (int): Number of steps (positive = forward, negative = backward)\n    blocking (bool): If True, wait for command to complete\n\nReturns:\n    int: MoveResultCode (0 = MOVE_OK, other values = error)\n\nExample:\n    >>> stepper.move(500)  # Move 500 steps forward\n    >>> stepper.move(-100)  # Move 100 steps backward"
+            "signature": "(self, steps: int, blocking: bool = False) -> dict[str, int]",
+            "doc": "Move stepper by relative number of steps.\n\nIf motor is running, updates the target relative to current target.\nDoes not allow reversing direction of ongoing movement.\n\nArgs:\n    steps (int): Number of steps (positive = forward, negative = backward)\n    blocking (bool): If True, wait for command to complete\n\nReturns:\n    dict[str, int]: Dictionary with step movement result.\n    Contains:\n    {\n        \"result_code\": int,   # MoveResultCode (0 = success)\n        \"steps\": int,         # Number of steps commanded\n        \"blocking\": int,      # 1 if blocking, 0 if non-blocking\n        \"success\": int        # 1 if result_code == 0 else 0\n    }\n\n\nExample:\n    >>> stepper.move(500)  # Move 500 steps forward\n    >>> stepper.move(-100)  # Move 100 steps backward"
           },
           {
             "name": "move_to",
-            "signature": "(self, position: int, blocking: bool) -> dict[str, int]",
-            "doc": "Move stepper to absolute position.\n\nSets target position for the motor. Motor will accelerate/decelerate\nas needed to reach target.\n\nArgs:\n    position (int): Target absolute position\n    blocking (bool): If True, wait for command to complete\n\nReturns:\n    int: MoveResultCode (0 = MOVE_OK, other values = error)\n\nExample:\n    >>> stepper.move_to(5000)  # Move to position 5000"
+            "signature": "(self, position: int, blocking: bool = False) -> dict[str, int]",
+            "doc": "Move stepper to absolute position.\n\nSets target position for the motor. Motor will accelerate/decelerate\nas needed to reach target.\n\nArgs:\n    position (int): Target absolute position\n    blocking (bool): If True, wait for command to complete\n\nReturns:\n    dict[str, int]: Dictionary with absolute move result.\n    Contains\n    {\n        \"result_code\": int,   # MoveResultCode (0 = success)\n        \"position\": int,      # Target absolute position\n        \"blocking\": int,      # 1 if blocking, 0 if non-blocking\n        \"success\": int        # 1 if result_code == 0 else 0\n    }\n\n\nExample:\n    >>> stepper.move_to(5000)  # Move to position 5000"
           },
           {
             "name": "run_forward",
             "signature": "(self) -> dict[str, int]",
-            "doc": "Run motor continuously forward.\n\nMotor will accelerate to set speed and continue until stopped.\n\nArgs:\n    None\n\nReturns:\n    int: MoveResultCode (0 = MOVE_OK, other values = error)\n\nExample:\n    >>> stepper.run_forward()\n    >>> # ... later ...\n    >>> stepper.stop_move()"
+            "doc": "Run motor continuously forward.\n\nMotor will accelerate to set speed and continue until stopped.\n\nArgs:\n    None\n\nReturns:\n    dict[str, int]: Dictionary describing forward run status.\n    Contains\n    {\n        \"result_code\": int,   # MoveResultCode (0 = success)\n        \"operation\": 1,       # 1 = forward direction\n        \"success\": int        # 1 if result_code == 0 else 0\n    }\n\n\nExample:\n    >>> stepper.run_forward()\n    >>> # ... later ...\n    >>> stepper.stop_move()"
           },
           {
             "name": "run_backward",
             "signature": "(self) -> dict[str, int]",
-            "doc": "Run motor continuously backward.\n\nMotor will accelerate to set speed and continue until stopped.\nRequires direction pin to be configured.\n\nArgs:\n    None\n\nReturns:\n    int: MoveResultCode (0 = MOVE_OK, other values = error)\n\nExample:\n    >>> stepper.run_backward()\n    >>> # ... later ...\n    >>> stepper.stop_move()"
+            "doc": "Run motor continuously backward.\n\nMotor will accelerate to set speed and continue until stopped.\nRequires direction pin to be configured.\n\nArgs:\n    None\n\nReturns:\n    dict[str, int]: Dictionary describing backward run status.\n    Contains\n    {\n        \"result_code\": int,   # MoveResultCode (0 = success)\n        \"operation\": -1,      # -1 = backward direction\n        \"success\": int        # 1 if result_code == 0 else 0\n    }\n\n\nExample:\n    >>> stepper.run_backward()\n    >>> # ... later ...\n    >>> stepper.stop_move()"
           },
           {
             "name": "keep_running",
@@ -215,8 +215,8 @@
           },
           {
             "name": "move_by_acceleration",
-            "signature": "(self, acceleration: int, allow_reverse: bool) -> dict[str, int]",
-            "doc": "Move by acceleration control (speed controlled via acceleration).\n\nAdvanced mode where speed is controlled by applying acceleration or\ndeceleration. Positive acceleration = accelerate forward to max speed.\nNegative acceleration = decelerate (or reverse if allow_reverse=True).\n\nArgs:\n    acceleration (int): Acceleration to apply (steps/second\u00b2)\n    allow_reverse (bool): Allow motor to reverse direction\n\nReturns:\n    int: MoveResultCode\n\nExample:\n    >>> stepper.move_by_acceleration(1000)  # Accelerate forward\n    >>> stepper.move_by_acceleration(-500)  # Decelerate"
+            "signature": "(self, acceleration: int, allow_reverse: bool = True) -> dict[str, int]",
+            "doc": "Move by acceleration control (speed controlled via acceleration).\n\nAdvanced mode where speed is controlled by applying acceleration or\ndeceleration. Positive acceleration = accelerate forward to max speed.\nNegative acceleration = decelerate (or reverse if allow_reverse=True).\n\nArgs:\n    acceleration (int): Acceleration to apply (steps/second\u00b2)\n    allow_reverse (bool): Allow motor to reverse direction\n\nReturns:\n    dict[str, int]: Dictionary with acceleration-controlled move result.\n    Contains:\n    {\n        \"result_code\": int,      # MoveResultCode (0 = success)\n        \"acceleration\": int,     # Requested acceleration value\n        \"blocking\": int,         # 1 if blocking, 0 if non-blocking\n        \"success\": int           # 1 if result_code == 0 else 0\n    }\n\n\nExample:\n    >>> stepper.move_by_acceleration(1000)  # Accelerate forward\n    >>> stepper.move_by_acceleration(-500)  # Decelerate"
           },
           {
             "name": "stop_move",
@@ -340,7 +340,7 @@
           },
           {
             "name": "attach_to_pulse_counter",
-            "signature": "(self, unused_pcnt_unit: int, low_value: int, high_value: int) -> bool",
+            "signature": "(self, unused_pcnt_unit: int = 0, low_value: int = -16384, high_value: int = 16384) -> bool",
             "doc": "Attach stepper to pulse counter for position verification (ESP32 only, advanced).\n\nConnects an independent pulse counter to track steps and verify\ncorrect execution. Used for testing and quality assurance.\n\nNote: The pcnt_unit parameter is ignored on IDF5; units are managed by the system.\n\nArgs:\n    unused_pcnt_unit (int): Pulse counter unit (ignored on IDF5, for compatibility)\n    low_value (int): Low counter limit (default -16384)\n    high_value (int): High counter limit (default 16384)\n    dir_pin_readback (int): Optional direction pin for readback\n\nReturns:\n    bool: True on success, False on error\n\nExample:\n    >>> stepper.attach_to_pulse_counter()\n    >>> stepper.attach_to_pulse_counter(low_value=-3200, high_value=3200)"
           },
           {
@@ -364,7 +364,7 @@
     "variables": []
   },
   "comms.async_webserver": {
-    "doc": "No module docstring available",
+    "doc": "Async Web Server Stubs for ESP32 / ESP8266\n==========================================\n\nThis module provides Python-style stubs for the **ESPAsyncWebServer** library, \nenabling non-blocking, event-driven HTTP handling in Arduino-compatible \nfirmware for ESP32 and ESP8266 boards.\n\nThese classes are designed to mirror the underlying C++ APIs used in the \n`ESPAsyncWebServer` ecosystem, allowing the Python-to-Arduino transpiler \nto generate valid C++ code for asynchronous networking tasks such as \nserving files, handling REST endpoints, and implementing real-time dashboards.\n\nSupported platforms:\n    - **ESP32** (uses AsyncTCP backend)\n    - **ESP8266** (uses ESPAsyncTCP backend)\n\nMain Components:\n----------------\n- **AsyncWebServer** \u2014 main HTTP server class for route registration and startup.\n- **AsyncWebServerRequest** \u2014 represents a client request, used to read parameters and send responses.\n- **AsyncWebHandler** \u2014 abstract base for custom or callback-based request handlers.\n- **AsyncStaticWebHandler** \u2014 serves files directly from the filesystem (SPIFFS, LittleFS, etc.).\n\nExample\n-------\n```python\nimport comms.async_webserver as aw\n\nserver = aw.AsyncWebServer(80)\n\ndef handle_root(request: aw.AsyncWebServerRequest) -> None:\n    request.send(200, \"text/plain\", \"Hello from ESP!\")\n\ndef handle_about(request: aw.AsyncWebServerRequest) -> None:\n    html = \"<html><body><h1>About</h1><p>We are alrite!.</p></body></html>\"\n    request.send(200, \"text/html\", html)\n\ndef setup() -> None:\n    # Register route and start server\n    server.on(\"/\", \"HTTP_GET\", handle_root)\n    server.on(\"/about\", \"HTTP_GET\", handle_about)\n    server.begin()\n\n    # Serve static files from filesystem\n    static_page = server.serve_static(\"/files\", \"/\")\n    static_page.set_default_file(\"index.html\")\n    static_page.set_cache_control(86400)\n    static_page.set_last_modified(1700000000)\n\ndef loop() -> None:\n    # No blocking code needed \u2014 server runs asynchronously\n    pass\n\n```",
     "functions": [],
     "classes": [
       {
@@ -405,47 +405,32 @@
           {
             "name": "can_handle",
             "signature": "(self, request: AsyncWebServerRequest) -> bool",
-            "doc": "Determine whether this handler can process the incoming request.\n\nArgs:\n    request (AsyncWebServerRequest): The HTTP request object.\n\nReturns:\n    bool: True if the handler can handle the request; False otherwise.\n\nTranslation:\n    {0}.canHandle({1})"
+            "doc": "Determine whether this handler can process the incoming request.\n\nArgs:\n    request (AsyncWebServerRequest): The HTTP request object.\n\nReturns:\n    bool: True if the handler can handle the request; False otherwise.\n\nTranslation:\n    {self}.canHandle({1})"
           },
           {
             "name": "handle_request",
             "signature": "(self, request: AsyncWebServerRequest) -> None",
-            "doc": "Handle the incoming web request.\n\nArgs:\n    request (AsyncWebServerRequest): The HTTP request to process.\n\nTranslation:\n    {0}.handleRequest({1})"
+            "doc": "Handle the incoming web request.\n\nArgs:\n    request (AsyncWebServerRequest): The HTTP request to process.\n\nTranslation:\n    {self}.handleRequest({1})"
           },
           {
             "name": "is_request_handler_trivial",
             "signature": "(self) -> bool",
-            "doc": "Check whether this handler performs trivial (lightweight) processing.\n\nReturns:\n    bool: True if the handler is trivial; False otherwise.\n\nTranslation:\n    {0}.isRequestHandlerTrivial()"
+            "doc": "Check whether this handler performs trivial (lightweight) processing.\n\nReturns:\n    bool: True if the handler is trivial; False otherwise.\n\nTranslation:\n    {self}.isRequestHandlerTrivial()"
           },
           {
             "name": "set_authentication",
             "signature": "(self, username: str, password: str) -> AsyncWebHandler",
-            "doc": "Protect this handler with basic authentication.\n\nArgs:\n    username (str): The HTTP Basic Auth username.\n    password (str): The HTTP Basic Auth password.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setAuthentication({1}, {2})"
+            "doc": "Protect this handler with basic authentication.\n\nArgs:\n    username (str): The HTTP Basic Auth username.\n    password (str): The HTTP Basic Auth password.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {self}.setAuthentication({1}, {2})"
           },
           {
             "name": "set_filter",
-            "signature": "(self, filter_func) -> AsyncWebHandler",
-            "doc": "Assign a filter function that decides if this handler should process a request.\n\nArgs:\n    filter_func (ArRequestFilterFunction): The filtering function.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setFilter({1})"
+            "signature": "(self, filter_func: callable) -> AsyncWebHandler",
+            "doc": "Assign a filter function that decides if this handler should process a request.\n\nArgs:\n    filter_func (ArRequestFilterFunction): The filtering function.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {self}.setFilter({1})"
           },
           {
             "name": "filter",
             "signature": "(self, request: AsyncWebServerRequest) -> bool",
-            "doc": "Run the filter function associated with this handler.\n\nArgs:\n    request (AsyncWebServerRequest): The request to evaluate.\n\nReturns:\n    bool: True if the handler should process this request.\n\nTranslation:\n    {0}.filter({1})"
-          },
-          {
-            "name": "set_priority",
-            "signature": "(self, priority: int) -> AsyncWebHandler",
-            "doc": "Assign a priority level to this handler.\n\nArgs:\n    priority (int): The priority value (higher = earlier execution).\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.setPriority({1})"
-          },
-          {
-            "name": "priority",
-            "signature": "(self) -> int",
-            "doc": "Get the priority value assigned to this handler.\n\nReturns:\n    int: The priority level.\n\nTranslation:\n    {0}.priority()"
-          },
-          {
-            "name": "on_request",
-            "signature": "(self) -> AsyncWebHandler",
-            "doc": "Assign a custom callback to handle incoming requests.\n\nArgs:\n    callback (ArRequestHandlerFunction): The function that processes the request.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {0}.onRequest({1})"
+            "doc": "Run the filter function associated with this handler.\n\nArgs:\n    request (AsyncWebServerRequest): The request to evaluate.\n\nReturns:\n    bool: True if the handler should process this request.\n\nTranslation:\n    {self}.filter({1})"
           }
         ]
       },
@@ -465,7 +450,7 @@
           },
           {
             "name": "set_cache_control",
-            "signature": "(self, cache_seconds: int) -> AsyncStaticWebHandler",
+            "signature": "(self, cache_seconds: int = 86400) -> AsyncStaticWebHandler",
             "doc": "Sets the cache control duration for static files.\n\nArgs:\n    cache_seconds (int): Number of seconds that the browser\n        should cache the file (e.g., 86400 for one day).\n\nReturns:\n    AsyncStaticWebHandler: Reference to the same handler (for chaining).\n\nNotes:\n    Transpiles to:\n        `.setCacheControl(\"max-age=<cache_seconds>\")`"
           },
           {
@@ -486,12 +471,12 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, port: int)",
+            "signature": "(self, port: int = 80)",
             "doc": "Initializes the server on a given port.\n\nArgs:\n    port (int): Port number for the HTTP server (e.g., 80)."
           },
           {
             "name": "on",
-            "signature": "(self, path: str, method: str, handler) -> None",
+            "signature": "(self, path: str, method: str, handler: callable) -> None",
             "doc": "Registers a request handler for a specific path and method.\n\nArgs:\n    path (str): The URL path to handle.\n    method (str): HTTP method as string (e.g., \"GET\", \"POST\").\n    handler (function): Function to call when the request is received.\n\nReturns:\n    None"
           },
           {
@@ -519,7 +504,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, name: str, mode: str)",
+            "signature": "(self, name: str, mode: str = 'peripheral')",
             "doc": "Initialize a BLE device in either 'central' or 'peripheral' mode.\n\nArgs:\n    name (str): The name of the BLE device.\n    mode (str): 'peripheral' or 'central'."
           },
           {
@@ -564,7 +549,7 @@
           },
           {
             "name": "add_characteristic",
-            "signature": "(self, service_uuid: str, uuid: str, value: str, readable: bool, writable: bool, notify: bool) -> None",
+            "signature": "(self, service_uuid: str, uuid: str, value: str, readable: bool = True, writable: bool = False, notify: bool = False) -> None",
             "doc": "Add a characteristic to the last-defined service.\n\nArgs:\n    service_uuid: UUID of service to be added in.\n    uuid (str): UUID of the characteristic.\n    value (str): Default value.\n    readable (bool): Whether central can read.\n    writable (bool): Whether central can write.\n    notify (bool): Whether peripheral can send notify updates."
           },
           {
@@ -584,22 +569,22 @@
           },
           {
             "name": "on_connect",
-            "signature": "(self, callback) -> None",
+            "signature": "(self, callback: callable) -> None",
             "doc": "Register a function to call on connection.\n\nArgs:\n    callback (callable): Function with **no arguments**.\n        Example:\n            def handler(): ..."
           },
           {
             "name": "on_disconnect",
-            "signature": "(self, callback) -> None",
+            "signature": "(self, callback: callable) -> None",
             "doc": "Register a function to call on disconnect.\n\nArgs:\n    callback (callable): Function with **no arguments**.\n        Example:\n            def handler(): ..."
           },
           {
             "name": "on_write",
-            "signature": "(self, uuid: str, callback) -> None",
+            "signature": "(self, uuid: str, callback: callable) -> None",
             "doc": "Set a callback for write events.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    callback (callable): Function that takes **one argument (str)** \u2013 the value written by central.\n        Example:\n            def handler(value: str): ..."
           },
           {
             "name": "on_notify",
-            "signature": "(self, uuid: str, callback) -> None",
+            "signature": "(self, uuid: str, callback: callable) -> None",
             "doc": "Set a callback for notify events.\n\nArgs:\n    uuid (str): Characteristic UUID.\n    callback (callable): Function that takes **one argument (str)** \u2013 the notified value received.\n        Example:\n            def handler(value: str): ..."
           },
           {
@@ -632,7 +617,7 @@
           },
           {
             "name": "set_server",
-            "signature": "(self, host: str, port: int) -> None",
+            "signature": "(self, host: str, port: int = 1883) -> None",
             "doc": "Set the MQTT broker address and port."
           },
           {
@@ -641,44 +626,19 @@
             "doc": "Set the callback function for received MQTT messages."
           },
           {
-            "name": "connect_simple",
-            "signature": "(self, client_id: str) -> bool",
-            "doc": "Connect to the MQTT broker with just a client ID."
+            "name": "connect",
+            "signature": "(self, client_id: str, username: str = '', password: str = '', will_topic: str = '', will_qos: int = 0, will_retain: bool = False, will_message: str = '') -> bool",
+            "doc": "Connect to the MQTT broker using PubSubClient.\n\nThis unified method replaces all connect variants:\n  - Simple connect with only `client_id`\n  - Connect with authentication\n  - Connect with a last will message (with or without auth)\n\nAll parameters are optional except `client_id`.\nThe correct underlying overload is automatically chosen\nbased on which arguments are provided.\n\nArgs:\n    client_id (str): Unique client identifier.\n    username (str, optional): MQTT username. Defaults to \"\".\n    password (str, optional): MQTT password. Defaults to \"\".\n    will_topic (str, optional): Topic for the Last Will message. Defaults to \"\".\n    will_qos (int, optional): QoS for the Last Will message. Defaults to 0.\n    will_retain (bool, optional): Retain flag for Last Will. Defaults to False.\n    will_message (str, optional): Message content for Last Will. Defaults to \"\".\n\nReturns:\n    bool: True if connection was successful, False otherwise.\n\nExamples:\n    >>> client.connect(\"esp32_1\")\n    >>> client.connect(\"esp32_2\", username=\"user\", password=\"pass\")\n    >>> client.connect(\"esp32_3\", will_topic=\"status\", will_message=\"offline\")\n    >>> client.connect(\"esp32_4\", username=\"user\", password=\"pass\",\n    ...                will_topic=\"status\", will_qos=1, will_retain=True,\n    ...                will_message=\"offline\")"
           },
           {
-            "name": "connect_with_auth",
-            "signature": "(self, client_id: str, username: str, password: str) -> bool",
-            "doc": "Connect to the MQTT broker with authentication."
-          },
-          {
-            "name": "connect_with_last_will",
-            "signature": "(self, client_id: str, will_topic: str, will_qos: int, will_retain: bool, will_message: str) -> bool",
-            "doc": "Connect with a last will message, no authentication."
-          },
-          {
-            "name": "connect_full",
-            "signature": "(self, client_id: str, username: str, password: str, will_topic: str, will_qos: int, will_retain: bool, will_message: str) -> bool",
-            "doc": "Connect with auth and last will message."
-          },
-          {
-            "name": "publish_simple",
-            "signature": "(self, topic: str, payload: str) -> bool",
+            "name": "publish",
+            "signature": "(self, topic: str, payload: str, retained: bool = False) -> bool",
             "doc": "Publish a plain string payload to a topic."
           },
           {
-            "name": "publish_retained",
-            "signature": "(self, topic: str, payload: str, retained: bool) -> bool",
-            "doc": "Publish with retained flag."
-          },
-          {
             "name": "subscribe",
-            "signature": "(self, topic: str) -> bool",
+            "signature": "(self, topic: str, qos: int = 0) -> bool",
             "doc": "Subscribe to a topic (QoS 0)."
-          },
-          {
-            "name": "subscribe_with_qos",
-            "signature": "(self, topic: str, qos: int) -> bool",
-            "doc": "Subscribe with a specific QoS."
           },
           {
             "name": "unsubscribe",
@@ -730,7 +690,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, port: int)",
+            "signature": "(self, port: int = 80)",
             "doc": "Initializes the WebServer on a specified port.\n\nArgs:\n    port (int): Port number to listen on (usually 80)."
           },
           {
@@ -771,11 +731,6 @@
   "comms.wifi": {
     "doc": "No module docstring available",
     "functions": [
-      {
-        "name": "wifi_connect",
-        "signature": "(ssid: str, password: str, timeout: int) -> None",
-        "doc": "Connects to a Wi-Fi network.\n\nArgs:\n    ssid (str): The SSID of the Wi-Fi network.\n    password (str): The password for the network.\n    timeout (int): Timeout in milliseconds.\n\nReturns:\n    bool: True if connected successfully, else False."
-      },
       {
         "name": "wifi_begin",
         "signature": "(ssid: str, password: str) -> None",
@@ -1275,8 +1230,8 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, resolution: str, format: str) -> None",
-            "doc": "Create a Camera instance.\n\nArgs:\n    resolution (str): Frame size, e.g. \"VGA\", \"SVGA\", \"UXGA\"\n    format (str): Pixel format, e.g. \"JPEG\", \"RGB565\""
+            "signature": "(self, resolution: str = 'VGA', format: str = 'JPEG') -> None",
+            "doc": "Create a new Camera instance for the ESP32-CAM module.\n\nThis constructor sets up the desired **frame resolution** and **pixel format**\nfor image capture. It does not initialize the hardware yet \u2014 call\n`begin()` or `begin_custom()` afterward to configure GPIOs and start\nthe camera driver.\n\nArgs:\n    resolution (str, optional):\n        Output frame size (image resolution).\n        Supported values (from smallest to largest):\n\n        - `\"QQVGA\"` \u2014 160 \u00d7 120\n        - `\"QVGA\"` \u2014 320 \u00d7 240\n        - `\"VGA\"` \u2014 640 \u00d7 480 (default)\n        - `\"SVGA\"` \u2014 800 \u00d7 600\n        - `\"XGA\"` \u2014 1024 \u00d7 768\n        - `\"SXGA\"` \u2014 1280 \u00d7 1024\n        - `\"UXGA\"` \u2014 1600 \u00d7 1200\n\n        Larger resolutions require more memory and PSRAM support.\n\n    format (str, optional):\n        Image pixel format (color encoding).\n        Supported values:\n\n        - `\"JPEG\"` \u2014 Compressed image format (default, best for transmission)\n        - `\"RGB565\"` \u2014 16-bit RGB color format\n        - `\"YUV422\"` \u2014 YUV color encoding (4:2:2 sampling)\n        - `\"GRAYSCALE\"` \u2014 Single-channel grayscale\n\n        Use `\"JPEG\"` for most use cases such as HTTP streaming or snapshots.\n\nReturns:\n    None\n\nExample:\n    ```python\n    import peripherals.camera as cam\n\n    # Create a camera for 800\u00d7600 JPEG capture\n    camera = cam.Camera(\"SVGA\", \"JPEG\")\n\n    # Create a grayscale camera for analytics\n    graycam = cam.Camera(\"QVGA\", \"GRAYSCALE\")\n    ```"
           },
           {
             "name": "wifi_connect",
@@ -1290,8 +1245,13 @@
           },
           {
             "name": "begin",
-            "signature": "(self) -> bool",
-            "doc": "Initialize the camera hardware and configure GPIOs.\n\nReturns:\n    bool: True if successful, False otherwise"
+            "signature": "(self, variant_name: str = 'AI_THINKER') -> bool",
+            "doc": "Initialize the ESP32 camera using a predefined pin configuration variant.\n\nThis method provides a simple way to start the camera by specifying\na known hardware variant name (such as `\"AI_THINKER\"`, `\"WROVER\"`, or `\"M5STACK\"`).\nInternally, the correct GPIO mappings for that board are automatically\nselected and used to configure the camera sensor and data pins.\n\nArgs:\n    variant_name (str):\n        Name of the ESP32 camera module variant.\n        Supported values include:\n          - \"AI_THINKER\"\n          - \"WROVER\"\n          - \"M5STACK\"\n\n        If the provided name does not match a known variant, the\n        default `\"AI_THINKER\"` mapping is used.\n\nReturns:\n    bool: True if the camera was initialized successfully, False otherwise.\n\nExample:\n    ```python\n    import peripherals.camera as cam\n\n    camera = cam.Camera(\"VGA\", \"JPEG\")\n    ok = camera.begin(\"AI_THINKER\")\n    if ok:\n        print(\"Camera ready!\")\n    else:\n        print(\"Camera failed to initialize.\")\n    ```"
+          },
+          {
+            "name": "begin_custom",
+            "signature": "(self, pin_pwdn: int = -1, pin_reset: int = -1, pin_xclk: int = 0, pin_sscb_sda: int = 26, pin_sscb_scl: int = 27, pin_d7: int = 35, pin_d6: int = 34, pin_d5: int = 39, pin_d4: int = 36, pin_d3: int = 21, pin_d2: int = 19, pin_d1: int = 18, pin_d0: int = 5, pin_vsync: int = 25, pin_href: int = 23, pin_pclk: int = 22) -> bool",
+            "doc": "Initialize the ESP32 camera using a fully custom pin configuration.\n\nThis function exposes **every hardware pin** explicitly and can be\ncalled using keyword arguments for flexibility. All parameters are\noptional and have sensible defaults (AI Thinker layout).\n\nArgs:\n    pin_pwdn (int): Power-down control pin. Defaults to -1.\n    pin_reset (int): Reset pin. Defaults to -1.\n    pin_xclk (int): External clock pin (ESP32 \u2192 camera). Defaults to 0.\n    pin_sscb_sda (int): SCCB (I2C data). Defaults to 26.\n    pin_sscb_scl (int): SCCB (I2C clock). Defaults to 27.\n    pin_d7 (int): Pixel data bit 7 (MSB). Defaults to 35.\n    pin_d6 (int): Pixel data bit 6. Defaults to 34.\n    pin_d5 (int): Pixel data bit 5. Defaults to 39.\n    pin_d4 (int): Pixel data bit 4. Defaults to 36.\n    pin_d3 (int): Pixel data bit 3. Defaults to 21.\n    pin_d2 (int): Pixel data bit 2. Defaults to 19.\n    pin_d1 (int): Pixel data bit 1. Defaults to 18.\n    pin_d0 (int): Pixel data bit 0 (LSB). Defaults to 5.\n    pin_vsync (int): Vertical sync signal. Defaults to 25.\n    pin_href (int): Horizontal reference signal. Defaults to 23.\n    pin_pclk (int): Pixel clock signal. Defaults to 22.\n\nReturns:\n    bool: True if the camera initialized successfully, False otherwise.\n\nExample:\n    ```python\n    camera.begin_custom(\n        pin_pwdn=32,\n        pin_reset=-1,\n        pin_xclk=0,\n        pin_sscb_sda=26,\n        pin_sscb_scl=27,\n        pin_d7=35, pin_d6=34, pin_d5=39, pin_d4=36,\n        pin_d3=21, pin_d2=19, pin_d1=18, pin_d0=5,\n        pin_vsync=25, pin_href=23, pin_pclk=22\n    )\n    ```"
           },
           {
             "name": "capture",
@@ -1305,7 +1265,7 @@
           },
           {
             "name": "stream_http",
-            "signature": "(self, port: int) -> None",
+            "signature": "(self, port: int = 8080) -> None",
             "doc": "Start an MJPEG streaming server.\n\nArgs:\n    port (int): Port number for HTTP stream (default: 8080)\n\nNotes:\n    - Accessible via `http://<device_ip>:port`\n    - Stream runs indefinitely unless stopped manually"
           },
           {
@@ -1329,16 +1289,16 @@
           {
             "name": "__init__",
             "signature": "(self, id: int) -> None",
-            "doc": "Create an instance of the ADXL345 sensor."
+            "doc": "Create an instance of the ADXL345 sensor.\n\nArgs:\n    id (int): Identifier for the sensor. Just pick\n             a unique integer."
           },
           {
             "name": "begin",
-            "signature": "(self, address: int) -> bool",
+            "signature": "(self, address: int = 83) -> bool",
             "doc": "Initializes the sensor.\n\nArgs:\n    address (int): I2C address (default is 0x53)\n\nReturns:\n    bool: True if successful, False if not"
           },
           {
             "name": "set_range",
-            "signature": "(self, range_val: int) -> None",
+            "signature": "(self, range_val: int = 0) -> None",
             "doc": "Set the ADXL345 sensor's measurement range.\n\nThe measurement range determines the maximum acceleration (in g) that\nthe sensor can detect on each axis. Larger ranges allow detection of\nstronger motion but reduce resolution.\n\nArgs:\n    range_val (int): Range selector value from 0\u20133, corresponding to:\n        0 \u2192 \u00b12g\n        1 \u2192 \u00b14g\n        2 \u2192 \u00b18g\n        3 \u2192 \u00b116g\n\nExample:\n    ```python\n    adxl.set_range(2)  # sets range to \u00b18g\n    ```\n\nNotes:\n    - Defaults to \u00b12g if the value is invalid.\n    - Internally maps to the Adafruit `range_t` enum."
           },
           {
@@ -1348,7 +1308,7 @@
           },
           {
             "name": "set_data_rate",
-            "signature": "(self, rate: int) -> None",
+            "signature": "(self, rate: int = 10) -> None",
             "doc": "Set the ADXL345 sensor's data output rate.\n\nThe data rate determines how frequently acceleration data is updated and made\navailable for reading. Higher rates improve responsiveness but increase power\nconsumption.\n\nArgs:\n    rate (int): Data rate selector value from 0\u201315, corresponding to:\n        0 \u2192 0.10 Hz\n        1 \u2192 0.20 Hz\n        2 \u2192 0.39 Hz\n        3 \u2192 0.78 Hz\n        4 \u2192 1.56 Hz\n        5 \u2192 3.13 Hz\n        6 \u2192 6.25 Hz\n        7 \u2192 12.5 Hz\n        8 \u2192 25 Hz\n        9 \u2192 50 Hz\n        10 \u2192 100 Hz\n        11 \u2192 200 Hz\n        12 \u2192 400 Hz\n        13 \u2192 800 Hz\n        14 \u2192 1600 Hz\n        15 \u2192 3200 Hz\n\nExample:\n    ```python\n    adxl.set_data_rate(10)  # sets update rate to 100 Hz\n    ```\n\nNotes:\n    - Defaults to 100 Hz if the rate value is invalid.\n    - Internally maps to the Adafruit `dataRate_t` enum."
           },
           {
@@ -1416,8 +1376,8 @@
           },
           {
             "name": "begin",
-            "signature": "(self, iTimeMS: int, gain: int, address: int) -> bool",
-            "doc": "Initialize the APDS9960 sensor.\n\nArgs:\n    iTimeMS (int): Integration time in milliseconds. Typical range is 10\u2013700 ms.\n    gain (int): Analog gain value:\n        - 0 \u2192 1x gain\n        - 1 \u2192 4x gain\n        - 2 \u2192 16x gain\n        - 3 \u2192 64x gain\n    address (int): I2C address of the sensor (default is 0x39).\n\nReturns:\n    bool: True if initialization succeeded, False otherwise.\n\nTranslation:\n    custom_apds9960_helper_begin(sensor_instance, iTimeMS, gain, address)"
+            "signature": "(self, iTimeMS: int = 10, gain: int = 1, address: int = 57) -> bool",
+            "doc": "Initialize the APDS9960 sensor.\n\nArgs:\n    iTimeMS (int): Integration time in milliseconds. Typical range is 10\u2013700 ms.\n          Default 10 ms.\n    gain (int): Analog gain value:\n        - 0 \u2192 1x gain\n        - 1 \u2192 4x gain\n        - 2 \u2192 16x gain\n        - 3 \u2192 64x gain\n        default 1(4x)\n    address (int): I2C address of the sensor (default is 0x39).\n\nReturns:\n    bool: True if initialization succeeded, False otherwise.\n\nTranslation:\n    custom_apds9960_helper_begin(sensor_instance, iTimeMS, gain, address)"
           },
           {
             "name": "set_adc_integration_time",
@@ -1481,8 +1441,8 @@
           },
           {
             "name": "set_proximity_interrupt_threshold",
-            "signature": "(self, low: int, high: int, persistence: int) -> None",
-            "doc": "Configures the proximity interrupt trigger conditions.\n\nThis sets the low and high threshold values that determine\nwhen the proximity interrupt fires, along with a persistence\nvalue that controls how many consecutive readings must exceed\nthose thresholds before triggering.\n\nArgs:\n    low (int): Lower threshold (0\u2013255). The interrupt will trigger\n        when proximity values fall below this limit.\n    high (int): Upper threshold (0\u2013255). The interrupt will trigger\n        when proximity values exceed this limit.\n    persistence (int): Number of consecutive readings (0\u201315)\n        required to confirm the threshold condition before\n        generating an interrupt.\n\nReturns:\n    None\n\nNotes:\n    Use this to avoid false triggers from transient movements\n    by setting appropriate threshold limits and persistence\n    for stable proximity event detection."
+            "signature": "(self, low: int, high: int, persistence: int = 4) -> None",
+            "doc": "Configures the proximity interrupt trigger conditions.\n\nThis sets the low and high threshold values that determine\nwhen the proximity interrupt fires, along with a persistence\nvalue that controls how many consecutive readings must exceed\nthose thresholds before triggering.\n\nArgs:\n    low (int): Lower threshold (0\u2013255). The interrupt will trigger\n        when proximity values fall below this limit.\n    high (int): Upper threshold (0\u2013255). The interrupt will trigger\n        when proximity values exceed this limit.\n    persistence (int): Number of consecutive readings (0\u201315)\n        required to confirm the threshold condition before\n        generating an interrupt. Default 4.\n\nReturns:\n    None\n\nNotes:\n    Use this to avoid false triggers from transient movements\n    by setting appropriate threshold limits and persistence\n    for stable proximity event detection."
           },
           {
             "name": "get_proximity_interrupt",
@@ -1599,7 +1559,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, address: int)",
+            "signature": "(self, address: int = 35)",
             "doc": "Create a BH1750 light sensor object.\n\nArgs:\n    address (int): I2C address of the sensor. Default is 0x23."
           },
           {
@@ -1647,8 +1607,8 @@
           },
           {
             "name": "begin",
-            "signature": "(self, address: int) -> bool",
-            "doc": "Initializes communication with the BME280 sensor.\n\nArgs:\n    address (int): I2C address of the sensor (usually 0x76 or 0x77).\n\nReturns:\n    bool: True if sensor initialized correctly, False otherwise."
+            "signature": "(self, address: int = 118) -> bool",
+            "doc": "Initializes communication with the BME280 sensor.\n\nArgs:\n    address (int): I2C address of the sensor (usually 0x76 or 0x77).\n                   Default to 0x76\n\nReturns:\n    bool: True if sensor initialized correctly, False otherwise."
           },
           {
             "name": "read_temperature",
@@ -1739,57 +1699,57 @@
     "variables": []
   },
   "sensors.ccs811": {
-    "doc": "No module docstring available",
+    "doc": "CCS811 Sensor Module\n====================\n\nThis module provides a Python-style abstraction for the **Adafruit CCS811 Air Quality Sensor**, \nenabling seamless integration within the transpiler framework.\n\nThe CCS811 is a digital gas sensor capable of measuring **eCO\u2082 (equivalent CO\u2082)** and \n**TVOC (Total Volatile Organic Compounds)** concentrations. It communicates via I\u00b2C \nand benefits from environmental compensation inputs (humidity and temperature) for optimal accuracy.\n\nFeatures\n--------\n- Initialize and configure the CCS811 sensor.\n- Read eCO\u2082 (ppm) and TVOC (ppb) air quality measurements.\n- Supply temperature and humidity compensation data.\n- Retrieve thermistor-based temperature readings.\n- Configure measurement frequency using drive modes.\n\nDependencies\n------------\n- Adafruit_CCS811\n- Adafruit_I2CDevice\n- adafruit/Adafruit BusIO (PlatformIO dependency)\n\nExample\n-------\n```python\nimport sensors.ccs811 as ccs\n\nsensor = ccs.CCS811Sensor()\n\ndef setup()->None:\n    sensor.begin()\n\n    while sensor.available():\n        eco2 = sensor.get_eco2()\n        tvoc = sensor.get_tvoc()\n\n\ndef loop()->None:\n    pass \n\n\n\n```",
     "functions": [],
     "classes": [
       {
         "name": "CCS811Sensor",
-        "doc": "No docstring available",
+        "doc": "High-level Python wrapper for the Adafruit CCS811 gas sensor.\n\nProvides a convenient interface to initialize, read, and configure\nthe CCS811 air quality sensor over I\u00b2C.",
         "methods": [
           {
             "name": "__init__",
             "signature": "(self)",
-            "doc": "Initialize the CCS811 sensor. Use begin() after this to start communication."
+            "doc": "Initialize a CCS811 sensor instance."
           },
           {
             "name": "begin",
             "signature": "(self) -> bool",
-            "doc": "Initialize the CCS811 sensor over I2C.\n\nReturns:\n    bool: True if sensor initialized successfully."
+            "doc": "Initialize communication with the CCS811 sensor via I\u00b2C."
           },
           {
             "name": "available",
             "signature": "(self) -> bool",
-            "doc": "Check whether new measurement data is available.\n\nReturns:\n    bool: True if new data is available."
+            "doc": "Check whether new measurement data is available from the CCS811 sensor."
           },
           {
             "name": "read_data",
             "signature": "(self) -> bool",
-            "doc": "Read the latest data sample from the sensor.\n\nReturns:\n    bool: True if the read succeeded."
+            "doc": "Read the latest available data sample from the CCS811 sensor."
           },
           {
             "name": "get_eco2",
             "signature": "(self) -> int",
-            "doc": "Get the equivalent CO2 (eCO2) reading in parts per million (ppm).\n\nReturns:\n    int: eCO2 concentration in ppm."
+            "doc": "Retrieve the equivalent CO\u2082 (eCO\u2082) reading in parts per million (ppm)."
           },
           {
             "name": "get_tvoc",
             "signature": "(self) -> int",
-            "doc": "Get the Total Volatile Organic Compounds (TVOC) reading in parts per billion (ppb).\n\nReturns:\n    int: TVOC concentration in ppb."
+            "doc": "Retrieve the Total Volatile Organic Compounds (TVOC) reading in parts per billion (ppb)."
           },
           {
             "name": "set_environmental_data",
             "signature": "(self, humidity: float, temperature: float) -> None",
-            "doc": "Provide humidity (%) and temperature (\u00b0C) data for compensation.\n\nArgs:\n    humidity (float): Relative humidity percentage.\n    temperature (float): Ambient temperature in \u00b0C."
+            "doc": "Provide humidity (%) and temperature (\u00b0C) data for compensation."
           },
           {
             "name": "calculate_temperature",
             "signature": "(self) -> float",
-            "doc": "Calculate temperature using the onboard thermistor.\n\nReturns:\n    float: Temperature in Celsius."
+            "doc": "Calculate temperature using the onboard thermistor."
           },
           {
             "name": "set_drive_mode",
             "signature": "(self, mode: int) -> None",
-            "doc": "Set the sensor\u2019s drive mode.\n\nArgs:\n    mode (int): Drive mode (0\u20134). Each mode defines a different measurement frequency."
+            "doc": "Set the sensor\u2019s drive mode (0\u20134) to define measurement frequency."
           }
         ]
       }
@@ -1806,7 +1766,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, pin: int, type: str) -> None",
+            "signature": "(self, pin: int, type: str = 'DHT11') -> None",
             "doc": "Initialize the DHT sensor on a specific GPIO pin.\n\nArgs:\n    pin (int): GPIO pin connected to the sensor.\n    type (str): Type of the sensor: \"DHT11\" or \"DHT22\"."
           },
           {
@@ -1816,8 +1776,8 @@
           },
           {
             "name": "read_temperature",
-            "signature": "(self, is_fahrenheit: bool) -> float",
-            "doc": "Read the temperature.\n\nArgs:\n    is_fahrenheit (bool): Whether to read in Fahrenheit.\n\nReturns:\n    float: Temperature value."
+            "signature": "(self, is_fahrenheit: bool = False) -> float",
+            "doc": "Read the temperature.\n\nArgs:\n    is_fahrenheit (bool): Whether to read in Fahrenheit.\n    Default is False\n\nReturns:\n    float: Temperature value."
           },
           {
             "name": "read_humidity",
@@ -1844,7 +1804,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, onewire_instance: OneWire) -> None",
+            "signature": "(self, onewire_pin: int) -> None",
             "doc": "Initialize the DS18B20 sensor on a specific GPIO pin.\n\nArgs:\n    pin (int): GPIO pin connected to the OneWire data line."
           },
           {
@@ -1859,7 +1819,7 @@
           },
           {
             "name": "read_temperature",
-            "signature": "(self, index: int) -> float",
+            "signature": "(self, index: int = 1) -> float",
             "doc": "Read the temperature in Celsius from a specific sensor (index-based).\n\nArgs:\n    index (int): Sensor index (useful if multiple sensors on the same bus).\n\nReturns:\n    float: Temperature in Celsius."
           }
         ]
@@ -1900,7 +1860,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, stream: HardwareSerial)",
+            "signature": "(self, rx: int, tx: int, baud: int = 9600)",
             "doc": "Initialize the MHZ19 CO\u2082 sensor.\n\nArgs:\n    stream: A serial stream object (e.g., Serial1 or SoftwareSerial)."
           },
           {
@@ -1930,7 +1890,7 @@
           },
           {
             "name": "auto_calibration",
-            "signature": "(self, enable: bool) -> None",
+            "signature": "(self, enable: bool = True) -> None",
             "doc": "Enable or disable Automatic Baseline Calibration (ABC) mode.\n\nArgs:\n    enable (bool): True to enable ABC, False to disable."
           }
         ]
@@ -2008,7 +1968,7 @@
           },
           {
             "name": "calc_offsets",
-            "signature": "(self, calc_gyro: bool, calc_acc: bool) -> None",
+            "signature": "(self, calc_gyro: bool = True, calc_acc: bool = True) -> None",
             "doc": "Automatically calculate gyro and/or accelerometer offsets.\nSensor must be stable during this process.\n\nArgs:\n    calc_gyro (bool): Calibrate gyroscope\n    calc_acc (bool): Calibrate accelerometer"
           },
           {
@@ -2315,7 +2275,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, address: int = 68) -> None",
+            "signature": "(self) -> None",
             "doc": "Initialize SHT31 instance.\n\nArgs:\n    address (int): I2C address of the sensor (default 0x44)"
           },
           {
@@ -2411,7 +2371,7 @@
         "methods": [
           {
             "name": "__init__",
-            "signature": "(self, trigger_pin: int, echo_pin: int, max_cm_distance: int)",
+            "signature": "(self, trigger_pin: int, echo_pin: int, max_cm_distance: int = 500)",
             "doc": "Represents an ultrasonic distance sensor using the NewPing library.\n\nThis class supports low-level ultrasonic sensors that work via\ndigital pulse duration, specifically those with a trigger pin and\necho pin.\n\n\u2705 Supported sensor models:\n- HC-SR04\n- SRF05\n- DYP-ME007\n- Parallax PING)))\u2122 (single-pin supported)\n- SRF06 (with capacitor or dual-pin mode only)\n\n\u274c Not supported:\n- Analog sensors (e.g., Sharp GP2Y series)\n- I2C/SPI ToF sensors (e.g., VL53L0X, VL6180X)\n\nArgs:\n    trigger_pin (int): GPIO pin used to send trigger pulse.\n    echo_pin (int): GPIO pin used to receive echo pulse.\n    max_cm_distance (int, optional): Maximum measurable distance in cm. Default is 500."
           },
           {
@@ -2431,7 +2391,7 @@
           },
           {
             "name": "ping_median",
-            "signature": "(self, iterations: int) -> int",
+            "signature": "(self, iterations: int = 5) -> int",
             "doc": "Perform multiple pings and return the median echo time (in microseconds).\nHelps filter out invalid readings.\n\nArgs:\n    iterations (int): Number of pings to average. Default is 5.\n\nReturns:\n    int: Median echo time in microseconds."
           },
           {
@@ -2464,7 +2424,7 @@
           },
           {
             "name": "begin",
-            "signature": "(self, i2c_addr: int, debug: bool) -> bool",
+            "signature": "(self, i2c_addr: int = 41, debug: bool = True) -> bool",
             "doc": "Initialize the sensor.\n\nArgs:\n    i2c_addr (int): I2C address (default 0x29).\n    debug (bool): Enable debug logging.\n\nReturns:\n    bool: True if initialization succeeded."
           },
           {
@@ -2504,7 +2464,7 @@
           },
           {
             "name": "start_range_continuous",
-            "signature": "(self, period_ms: int) -> bool",
+            "signature": "(self, period_ms: int = 50) -> bool",
             "doc": "Start continuous ranging mode.\n\nArgs:\n    period_ms (int): Delay between measurements. Default 50.\n\nReturns:\n    bool: True if successful."
           },
           {
@@ -2519,7 +2479,7 @@
           },
           {
             "name": "config_sensor",
-            "signature": "(self, mode: int) -> bool",
+            "signature": "(self, mode: int = 0) -> bool",
             "doc": "Configure predefined sensor mode.\n\nArgs:\n    mode (int): One of:\n        - 0 = default\n        - 1 = long range\n        - 2 = high speed\n        - 3 = high accuracy\n\nReturns:\n    bool: True if configuration successful."
           },
           {

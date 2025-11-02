@@ -1,7 +1,7 @@
 import comms.webserver as w
 
 # Create instance
-server = w.WebServer(80)
+server = w.WebServer()
 
 
 def callback() -> None:

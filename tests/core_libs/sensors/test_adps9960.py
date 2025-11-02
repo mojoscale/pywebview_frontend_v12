@@ -5,8 +5,8 @@ def setup() -> None:
     apds = sensor_apds.APDS9960Sensor()
 
     # Initialization
-    apds.begin(100, 1, 0x39)
-    apds.enable(True)
+    apds.begin(gain=100, address=0x39)
+    apds.enable()
 
     # ADC / Color settings
     apds.set_adc_integration_time(100)
@@ -20,14 +20,14 @@ def setup() -> None:
     apds.set_prox_gain(2)
     apds.get_prox_gain()
     apds.set_prox_pulse(2, 8)
-    apds.set_proximity_interrupt_threshold(10, 200, 2)
+    apds.set_proximity_interrupt_threshold(10, 200)
     apds.enable_proximity_interrupt()
     apds.disable_proximity_interrupt()
     apds.read_proximity()
     apds.get_proximity_interrupt()
 
     # Gesture configuration
-    apds.enable_gesture(True)
+    apds.enable_gesture()
     apds.set_gesture_dimensions(0)
     apds.set_gesture_fifo_threshold(2)
     apds.set_gesture_gain(1)

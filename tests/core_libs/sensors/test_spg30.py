@@ -24,7 +24,7 @@ def setup() -> None:
     print("Measure test:", test_ok)
 
     # Make a normal measurement
-    measured = sensor.measure(True)
+    measured = sensor.measure()
     print("Measure:", measured)
 
     # Fetch readings

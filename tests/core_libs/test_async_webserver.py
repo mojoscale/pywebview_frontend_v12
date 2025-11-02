@@ -1,6 +1,8 @@
 import comms.async_webserver as aw
 
-server = aw.AsyncWebServer(80)
+
+# --- Global objects ---
+server = aw.AsyncWebServer(port=80)
 
 
 def handle_root(request: aw.AsyncWebServerRequest) -> None:
@@ -9,19 +11,33 @@ def handle_root(request: aw.AsyncWebServerRequest) -> None:
     request.has_param("test")
 
 
+def my_filter(req: aw.AsyncWebServerRequest) -> bool:
+    return True
+
+
+def my_callback(req: aw.AsyncWebServerRequest) -> None:
+    handle_root(req)
+
+
 def setup() -> None:
+    # Basic route and server start
     server.on("/", "HTTP_GET", handle_root)
     server.begin()
 
+    # Static file serving setup
     st = server.serve_static("/files", "/")
-
     st.set_default_file("testfile.txt")
     st.set_cache_control(864000)
     st.set_last_modified(100)
-    x = st.set_authentication("user", "password")
+    handler = st.set_authentication("user", "password")
 
-    # x.
+    # AsyncWebHandler tests
+
+    handler.is_request_handler_trivial()
+    handler.set_authentication("admin", "pass")
+    handler.set_filter(my_filter)
 
 
 def loop() -> None:
+    # Minimal loop stub
     pass

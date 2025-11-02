@@ -17,7 +17,7 @@ class WebServer:
     It is blocking and should be used for lightweight traffic only.
     """
 
-    def __init__(self, port: int):
+    def __init__(self, port: int = 80):
         """
         Initializes the WebServer on a specified port.
 
@@ -33,7 +33,7 @@ class WebServer:
         __construct_with_equal_to__ = (
             False  # this means is constructs like WebServer server(80)
         )
-        __translation__ = "({1})"
+        __translation__ = "({port})"
         pass
 
     def on(self, path: str, method: str, handler: callable) -> WebServer:
@@ -49,7 +49,7 @@ class WebServer:
             server.on("/hello", handle_hello)
         """
         __use_as_is__ = False
-        __translation__ = "custom_webserver_on({0}, {1}, {2}, {3})"
+        __translation__ = "custom_webserver_on({self}, {path}, {method}, {handler})"
         pass
 
     def begin(self) -> WebServer:
@@ -57,7 +57,7 @@ class WebServer:
         Starts the web server. Must be called after all routes are registered.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.begin()"
+        __translation__ = "{self}.begin()"
         pass
 
     def handle_client(self) -> WebServer:
@@ -65,7 +65,7 @@ class WebServer:
         Processes incoming client requests. Should be called repeatedly in loop().
         """
         __use_as_is__ = True
-        __translation__ = "{0}.handleClient()"
+        __translation__ = "{self}.handleClient()"
         pass
 
     def send(self, status_code: int, content_type: str, body: str) -> None:
@@ -78,7 +78,9 @@ class WebServer:
             body (str): The response body.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.send({1}, {2}.c_str(), {3}.c_str())"
+        __translation__ = (
+            "{self}.send({status_code}, {content_type}.c_str(), {body}.c_str())"
+        )
         pass
 
     def has_arg(self, name: str) -> bool:
@@ -92,7 +94,7 @@ class WebServer:
             bool: True if parameter exists, False otherwise.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.hasArg({1}.c_str())"
+        __translation__ = "{self}.hasArg({name}.c_str())"
         return False
 
     def arg(self, name: str) -> str:
@@ -106,5 +108,5 @@ class WebServer:
             str: The value of the parameter.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.arg({1}.c_str())"
+        __translation__ = "{self}.arg({name}.c_str())"
         return ""

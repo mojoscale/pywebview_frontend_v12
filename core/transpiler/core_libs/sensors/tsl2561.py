@@ -13,7 +13,7 @@ class TSL2561Sensor:
         """
         __use_as_is__ = False
         __class_actual_type__ = "Adafruit_TSL2561_Unified"
-        __translation__ = "({1})"
+        __translation__ = "({address})"
 
     def begin(self) -> bool:
         """
@@ -23,14 +23,14 @@ class TSL2561Sensor:
             bool: True if initialization succeeded.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.begin()"
+        __translation__ = "{self}.begin()"
 
     def enable_auto_range(self, enable: bool) -> None:
         """
         Enable or disable automatic gain range adjustment.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.enableAutoRange({1})"
+        __translation__ = "{self}.enableAutoRange({enable})"
 
     def set_integration_time(self, integration_mode: int) -> None:
         """
@@ -43,7 +43,9 @@ class TSL2561Sensor:
                 2 = 402ms
         """
         __use_as_is__ = False
-        __translation__ = "custom_tsl2561_helper_set_integration_time(&{0}, {1})"
+        __translation__ = (
+            "custom_tsl2561_helper_set_integration_time(&{self}, {integration_mode})"
+        )
 
     def set_gain(self, gain_mode: int) -> None:
         """
@@ -53,7 +55,7 @@ class TSL2561Sensor:
             gain_mode (int): 0 = 1x gain, 1 = 16x gain.
         """
         __use_as_is__ = False
-        __translation__ = "custom_tsl2561_helper_set_gain(&{0}, {1})"
+        __translation__ = "custom_tsl2561_helper_set_gain(&{self}, {gain_mode})"
 
     def get_luminosity(self) -> list[int]:
         """
@@ -63,7 +65,7 @@ class TSL2561Sensor:
             list[int, int]: (broadband, ir) values.
         """
         __use_as_is__ = False
-        __translation__ = "custom_tsl2561_helper_get_luminosity(&{0})"
+        __translation__ = "custom_tsl2561_helper_get_luminosity(&{self})"
 
     def calculate_lux(self, broadband: int, ir: int) -> int:
         """
@@ -77,4 +79,4 @@ class TSL2561Sensor:
             int: Calculated lux value.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.calculateLux({1}, {2})"
+        __translation__ = "{self}.calculateLux({broadband}, {ir})"

@@ -53,7 +53,7 @@ def spiffs_open(path: str, mode: str) -> None:
         File object or None: File handle if successful, None otherwise.
     """
     __use_as_is__ = False
-    __translation__ = "SPIFFS.open({0}.c_str(), {1}.c_str())"
+    __translation__ = "SPIFFS.open({path}.c_str(), {mode}.c_str())"
     return None
 
 
@@ -68,7 +68,7 @@ def spiffs_exists(path: str) -> bool:
         bool: True if the path exists, False otherwise.
     """
     __use_as_is__ = False
-    __translation__ = "SPIFFS.exists({0}.c_str())"
+    __translation__ = "SPIFFS.exists({path}.c_str())"
     return False
 
 
@@ -83,7 +83,7 @@ def spiffs_remove(path: str) -> bool:
         bool: True if file is successfully removed, False otherwise.
     """
     __use_as_is__ = False
-    __translation__ = "SPIFFS.remove({0}.c_str())"
+    __translation__ = "SPIFFS.remove({path}.c_str())"
     return False
 
 
@@ -99,7 +99,7 @@ def spiffs_rename(src: str, dest: str) -> bool:
         bool: True if successful, False otherwise.
     """
     __use_as_is__ = False
-    __translation__ = "SPIFFS.rename({0}.c_str(), {1}.c_str())"
+    __translation__ = "SPIFFS.rename({src}.c_str(), {dest}.c_str())"
     return False
 
 
@@ -114,7 +114,7 @@ def spiffs_mkdir(path: str) -> bool:
         bool: True if successful, False otherwise.
     """
     __use_as_is__ = False
-    __translation__ = "SPIFFS.mkdir({0}.c_str())"
+    __translation__ = "SPIFFS.mkdir({path}.c_str())"
     return False
 
 
@@ -129,7 +129,7 @@ def spiffs_rmdir(path: str) -> bool:
         bool: True if successful, False otherwise.
     """
     __use_as_is__ = False
-    __translation__ = "SPIFFS.rmdir({0}.c_str())"
+    __translation__ = "SPIFFS.rmdir({path}.c_str())"
     return False
 
 

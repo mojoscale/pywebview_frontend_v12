@@ -6,7 +6,7 @@ def setup() -> None:
     # Simulate hardware serial (in Arduino this would be Serial1, Serial2, etc.)
     stream = hs.HardwareSerial(2)
 
-    sensor = sensor_mhz19.MHZ19Sensor(stream)
+    sensor = sensor_mhz19.MHZ19Sensor(17, 16, baud=115200)
 
     # Initialize / retrieve data
 
@@ -20,7 +20,7 @@ def setup() -> None:
     sensor.set_range(5000)
     sensor.calibrate_zero()
     sensor.auto_calibration(True)
-    sensor.auto_calibration(False)
+    sensor.auto_calibration()
 
     print("MHZ19 basic compile test successful.")
 

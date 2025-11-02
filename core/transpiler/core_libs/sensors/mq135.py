@@ -13,53 +13,53 @@ class MQ135Sensor:
         """
         __use_as_is__ = False
         __class_actual_type__ = "MQ135"
-        __translation__ = "({1})"
+        __translation__ = "({pin})"
 
     def get_correction_factor(self, temperature: float, humidity: float) -> float:
         """
         Return correction factor based on temperature and humidity.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getCorrectionFactor({1}, {2})"
+        __translation__ = "{self}.getCorrectionFactor({temperature}, {humidity})"
 
     def get_resistance(self) -> float:
         """
         Read the raw sensor resistance.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getResistance()"
+        __translation__ = "{self}.getResistance()"
 
     def get_corrected_resistance(self, temperature: float, humidity: float) -> float:
         """
         Read corrected sensor resistance.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getCorrectedResistance({1}, {2})"
+        __translation__ = "{self}.getCorrectedResistance({temperature}, {humidity})"
 
     def get_ppm(self) -> float:
         """
         Return uncorrected PPM reading.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getPPM()"
+        __translation__ = "{self}.getPPM()"
 
     def get_corrected_ppm(self, temperature: float, humidity: float) -> float:
         """
         Return PPM reading corrected for temperature and humidity.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getCorrectedPPM({1}, {2})"
+        __translation__ = "{self}.getCorrectedPPM({temperature}, {humidity})"
 
     def get_rzero(self) -> float:
         """
         Return RZero from current reading.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getRZero()"
+        __translation__ = "{self}.getRZero()"
 
     def get_corrected_rzero(self, temperature: float, humidity: float) -> float:
         """
         Return corrected RZero based on temperature and humidity.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getCorrectedRZero({1}, {2})"
+        __translation__ = "{self}.getCorrectedRZero({temperature}, {humidity})"

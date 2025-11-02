@@ -18,7 +18,7 @@ class WiFiManager:
         Enable or disable debug logging on Serial.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.setDebugOutput({1})"
+        __translation__ = "{self}.setDebugOutput({enable})"
         pass
 
     def reset_settings(self) -> None:
@@ -26,7 +26,7 @@ class WiFiManager:
         Clear stored WiFi credentials from flash.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.resetSettings()"
+        __translation__ = "{self}.resetSettings()"
         pass
 
     def auto_connect(self, ap_name: str, ap_password: str) -> bool:
@@ -41,7 +41,9 @@ class WiFiManager:
             bool: True if WiFi connection was successful.
         """
         __use_as_is__ = False
-        __translation__ = "custom_wifi_manager_helper_auto_connect({0}, {1}, {2})"
+        __translation__ = (
+            "custom_wifi_manager_helper_auto_connect({self}, {ap_name}, {ap_password})"
+        )
         return False
 
     def start_config_portal(self, ap_name: str, ap_password: str) -> bool:
@@ -56,7 +58,7 @@ class WiFiManager:
             bool: True if WiFi connected successfully.
         """
         __use_as_is__ = False
-        __translation__ = "custom_wifi_manager_helper_start_wifi_portal({0}, {1}, {2})"
+        __translation__ = "custom_wifi_manager_helper_start_wifi_portal({self}, {ap_name}, {ap_password})"
         return False
 
     def set_timeout(self, seconds: int) -> None:
@@ -64,14 +66,14 @@ class WiFiManager:
         Set timeout for config portal to auto-exit if no connection is made.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.setTimeout({1})"
+        __translation__ = "{self}.setTimeout({seconds})"
         pass
 
     def set_connect_timeout(self, seconds: int) -> None:
         """
         Set timeout for how long to wait for WiFi connection before failing.
         """
-        __translation__ = "{0}.setConnectTimeout({1})"
+        __translation__ = "{self}.setConnectTimeout({seconds})"
 
     def set_minimum_signal_quality(self, quality: int) -> None:
         """
@@ -79,5 +81,5 @@ class WiFiManager:
         """
 
         __use_as_is__ = True
-        __translation__ = "{0}.setMinimumSignalQuality({1})"
+        __translation__ = "{self}.setMinimumSignalQuality({quality})"
         pass

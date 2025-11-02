@@ -37,7 +37,7 @@ def pinMode(pin: int, mode: int) -> None:
         None
     """
     __use_as_is__: bool = True
-    __translation__ = "pinMode({0}, {1})"
+    __translation__ = "pinMode({pin}, {mode})"
     raise NotImplementedError("pinMode is not implemented")
 
 
@@ -53,7 +53,7 @@ def digitalWrite(pin: int, val: int) -> None:
         None
     """
     __use_as_is__: bool = True
-    __translation__ = "digitalWrite({0}, {1})"
+    __translation__ = "digitalWrite({pin}, {val})"
     raise NotImplementedError("digitalWrite is not implemented")
 
 
@@ -68,7 +68,7 @@ def digitalRead(pin: int) -> int:
         int: The value read from the pin — HIGH (1) or LOW (0).
     """
     __use_as_is__: bool = True
-    __translation__ = "digitalRead({0})"
+    __translation__ = "digitalRead({pin})"
     raise NotImplementedError("digitalRead is not implemented")
 
 
@@ -84,7 +84,7 @@ def analogRead(pin: int) -> int:
              or up to 4095 (12-bit) on some boards like ESP32.
     """
     __use_as_is__: bool = True
-    __translation__ = "analogRead({0})"
+    __translation__ = "analogRead({pin})"
     raise NotImplementedError("analogRead is not implemented")
 
 
@@ -100,7 +100,7 @@ def analogWrite(pin: int, val: int) -> None:
         None
     """
     __use_as_is__: bool = True
-    __translation__ = "analogWrite({0}, {1})"
+    __translation__ = "analogWrite({pin}, {val})"
     raise NotImplementedError("analogWrite is not implemented")
 
 
@@ -115,7 +115,7 @@ def delay(ms: int) -> None:
         None
     """
     __use_as_is__: bool = True
-    __translation__ = "delay({0})"
+    __translation__ = "delay({ms})"
     raise NotImplementedError("delay is not implemented")
 
 
@@ -130,7 +130,7 @@ def delayMicroseconds(us: int) -> None:
         None
     """
     __use_as_is__: bool = True
-    __translation__ = "delayMicroseconds({0})"
+    __translation__ = "delayMicroseconds({us})"
     raise NotImplementedError("delayMicroseconds is not implemented")
 
 
@@ -172,7 +172,7 @@ def shiftOut(dataPin: int, clockPin: int, bitOrder: int, val: int) -> None:
         None
     """
     __use_as_is__: bool = True
-    __translation__ = "shiftOut({0}, {1}, {2}, {3})"
+    __translation__ = "shiftOut({dataPin}, {clockPin}, {bitOrder}, {val})"
     raise NotImplementedError("shiftOut is not implemented")
 
 
@@ -189,7 +189,7 @@ def shiftIn(dataPin: int, clockPin: int, bitOrder: int) -> int:
         int: The byte of data read.
     """
     __use_as_is__: bool = True
-    __translation__ = "shiftIn({0}, {1}, {2})"
+    __translation__ = "shiftIn({dataPin}, {clockPin}, {bitOrder})"
     raise NotImplementedError("shiftIn is not implemented")
 
 
@@ -206,7 +206,7 @@ def pulseIn(pin: int, state: int, timeout: int = 1000000) -> int:
         int: The length of the pulse in microseconds (or 0 if timeout).
     """
     __use_as_is__: bool = True
-    __translation__ = "pulseIn({0}, {1}, {2})"
+    __translation__ = "pulseIn({pin}, {state}, {timeout})"
     raise NotImplementedError("pulseIn is not implemented")
 
 
@@ -223,7 +223,7 @@ def tone(pin: int, frequency: int, duration: int = 0) -> None:
         None
     """
     __use_as_is__: bool = True
-    __translation__ = "tone({0}, {1}, {2})"
+    __translation__ = "tone({pin}, {frequency}, {duration})"
     raise NotImplementedError("tone is not implemented")
 
 
@@ -238,7 +238,7 @@ def noTone(pin: int) -> None:
         None
     """
     __use_as_is__: bool = True
-    __translation__ = "noTone({0})"
+    __translation__ = "noTone({pin})"
     raise NotImplementedError("noTone is not implemented")
 
 
@@ -287,7 +287,7 @@ def attachInterrupt(pin: int, ISR: callable, mode: int) -> None:
         None
     """
     __use_as_is__: bool = True
-    __translation__ = "attachInterrupt({0}, {1}, {2})"
+    __translation__ = "attachInterrupt({pin}, {ISR}, {mode})"
     raise NotImplementedError("attachInterrupt is not implemented")
 
 
@@ -302,7 +302,7 @@ def detachInterrupt(pin: int) -> None:
         None
     """
     __use_as_is__: bool = True
-    __translation__ = "detachInterrupt({0})"
+    __translation__ = "detachInterrupt({pin})"
     raise NotImplementedError("detachInterrupt is not implemented")
 
 
@@ -335,7 +335,7 @@ def math_min(a: float, b: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "min({0}, {1})"
+    __translation__ = "min({a}, {b})"
     raise NotImplementedError()
 
 
@@ -351,7 +351,7 @@ def math_max(a: float, b: float) -> float:
         Any: Larger of the two values.
     """
     __use_as_is__ = False
-    __translation__ = "max({0}, {1})"
+    __translation__ = "max({a}, {b})"
     raise NotImplementedError()
 
 
@@ -367,7 +367,7 @@ def math_abs(x: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "abs({0})"
+    __translation__ = "abs({x})"
     raise NotImplementedError()
 
 
@@ -385,7 +385,7 @@ def math_constrain(x: float, a: float, b: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "constrain({0}, {1}, {2})"
+    __translation__ = "constrain({x}, {a}, {b})"
     raise NotImplementedError()
 
 
@@ -407,7 +407,7 @@ def math_map(
 
     """
     __use_as_is__ = False
-    __translation__ = "map({0}, {1}, {2}, {3}, {4})"
+    __translation__ = "map({x}, {in_min}, {in_max}, {out_min}, {out_max})"
     raise NotImplementedError()
 
 
@@ -423,7 +423,7 @@ def math_pow(base: float, exponent: float) -> float:
         float: base ** exponent.
     """
     __use_as_is__ = False
-    __translation__ = "pow({0}, {1})"
+    __translation__ = "pow({base}, {exponent})"
     raise NotImplementedError()
 
 
@@ -439,7 +439,7 @@ def math_sqrt(x: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "sqrt({0})"
+    __translation__ = "sqrt({x})"
     raise NotImplementedError()
 
 
@@ -455,7 +455,7 @@ def math_sq(x: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "sq({0})"
+    __translation__ = "sq({x})"
     raise NotImplementedError()
 
 
@@ -471,7 +471,7 @@ def math_sin(radians: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "sin({0})"
+    __translation__ = "sin({radians})"
     raise NotImplementedError()
 
 
@@ -487,7 +487,7 @@ def math_cos(radians: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "cos({0})"
+    __translation__ = "cos({radians})"
     raise NotImplementedError()
 
 
@@ -503,7 +503,7 @@ def math_tan(radians: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "tan({0})"
+    __translation__ = "tan({radians})"
     raise NotImplementedError()
 
 
@@ -519,7 +519,7 @@ def math_radians(degrees: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "radians({0})"
+    __translation__ = "radians({degrees})"
     raise NotImplementedError()
 
 
@@ -535,7 +535,7 @@ def math_degrees(radians: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "degrees({0})"
+    __translation__ = "degrees({radians})"
     raise NotImplementedError()
 
 
@@ -551,7 +551,7 @@ def math_round(x: float) -> int:
 
     """
     __use_as_is__ = False
-    __translation__ = "round({0})"
+    __translation__ = "round({x})"
     raise NotImplementedError()
 
 
@@ -567,7 +567,7 @@ def math_ceil(x: float) -> int:
 
     """
     __use_as_is__ = False
-    __translation__ = "ceil({0})"
+    __translation__ = "ceil({x})"
     raise NotImplementedError()
 
 
@@ -583,7 +583,7 @@ def math_floor(x: float) -> int:
 
     """
     __use_as_is__ = False
-    __translation__ = "floor({0})"
+    __translation__ = "floor({x})"
     raise NotImplementedError()
 
 
@@ -600,7 +600,7 @@ def math_fmod(x: float, y: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "fmod({0}, {1})"
+    __translation__ = "fmod({x}, {y})"
     raise NotImplementedError()
 
 
@@ -616,7 +616,7 @@ def math_log(x: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "log({0})"
+    __translation__ = "log({x})"
     raise NotImplementedError()
 
 
@@ -632,7 +632,7 @@ def math_log10(x: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "log10({0})"
+    __translation__ = "log10({x})"
     raise NotImplementedError()
 
 
@@ -648,7 +648,7 @@ def math_exp(x: float) -> float:
 
     """
     __use_as_is__ = False
-    __translation__ = "exp({0})"
+    __translation__ = "exp({x})"
     raise NotImplementedError()
 
 
@@ -666,7 +666,7 @@ def serial_begin(baudrate: int) -> None:
         None
     """
     __use_as_is__ = False
-    __translation__ = "Serial.begin({0})"
+    __translation__ = "Serial.begin({baudrate})"
     raise NotImplementedError()
 
 
@@ -741,7 +741,7 @@ def serial_print(data: str) -> None:
         None
     """
     __use_as_is__ = False
-    __translation__ = "Serial.print({0})"
+    __translation__ = "Serial.print({data})"
     raise NotImplementedError()
 
 
@@ -756,7 +756,7 @@ def serial_println(data: str) -> None:
         None
     """
     __use_as_is__ = False
-    __translation__ = "Serial.println({0})"
+    __translation__ = "Serial.println({data})"
     raise NotImplementedError()
 
 
@@ -774,7 +774,7 @@ def arduino_bit(n: int) -> int:
         int: A value with the nth bit set (1 << n).
     """
     __use_as_is__ = False
-    __translation__ = "bit({0})"
+    __translation__ = "bit({n})"
     raise NotImplementedError()
 
 
@@ -790,7 +790,7 @@ def arduino_bitRead(value: int, bit: int) -> int:
         int: 0 or 1, the value of the bit at the given position.
     """
     __use_as_is__ = False
-    __translation__ = "bitRead({0}, {1})"
+    __translation__ = "bitRead({value}, {bit})"
     raise NotImplementedError()
 
 
@@ -806,7 +806,7 @@ def arduino_bitSet(value: int, bit: int) -> int:
         int: Modified value with bit set.
     """
     __use_as_is__ = False
-    __translation__ = "bitSet({0}, {1})"
+    __translation__ = "bitSet({value}, {bit})"
     raise NotImplementedError()
 
 
@@ -822,7 +822,7 @@ def arduino_bitClear(value: int, bit: int) -> int:
         int: Modified value with bit cleared.
     """
     __use_as_is__ = False
-    __translation__ = "bitClear({0}, {1})"
+    __translation__ = "bitClear({value}, {bit})"
     raise NotImplementedError()
 
 
@@ -839,7 +839,7 @@ def arduino_bitWrite(value: int, bit: int, bitvalue: int) -> int:
         int: Modified value.
     """
     __use_as_is__ = False
-    __translation__ = "bitWrite({0}, {1}, {2})"
+    __translation__ = "bitWrite({value}, {bit}, {bitvalue})"
     raise NotImplementedError()
 
 
@@ -857,7 +857,7 @@ def arduino_lowByte(val: int) -> int:
         int: The lower 8 bits of the input value.
     """
     __use_as_is__ = False
-    __translation__ = "lowByte({0})"
+    __translation__ = "lowByte({val})"
     raise NotImplementedError()
 
 
@@ -872,7 +872,7 @@ def arduino_highByte(val: int) -> int:
         int: The upper 8 bits of the input value.
     """
     __use_as_is__ = False
-    __translation__ = "highByte({0})"
+    __translation__ = "highByte({val})"
     raise NotImplementedError()
 
 
@@ -891,7 +891,7 @@ def arduino_random(min_val: int, max_val: int) -> int:
         int: A random integer in the given range.
     """
     __use_as_is__ = False
-    __translation__ = "random({0}, {1})"
+    __translation__ = "random({min_val}, {max_val})"
     raise NotImplementedError()
 
 
@@ -906,7 +906,7 @@ def arduino_randomSeed(seed: int) -> None:
         None
     """
     __use_as_is__ = False
-    __translation__ = "randomSeed({0})"
+    __translation__ = "randomSeed({seed})"
     raise NotImplementedError()
 
 

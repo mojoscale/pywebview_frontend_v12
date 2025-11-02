@@ -39,6 +39,20 @@ TOPLINE_INCLUDES = [
 ]
 
 
+def ast_to_json_safe(node):
+    if isinstance(node, ast.Constant):
+        return {"__kind__": "constant", "value": node.value}
+    else:
+        return {"__kind__": "expr", "code": ast.unparse(node)}
+
+
+def json_to_ast(data):
+    if data["__kind__"] == "constant":
+        return ast.Constant(value=data["value"])
+    elif data["__kind__"] == "expr":
+        return ast.parse(data["code"], mode="eval").body
+
+
 def is_builtin_function(name: str) -> bool:
     builtin_funcs = [
         name for name in dir(builtins) if callable(getattr(builtins, name))
@@ -402,6 +416,7 @@ def _extract_chain(node: ast.Call):
         - 'value': name of identifier / attribute / call
         - 'type': 'attr', 'call', or 'const'
         - 'args': only for calls
+        - 'kwargs': kwargs
     """
     result = []
     current = node  # start from outermost Call
@@ -417,6 +432,7 @@ def _extract_chain(node: ast.Call):
                         "value": func.id,
                         "type": "call",
                         "args": [a for a in current.args],
+                        "kwargs": [kw for kw in current.keywords],
                     }
                 )
                 break
@@ -427,6 +443,7 @@ def _extract_chain(node: ast.Call):
                         "value": func.attr,
                         "type": "call",
                         "args": [a for a in current.args],
+                        "kwargs": [kw for kw in current.keywords],
                     }
                 )
                 # keep walking down
@@ -440,13 +457,16 @@ def _extract_chain(node: ast.Call):
                         "value": ast.dump(func),
                         "type": type(func).__name__.lower(),
                         "args": [a for a in current.args],
+                        "kwargs": [kw for kw in current.keywords],
                     }
                 )
                 break
 
         # Handle Attribute (like x.foo)
         elif isinstance(current, ast.Attribute):
-            result.append({"value": current.attr, "type": "attr", "args": []})
+            result.append(
+                {"value": current.attr, "type": "attr", "args": [], "kwargs": []}
+            )
             current = current.value
             continue
 
@@ -457,13 +477,14 @@ def _extract_chain(node: ast.Call):
                     "value": current.id,
                     "type": "attr",  # base variable/object
                     "args": [],
+                    "kwargs": [],
                 }
             )
             break
 
         # Handle constants like 123 or "hello"
         elif isinstance(current, ast.Constant):
-            result.append({"value": current, "type": "const", "args": []})
+            result.append({"value": current, "type": "const", "args": [], "kwargs": []})
             break
 
         else:
@@ -473,6 +494,7 @@ def _extract_chain(node: ast.Call):
                     "value": ast.dump(current),
                     "type": type(current).__name__.lower(),
                     "args": [],
+                    "kwargs": [],
                 }
             )
             break
@@ -1444,35 +1466,67 @@ class DependencyResolver:
 
     def _save_function(self, module, ast_node):
         method_name = ast_node.name
-        # print(f"[DEBUG] Saving function: {method_name}")
-
-        return_type = None
-
         print(f"saving method {method_name}")
 
+        # --- Return type ---
         if ast_node.returns:
             return_type = extract_annotation_type(ast_node.returns)
-            # print(f"[DEBUG] Return type: {return_type}")
         else:
+            return_type = None
             print("[DEBUG] No return type annotation found.")
 
         args = []
 
-        for arg in ast_node.args.args:
+        # --- Handle all positional args ---
+        positional_args = ast_node.args.args or []
+        defaults = ast_node.args.defaults or []
+        default_offset = len(positional_args) - len(defaults)
+
+        for i, arg in enumerate(positional_args):
             arg_name = arg.arg
             arg_type = (
                 extract_annotation_type(arg.annotation) if arg.annotation else None
             )
-            # print(f"[DEBUG] Positional arg: {arg_name}, type: {arg_type}")
-            args.append({"name": arg_name, "arg_type": arg_type, "is_kwarg": False})
+            default_value = None
+            is_kwarg = False
 
-        for kwarg in ast_node.args.kwonlyargs:
+            # assign default if available
+            if i >= default_offset:
+                default_node = defaults[i - default_offset]
+                if default_node:
+                    default_value = ast_to_json_safe(default_node)
+                    is_kwarg = True  # ✅ mark as kwarg since it has a default
+
+            args.append(
+                {
+                    "name": arg_name,
+                    "arg_type": arg_type,
+                    "is_kwarg": is_kwarg,
+                    "default_value": default_value,
+                }
+            )
+
+        # --- handle keyword-only args + kw_defaults ---
+        kwonlyargs = ast_node.args.kwonlyargs or []
+        kw_defaults = ast_node.args.kw_defaults or []
+
+        for i, kwarg in enumerate(kwonlyargs):
             arg_name = kwarg.arg
             arg_type = (
                 extract_annotation_type(kwarg.annotation) if kwarg.annotation else None
             )
-            # print(f"[DEBUG] Keyword-only arg: {arg_name}, type: {arg_type}")
-            args.append({"name": arg_name, "arg_type": arg_type, "is_kwarg": True})
+            default_value = None
+            if i < len(kw_defaults) and kw_defaults[i] is not None:
+                default_value = ast_to_json_safe(kw_defaults[i])
+
+            args.append(
+                {
+                    "name": arg_name,
+                    "arg_type": arg_type,
+                    "is_kwarg": True,
+                    "default_value": default_value,
+                }
+            )
 
         args_json = json.dumps(args)
         # print(f"[DEBUG] Args JSON: {args_json}")
@@ -1500,6 +1554,12 @@ class DependencyResolver:
 
             if use_as_is is None and translation is not None:
                 use_as_is = False
+
+        else:
+            arg_names = ["{" + arg["name"] + "}" for arg in args]
+            joined_args = ",".join(arg_names)
+
+            translation = f"{method_name}({joined_args})"
 
         # print(f"[DEBUG] Inserting method: {method_name}, use_as_is: {use_as_is}")
         self._insert_method(
@@ -1591,6 +1651,8 @@ class DependencyResolver:
             module_type = module["type"]
             module_name = module["name"]
             module_alias = module["alias"]
+
+            print(f"saving module {module_name}")
 
             translated_name = self._get_dunder_value(module_tree, "__include_modules__")
             dependencies = self._get_dunder_value(module_tree, "__dependencies__")
@@ -2121,7 +2183,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
         self.type_analyzer = TypeAnalyzer(
             dependency_resolver=self.dependency_resolver,
             current_module_name=self.current_module_name,
-            get_scope=lambda: self.scope,
+            get_scope=lambda: self.scope,  # lambda keeps sync between current class and TypeAnalyzer
             get_is_inside_loop=lambda: self.is_inside_loop,
             get_loop_vars=lambda: self.loop_variables,
         )
@@ -2182,6 +2244,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 or stripped.endswith("}")
                 or stripped.endswith("{")
                 or stripped.endswith(":")
+                or stripped.endswith(">")
             ):
                 line = stripped + ";"
 
@@ -2643,14 +2706,15 @@ class ArduinoTranspiler(ast.NodeVisitor):
                     # this is a global function.
                     method_name = called_entity_value
                     args = called_entity["args"]
-                    args = self._visit_function_args(args)
+                    kwargs = called_entity["kwargs"]
+                    visited_args = self._visit_function_args(args)
                     args_type = [
                         self.type_analyzer.get_node_type(arg) for arg in node.args
                     ]
                     if is_builtin_function(method_name):
                         translated_method_name = f"{BUILTIN_FUNC_PREFIX}_{method_name}"
 
-                        joined_args = ",".join(args)
+                        joined_args = ",".join(visited_args)
 
                         prev_statement = f"{translated_method_name}({joined_args})"
                         prev_type = get_builtin_function_return_type(
@@ -2660,11 +2724,31 @@ class ArduinoTranspiler(ast.NodeVisitor):
                     else:
                         # this is a global function that user defined in current module.
                         # call it as is.
-                        processed_args = self._process_func_args(
+                        stored_args = self.dependency_resolver.get_method_args(
+                            self.current_module_name, method_name
+                        )
+
+                        print(f"stored args are {stored_args}")
+                        """processed_args = self._process_func_args(
                             self.current_module_name, method_name, args
                         )
                         joined_args = ",".join(processed_args)
                         prev_statement = f"{method_name}({joined_args})"
+                        """
+
+                        method_args_kwargs = self._generate_args_kwargs_dict(
+                            args, kwargs, stored_args
+                        )
+                        called_entity_translation = (
+                            self.dependency_resolver.get_method_translation(
+                                method_name, module_name=self.current_module_name
+                            )
+                        )
+
+                        prev_statement = called_entity_translation.format(
+                            **method_args_kwargs
+                        )
+
                         prev_type = (
                             self.dependency_resolver.get_global_function_return_type(
                                 method_name, self.current_module_name
@@ -2679,7 +2763,8 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 elif called_entity_type == "call":
                     method_name = called_entity_value
                     args = called_entity["args"]
-                    args = self._visit_function_args(args)
+                    kwargs = called_entity["kwargs"]
+                    # args = self._visit_function_args(args)
 
                     if prev_type == "module":
                         # example
@@ -2701,11 +2786,17 @@ class ArduinoTranspiler(ast.NodeVisitor):
                                     method_name
                                 )
                             )
-                            # need to add a dummy arg at position to simulate self in class init
-                            args.insert(0, "dummy")
+                            method_data = self.dependency_resolver.get_method_metadata(
+                                "__init__",
+                                module_name=module_name,
+                                class_name=method_name,
+                            )
 
-                            args = self._process_func_args(
-                                module_name, "__init__", args
+                            args.insert(
+                                0, ast.Constant(value=0)
+                            )  # just a dummy for the first arg which is self in class definitions
+                            method_args_kwargs = self._generate_args_kwargs_dict(
+                                args, kwargs, method_data["args"]
                             )
 
                             print(
@@ -2713,14 +2804,26 @@ class ArduinoTranspiler(ast.NodeVisitor):
                             )
 
                             prev_type = method_name  # this is class name itself
-                            prev_statement = (
-                                f"{called_entity_translation.format(*args)}"
+                            print(
+                                f"[CA] translation is {called_entity_translation} and args kwargs are {method_args_kwargs}"
                             )
+                            prev_statement = f"{called_entity_translation.format(**method_args_kwargs)}"
 
                         else:
-                            args = self._process_func_args(
+                            """args = self._process_func_args(
                                 module_name, method_name, args
+                            )"""
+
+                            # imported global function
+
+                            method_data = self.dependency_resolver.get_method_metadata(
+                                method_name, module_name=module_name
                             )
+
+                            method_args_kwargs = self._generate_args_kwargs_dict(
+                                args, kwargs, method_data["args"]
+                            )
+
                             called_entity_translation = (
                                 self.dependency_resolver.get_method_translation(
                                     method_name, module_name=module_name
@@ -2734,7 +2837,9 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
                             prev_type = called_entity_return_type
                             print(f"found args {args}")
-                            prev_statement = called_entity_translation.format(*args)
+                            prev_statement = called_entity_translation.format(
+                                **method_args_kwargs
+                            )
 
                     else:
                         transformed_core_type = prev_type.split(",")[0]
@@ -2780,10 +2885,28 @@ class ArduinoTranspiler(ast.NodeVisitor):
                                 )
                             )
 
-                            args.insert(0, prev_statement)
+                            method_data = self.dependency_resolver.get_method_metadata(
+                                method_name, class_name=prev_type
+                            )
+                            print(f"[CAA] method data is {method_data}")
+                            saved_args_kwargs = method_data["args"]
+
+                            saved_args_kwargs.pop(
+                                0
+                            )  # first saved arg will be self, which should be removed.
+
+                            method_args_kwargs = self._generate_args_kwargs_dict(
+                                args, kwargs, saved_args_kwargs
+                            )
+
+                            method_args_kwargs[
+                                "self"
+                            ] = prev_statement  # this is the class instance on which method is called
 
                             prev_type = called_entity_type
-                            prev_statement = called_entity_translation.format(*args)
+                            prev_statement = called_entity_translation.format(
+                                **method_args_kwargs
+                            )
 
         return {"translation": prev_statement, "type": prev_type}
 
@@ -2797,6 +2920,67 @@ class ArduinoTranspiler(ast.NodeVisitor):
             visited_args.append(visited_arg)
 
         return visited_args
+
+    def _visit_function_kwargs(self, kwargs: list):
+        visited_kwargs = {}
+
+        for kwarg in kwargs:
+            name = kwarg.arg
+            value = self.visit(kwarg.value)
+
+            visited_kwargs[name] = value
+
+        return visited_kwargs
+
+    def _generate_args_kwargs_dict(self, args, kwargs, saved_args_kwargs) -> dict:
+        """
+        Build a dictionary mapping parameter names to evaluated values from a function call.
+
+        Parameters
+        ----------
+        args : list[ast.AST]
+            Positional argument nodes.
+        kwargs : list[ast.keyword]
+            Keyword argument nodes.
+        saved_args_kwargs : list[dict]
+            Each entry defines a function parameter:
+                {
+                    "name": str,              # Parameter name
+                    "arg_type": str,          # Declared type
+                    "is_kwarg": bool,         # True if defined as keyword arg
+                    "default_value": Any,     # Default value (if any)
+                }
+
+        Returns
+        -------
+        dict
+            Mapping of parameter names → evaluated values.
+            Positional args use the value only if present; else None.
+            Keyword args use provided value or default if missing.
+        """
+        result = {}
+        kwarg_map = {kw.arg: kw for kw in kwargs if kw.arg is not None}
+
+        for i, param in enumerate(saved_args_kwargs):
+            name = param["name"]
+            default = param.get("default_value", None)
+
+            if not param.get("is_kwarg", False):
+                # Positional arg: take only if provided, else None
+                value = self.visit(args[i]) if i < len(args) else None
+            else:
+                # Keyword arg: use kwarg value or default
+                if name in kwarg_map:
+                    value = self.visit(kwarg_map[name].value)
+                else:
+                    default_value_node = json_to_ast(default)
+                    print(f"[GAKD] default node is {default_value_node}")
+                    value = self.visit(default_value_node)
+                    print(f"[GAKD] default value is {value}")
+
+            result[name] = value
+
+        return result
 
     """def visit_Call(self, node, prev_translated_expr: TranslatedExpr):
         positional_args = []
@@ -3016,6 +3200,52 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
         return args_list
 
+    def _get_functiondef_args(self, node):
+        """
+        Extract argument metadata from a FunctionDef node.
+        Returns a list of dicts, preserving argument order.
+
+        Each dict:
+        {
+            "name": str,              # Parameter name
+            "arg_type": str,          # Declared type
+            "is_kwarg": bool,         # True if has default value
+            "default_value": Any,     # Evaluated default value (if any)
+        }
+        """
+        result = []
+        args = node.args.args
+        defaults = node.args.defaults or []
+        num_args = len(args)
+        num_defaults = len(defaults)
+        default_start_idx = num_args - num_defaults
+
+        for i, arg in enumerate(args):
+            # --- Type annotation extraction
+            arg_type = None
+            if getattr(arg, "annotation", None):
+                arg_type = self.type_analyzer._extract_annotation(arg.annotation)
+
+            # --- Default value logic
+            if i >= default_start_idx:
+                default_node = defaults[i - default_start_idx]
+                default_value = ast_to_json_safe(default_node)
+                is_kwarg = True
+            else:
+                default_value = None
+                is_kwarg = False
+
+            result.append(
+                {
+                    "name": arg.arg,
+                    "arg_type": arg_type,
+                    "is_kwarg": is_kwarg,
+                    "default_value": default_value,
+                }
+            )
+
+        return result
+
     def visit_FunctionDef(self, node):
         func_name = node.name
         self.scope = func_name
@@ -3037,7 +3267,8 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
         # Step 2: Process arguments
         cpp_args = []
-        save_args = []
+        save_args = self._get_functiondef_args(node)
+        translation_arg_list = []
         for arg in node.args.args:
             arg_name = arg.arg
             arg_type = self.type_analyzer._extract_annotation(arg.annotation)
@@ -3045,15 +3276,19 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
             if cpp_base_type in {"int", "float", "bool", "str", "String"}:
                 cpp_type = f"{cpp_base_type}"
+                translation_arg_list.append("{" + arg_name + "}")
             elif arg_type.split(",")[0] in ("list", "dict"):
                 cpp_type = f"{cpp_base_type}"  # these shud just be passed as values.
+                translation_arg_list.append("{" + arg_name + "}")
             else:
                 pass_as = self.dependency_resolver.get_class_pass_as(arg_type)
 
                 if pass_as == "pointer":
                     cpp_type = f"{cpp_base_type}*"
+                    translation_arg_list.append("{" + arg_name + "}")
                 else:
                     cpp_type = f"{cpp_base_type}&"
+                    translation_arg_list.append("{" + arg_name + "}")
 
             cpp_args.append(f"{cpp_type} {arg_name}")
 
@@ -3061,7 +3296,10 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 arg_name, arg_type, self.current_module_name, "user", scope=self.scope
             )
 
-            save_args.append({"arg_name": arg_name, "arg_type": arg_type})
+            # save_args.append({"arg_name": arg_name, "arg_type": arg_type})
+
+        joined_translation_args = ",".join(translation_arg_list)
+        translation = f"{func_name}({joined_translation_args})"
 
         args_str = ", ".join(cpp_args)
 
@@ -3098,6 +3336,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
             "user",
             json.dumps(save_args),
             return_type,
+            translation=translation,
         )
 
         self.scope = "global"

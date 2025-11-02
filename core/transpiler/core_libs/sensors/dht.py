@@ -45,7 +45,7 @@ class DHTSensor:
     A Python-like abstraction for DHT11 and DHT22 sensors.
     """
 
-    def __init__(self, pin: int, type: str) -> None:
+    def __init__(self, pin: int, type: str = "DHT11") -> None:
         """
         Initialize the DHT sensor on a specific GPIO pin.
 
@@ -56,28 +56,29 @@ class DHTSensor:
         __use_as_is__ = False
         __class_actual_type__ = "DHT"
         __construct_with_equal_to__ = True
-        __translation__ = "createDHTSensor({1}, {2})"
+        __translation__ = "createDHTSensor({pin}, {type})"
 
     def begin(self) -> None:
         """
         Begin communication with the sensor.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.begin()"
+        __translation__ = "{self}.begin()"
         pass
 
-    def read_temperature(self, is_fahrenheit: bool) -> float:
+    def read_temperature(self, is_fahrenheit: bool = False) -> float:
         """
         Read the temperature.
 
         Args:
             is_fahrenheit (bool): Whether to read in Fahrenheit.
+            Default is False
 
         Returns:
             float: Temperature value.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.readTemperature()"
+        __translation__ = "{self}.readTemperature({is_fahrenheit})"
         return 0.0
 
     def read_humidity(self) -> float:
@@ -88,7 +89,7 @@ class DHTSensor:
             float: Humidity value.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.readHumidity()"
+        __translation__ = "{self}.readHumidity()"
         return 0.0
 
     def read(self) -> dict[str, float]:
@@ -99,5 +100,5 @@ class DHTSensor:
             dict: {"temperature": float, "humidity": float}
         """
         __use_as_is__ = False
-        __translation__ = "custom_dht_helper_read({0})"
+        __translation__ = "custom_dht_helper_read({self})"
         return {"temperature": 0.0, "humidity": 0.0}

@@ -9,7 +9,7 @@ class SHT31Sensor:
     Used for Python-to-Arduino transpilation.
     """
 
-    def __init__(self, address: int = 0x44) -> None:
+    def __init__(self) -> None:
         """
         Initialize SHT31 instance.
 
@@ -28,7 +28,7 @@ class SHT31Sensor:
             bool: True if sensor initialized successfully.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.begin({1})"
+        __translation__ = "{self}.begin({address})"
         return True
 
     def read_temperature(self) -> float:
@@ -36,7 +36,7 @@ class SHT31Sensor:
         Read temperature in Celsius.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.readTemperature()"
+        __translation__ = "{self}.readTemperature()"
         return 0.0
 
     def read_humidity(self) -> float:
@@ -44,7 +44,7 @@ class SHT31Sensor:
         Read relative humidity in percentage.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.readHumidity()"
+        __translation__ = "{self}.readHumidity()"
         return 0.0
 
     def reset(self) -> None:
@@ -52,14 +52,14 @@ class SHT31Sensor:
         Soft-reset the SHT31 sensor.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.reset()"
+        __translation__ = "{self}.reset()"
 
     def heater_enabled(self) -> bool:
         """
         Check if the internal heater is enabled.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.isHeaterEnabled()"
+        __translation__ = "{self}.isHeaterEnabled()"
         return False
 
     def toggle_heater(self, on: bool) -> None:
@@ -67,4 +67,4 @@ class SHT31Sensor:
         Enable or disable the internal heater.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.heater({1})"
+        __translation__ = "{self}.heater({on})"

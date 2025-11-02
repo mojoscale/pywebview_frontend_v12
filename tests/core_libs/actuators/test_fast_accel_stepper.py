@@ -23,7 +23,7 @@ def setup() -> None:
 
         # Enable pin setup
 
-        stepper.set_enable_pin(10, True)
+        stepper.set_enable_pin(10)
         enable_low = stepper.get_enable_pin_low_active()
         enable_high = stepper.get_enable_pin_high_active()
         print(f"Enable pin (low-active): {enable_low}")
@@ -93,11 +93,11 @@ def setup() -> None:
         print("=== MOVEMENT COMMANDS ===")
 
         # Relative movement
-        move_result = stepper.move(1000, False)
+        move_result = stepper.move(1000)
         print(f"Move 1000 steps: {move_result}")
 
         # Absolute positioning
-        moveto_result = stepper.move_to(5000, False)
+        moveto_result = stepper.move_to(5000)
         print(f"Move to position 5000: {moveto_result}")
 
         # Continuous running
@@ -117,11 +117,11 @@ def setup() -> None:
         print(f"Running continuously: {is_continuous}")
 
         # Single steps
-        stepper.forward_step(False)
-        stepper.backward_step(False)
+        stepper.forward_step()
+        stepper.backward_step()
 
         # Move by acceleration (speed control via acceleration)
-        accel_move = stepper.move_by_acceleration(1000, True)
+        accel_move = stepper.move_by_acceleration(1000, allow_reverse=False)
         print(f"Move by acceleration: {accel_move}")
 
         print("=== STOP CONTROL ===")
@@ -202,7 +202,7 @@ def setup() -> None:
         stepper.reattach_to_pin()
 
         # Pulse counter attachment
-        pulse_attached = stepper.attach_to_pulse_counter(0, -3200, 3200)
+        pulse_attached = stepper.attach_to_pulse_counter()
         print(f"Pulse counter attached: {pulse_attached}")
 
         # Read pulse counter

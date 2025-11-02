@@ -1,7 +1,7 @@
 import peripherals.esp_camera as ec
 
 # Create instance
-camera = ec.Camera("VGA", "JPEG")
+camera = ec.Camera()
 
 
 def callback() -> None:
@@ -10,7 +10,8 @@ def callback() -> None:
 
 def setup() -> None:
     # Call all methods
-    camera.begin()
+    camera.begin(variant_name="WROVER")
+    camera.begin_custom()
 
     while not camera.is_wifi_connected():
         camera.wifi_connect("Ssid", "password")
@@ -27,7 +28,7 @@ def setup() -> None:
 
     did_send_http = camera.send_http("localhost:8000")
 
-    camera.stream_http(8000)
+    camera.stream_http()
 
     camera.deinit()
 

@@ -38,7 +38,7 @@ class MPU6050Sensor:
             int: 0 on success, 1 on failure
         """
         __use_as_is__ = False
-        __translation__ = "{0}.begin({1}, {2})"
+        __translation__ = "{self}.begin({gyro_config_num}, {acc_config_num})"
         return 0
 
     def update(self) -> None:
@@ -47,7 +47,7 @@ class MPU6050Sensor:
         Call before using any `get*()` method.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.update()"
+        __translation__ = "{self}.update()"
 
     def read_acceleration(self) -> list[float]:
         """
@@ -57,7 +57,7 @@ class MPU6050Sensor:
             list[float]: [accX, accY, accZ] in g
         """
         __use_as_is__ = False
-        __translation__ = "custom_mpu6050_helper_read_acceleration({0})"
+        __translation__ = "custom_mpu6050_helper_read_acceleration({self})"
 
         return []
 
@@ -69,7 +69,7 @@ class MPU6050Sensor:
             list[float]: [gyroX, gyroY, gyroZ] in °/s
         """
         __use_as_is__ = False
-        __translation__ = "custom_mpu6050_helper_read_gyro({0})"
+        __translation__ = "custom_mpu6050_helper_read_gyro({self})"
 
         return []
 
@@ -81,26 +81,26 @@ class MPU6050Sensor:
             list[float]: [angleX, angleY, angleZ] in degrees
         """
         __use_as_is__ = False
-        __translation__ = "custom_mpu6050_helper_read_acceleration({0})"
+        __translation__ = "custom_mpu6050_helper_read_acceleration({self})"
         return []
 
     def get_angle_x(self) -> float:
         """
         Returns orientation angle along x-axis
         """
-        __translation__ = "{0}.getAngleX()"
+        __translation__ = "{self}.getAngleX()"
 
     def get_angle_y(self) -> float:
         """
         Returns orientation angle along y-axis
         """
-        __translation__ = "{0}.getAngleY()"
+        __translation__ = "{self}.getAngleY()"
 
     def get_angle_z(self) -> float:
         """
         Returns orientation angle along z-axis
         """
-        __translation__ = "{0}.getAngleZ()"
+        __translation__ = "{self}.getAngleZ()"
 
     def get_temperature(self) -> float:
         """
@@ -108,7 +108,7 @@ class MPU6050Sensor:
             float: Temperature in °C
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getTemp()"
+        __translation__ = "{self}.getTemp()"
         return 0.0
 
     def set_gyro_offsets(self, x: float, y: float, z: float) -> None:
@@ -121,7 +121,7 @@ class MPU6050Sensor:
             z (float): Z-axis offset in °/s
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setGyroOffsets({1}, {2}, {3})"
+        __translation__ = "{self}.setGyroOffsets({x}, {y}, {z})"
 
     def set_acc_offsets(self, x: float, y: float, z: float) -> None:
         """
@@ -133,9 +133,9 @@ class MPU6050Sensor:
             z (float): Z-axis offset in g
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setAccOffsets({1}, {2}, {3})"
+        __translation__ = "{self}.setAccOffsets({x}, {y}, {z})"
 
-    def calc_offsets(self, calc_gyro: bool, calc_acc: bool) -> None:
+    def calc_offsets(self, calc_gyro: bool = True, calc_acc: bool = True) -> None:
         """
         Automatically calculate gyro and/or accelerometer offsets.
         Sensor must be stable during this process.
@@ -145,7 +145,7 @@ class MPU6050Sensor:
             calc_acc (bool): Calibrate accelerometer
         """
         __use_as_is__ = False
-        __translation__ = "{0}.calcOffsets({1}, {2})"
+        __translation__ = "{self}.calcOffsets({calc_gyro}, {calc_acc})"
 
     def set_filter_gyro_coef(self, coef: float) -> None:
         """
@@ -156,7 +156,7 @@ class MPU6050Sensor:
                 Higher values emphasize gyro data; lower values favor accelerometer data.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setFilterGyroCoef({1})"
+        __translation__ = "{self}.setFilterGyroCoef({coef})"
 
     def set_filter_acc_coef(self, coef: float) -> None:
         """
@@ -167,7 +167,7 @@ class MPU6050Sensor:
                 Typically, acc_coef = 1.0 - gyro_coef.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setFilterAccCoef({1})"
+        __translation__ = "{self}.setFilterAccCoef({coef})"
 
     def get_filter_gyro_coef(self) -> float:
         """
@@ -177,7 +177,7 @@ class MPU6050Sensor:
             float: Current gyro weighting (0.0–1.0).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getFilterGyroCoef()"
+        __translation__ = "{self}.getFilterGyroCoef()"
         return 0.98
 
     def get_filter_acc_coef(self) -> float:
@@ -188,7 +188,7 @@ class MPU6050Sensor:
             float: Current accelerometer weighting (0.0–1.0).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getFilterAccCoef()"
+        __translation__ = "{self}.getFilterAccCoef()"
         return 0.02
 
     def fetch_data(self) -> None:
@@ -197,4 +197,4 @@ class MPU6050Sensor:
         Normally, use `update()` instead of this.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.fetchData()"
+        __translation__ = "{self}.fetchData()"

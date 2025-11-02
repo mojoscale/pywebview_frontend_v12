@@ -18,7 +18,7 @@ def setup() -> None:
     # Calibration methods
     sensor.set_gyro_offsets(0.1, -0.1, 0.05)
     sensor.set_acc_offsets(0.02, -0.03, 0.04)
-    sensor.calc_offsets(True, True)
+    sensor.calc_offsets()
 
     # Address operations
 

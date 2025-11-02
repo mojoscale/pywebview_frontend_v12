@@ -4,7 +4,7 @@ __dependencies__ = "wifwaf/MH-Z19"
 
 
 class MHZ19Sensor:
-    def __init__(self, stream: HardwareSerial):
+    def __init__(self, rx: int, tx: int, baud: int = 9600):
         """
         Initialize the MHZ19 CO₂ sensor.
 
@@ -13,7 +13,8 @@ class MHZ19Sensor:
         """
         __use_as_is__ = False
         __class_actual_type__ = "MHZ19"
-        __translation__ = "custom_mhz19_helper_create_mhz19({1})"
+        __pass_as__ = "pointer"
+        __translation__ = "create_mhz19_sensor({rx}, {tx}, {baud})"
         __construct_with_equal_to__ = True
 
     def get_co2(self) -> int:
@@ -24,7 +25,7 @@ class MHZ19Sensor:
             int: CO₂ value in ppm.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getCO2()"
+        __translation__ = "{self}->getCO2()"
 
     def get_temperature(self) -> int:
         """
@@ -34,7 +35,7 @@ class MHZ19Sensor:
             int: Temperature in Celsius.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getTemperature()"
+        __translation__ = "{self}->getTemperature()"
 
     def get_accuracy(self) -> int:
         """
@@ -44,7 +45,7 @@ class MHZ19Sensor:
             int: Accuracy (unit depends on sensor calibration).
         """
         __use_as_is__ = False
-        __translation__ = "{0}.getAccuracy()"
+        __translation__ = "{self}->getAccuracy()"
 
     def set_range(self, range_val: int) -> None:
         """
@@ -63,16 +64,16 @@ class MHZ19Sensor:
             - Unsupported values will be ignored or may yield invalid readings.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.setRange({1})"
+        __translation__ = "{self}->setRange({range_val})"
 
     def calibrate_zero(self) -> None:
         """
         Calibrate sensor assuming current ambient air has 400 ppm CO₂.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.calibrateZero()"
+        __translation__ = "{self}->calibrateZero()"
 
-    def auto_calibration(self, enable: bool) -> None:
+    def auto_calibration(self, enable: bool = True) -> None:
         """
         Enable or disable Automatic Baseline Calibration (ABC) mode.
 
@@ -80,4 +81,4 @@ class MHZ19Sensor:
             enable (bool): True to enable ABC, False to disable.
         """
         __use_as_is__ = False
-        __translation__ = "{0}.autoCalibration({1})"
+        __translation__ = "{self}->autoCalibration({enable})"

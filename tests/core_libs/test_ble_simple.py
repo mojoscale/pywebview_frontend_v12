@@ -7,7 +7,7 @@ def on_write_handler(value: str) -> None:
 
 def setup() -> None:
     # Create BLE instance in peripheral mode
-    ble = b.BLESimple("MyDevice", "peripheral")
+    ble = b.BLESimple("MyDevice", mode="peripheral")
 
     # Initialize BLE
     ble.init_ble()
@@ -18,9 +18,6 @@ def setup() -> None:
         "1234",  # service UUID
         "5678",  # characteristic UUID
         "Hello",  # default value
-        True,  # readable
-        True,  # writable
-        True,  # notify
     )
 
     # Start advertising

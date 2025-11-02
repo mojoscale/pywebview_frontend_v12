@@ -1,5 +1,5 @@
 import comms.wifi as w
-import arduino as a
+import core.arduino as a
 
 
 wi_fi_client = w.WiFiClient()
@@ -7,7 +7,6 @@ wi_fi_client = w.WiFiClient()
 
 def setup() -> None:
     while w.wifi_is_connected() == False:
-        w.wifi_connect("user", "pass", 180)
         w.wifi_begin("user", "pass")
 
     print(f"wifi connected and ip is {w.wifi_localIP()}")

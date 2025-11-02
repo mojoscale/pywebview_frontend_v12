@@ -3,28 +3,9 @@ __include_internal_modules__ = "helpers/WiFiHelper"
 __dependencies__ = ""
 
 
-def wifi_connect(ssid: str, password: str, timeout: int) -> None:
-    """
-    Connects to a Wi-Fi network.
-
-    Args:
-        ssid (str): The SSID of the Wi-Fi network.
-        password (str): The password for the network.
-        timeout (int): Timeout in milliseconds.
-
-    Returns:
-        bool: True if connected successfully, else False.
-    """
-    __use_as_is__ = False
-    __args__ = ["ssid", "password", "timeout"]
-    __return_type__ = "bool"
-    __translation__ = "WiFi.begin({0}, {1}); // Add timeout logic"
-    raise NotImplementedError("wifi_connect is not implemented")
-
-
 def wifi_begin(ssid: str, password: str) -> None:
     __use_as_is__ = False
-    __translation__ = "WiFi.begin({0}, {1}); // Add timeout logic"
+    __translation__ = "WiFi.begin({ssid}, {password}); // Add timeout logic"
 
 
 def wifi_is_connected() -> bool:
@@ -116,7 +97,7 @@ class WiFiClient:
             bool: True if connection succeeds.
         """
         __use_as_is__ = False
-        __translation__ = "custom_wifi_client_helper_connect({0}, {1}, {2})"
+        __translation__ = "custom_wifi_client_helper_connect({self}, {host}, {port})"
 
         return False
 
@@ -131,7 +112,7 @@ class WiFiClient:
             int: Bytes written.
         """
         __use_as_is__ = False
-        __translation__ = "custom_wifi_client_helper_write({0}, {1})"
+        __translation__ = "custom_wifi_client_helper_write({self}, {data})"
 
         return 0
 
@@ -146,7 +127,7 @@ class WiFiClient:
             int: Bytes written.
         """
         __use_as_is__ = False
-        __translation__ = "custom_wifi_client_helper_print({0}, {1})"
+        __translation__ = "custom_wifi_client_helper_print({self}, {data})"
 
         return 0
 
@@ -161,7 +142,7 @@ class WiFiClient:
             int: Bytes written.
         """
         __use_as_is__ = False
-        __translation__ = "custom_wifi_client_helper_println({0}, {1})"
+        __translation__ = "custom_wifi_client_helper_println({self}, {data})"
 
         return 0
 
@@ -173,7 +154,7 @@ class WiFiClient:
             int: Available byte count.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.available()"
+        __translation__ = "{self}.available()"
 
         return 0
 
@@ -185,7 +166,7 @@ class WiFiClient:
             int: One byte as int.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.read()"
+        __translation__ = "{self}.read()"
 
         return ""
 
@@ -201,7 +182,9 @@ class WiFiClient:
             int: Number of bytes read.
         """
         __use_as_is__ = False
-        __translation__ = "custom_wifi_client_helper_readBytes({0}, {1}, {2})"
+        __translation__ = (
+            "custom_wifi_client_helper_readBytes({self}, {buffer}, {length})"
+        )
         return 0
 
     def read_string(self) -> str:
@@ -212,7 +195,7 @@ class WiFiClient:
             str: Entire stream as string.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.readString()"
+        __translation__ = "{self}.readString()"
 
         return ""
 
@@ -224,7 +207,7 @@ class WiFiClient:
             int: Next byte as int.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.peek()"
+        __translation__ = "{self}.peek()"
 
         return ""
 
@@ -233,7 +216,7 @@ class WiFiClient:
         Wait for outgoing data to be sent.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.flush()"
+        __translation__ = "{self}.flush()"
 
         pass
 
@@ -242,7 +225,7 @@ class WiFiClient:
         Close the TCP connection.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.stop()"
+        __translation__ = "{self}.stop()"
 
         pass
 
@@ -254,6 +237,6 @@ class WiFiClient:
             bool: True if connected.
         """
         __use_as_is__ = True
-        __translation__ = "{0}.connected()"
+        __translation__ = "{self}.connected()"
 
         return False
