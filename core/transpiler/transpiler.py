@@ -75,6 +75,8 @@ def is_core_python_type(type_string):
         "bool",
         "dict_items",
         "range",
+        "None",
+        "NoneType",
     ]:
         return True
 
@@ -190,6 +192,8 @@ def get_cpp_python_type(
         "range": "PyRange",
         "list": "PyList",
         "dict": "PyDict",
+        "None": "auto",
+        "NoneType": "auto",
     }
 
     if len(python_type_list) == 1:
@@ -347,10 +351,10 @@ def get_python_builtin_class_method_type(class_name, method_name):
         elif method_name in ("bit_length", "bit_count", "numerator", "denominator"):
             return "int"
 
-    return "auto"
+    return
 
 
-def extract_annotation_type(node):
+"""def extract_annotation_type(node):
     print(f"got node {node}")
     if isinstance(node, ast.Name):
         return node.id
@@ -389,8 +393,8 @@ def extract_annotation_type(node):
         # Callable[[arg1, arg2, ...], return_type]
         if (
             isinstance(base, (ast.Name, ast.Attribute))
-            and getattr(base, "id", None) == "Callable"
-            or getattr(base, "attr", None) == "Callable"
+            and getattr(base, "id", None) == "callable"
+            or getattr(base, "attr", None) == "callable"
         ):
             if isinstance(sub, ast.Tuple) and len(sub.elts) == 2:
                 args_node = sub.elts[0]
@@ -404,7 +408,68 @@ def extract_annotation_type(node):
                 return_type = extract_annotation_type(return_node)
                 return f"callable,{','.join(args)}->{return_type}"
 
-    raise ValueError("Unsupported annotation")
+    raise ValueError("Unsupported annotation")"""
+
+
+def extract_annotation_type(node):
+    print(f"got node {ast.dump(node)}")
+
+    if isinstance(node, ast.Name):
+        return node.id
+
+    elif isinstance(node, ast.Constant):
+        if node.value is None:
+            return "None"
+
+    elif isinstance(node, ast.Attribute):
+        return node.attr
+
+    elif isinstance(node, ast.Subscript):
+        base = node.value
+        sub = node.slice.value if hasattr(node.slice, "value") else node.slice
+
+        base_id = getattr(base, "id", None) or getattr(base, "attr", None)
+        base_id_lower = base_id.lower() if base_id else None
+
+        # list[T]
+        if base_id_lower == "list":
+            return f"list,{extract_annotation_type(sub)}"
+
+        # dict[K, V]
+        if base_id_lower == "dict":
+            if isinstance(sub, ast.Tuple) and len(sub.elts) == 2:
+                k = extract_annotation_type(sub.elts[0])
+                v = extract_annotation_type(sub.elts[1])
+                return f"dict,{k},{v}"
+
+        # Callable[[args...], return_type]
+        if base_id_lower == "callable":
+            # Case 1: Callable[[...], Return]
+            if isinstance(sub, ast.Tuple) and len(sub.elts) == 2:
+                args_node, return_node = sub.elts
+
+                if isinstance(args_node, ast.List):
+                    args = [extract_annotation_type(arg) for arg in args_node.elts]
+                else:
+                    args = ["?"]
+
+                return_type = extract_annotation_type(return_node)
+                return f"callable[{', '.join(args)}]->{return_type}"
+
+            # Case 2: Callable[None] or Callable[T]
+            elif isinstance(sub, (ast.Constant, ast.Name)):
+                inner = extract_annotation_type(sub)
+                return f"callable[{inner}]"
+
+            # Case 3: Callable with no args (Callable[[]])
+            elif isinstance(sub, ast.List) and len(sub.elts) == 0:
+                return "callable[None]->None"
+
+            else:
+                # Default fallback for single arg callable
+                return f"callable[{extract_annotation_type(sub)}]->None"
+
+    raise ValueError("Unsupported annotation type")
 
 
 def _extract_chain(node: ast.Call):
@@ -1909,7 +1974,29 @@ class TypeAnalyzer:
                 if var_name in self.loop_variables.keys():
                     return self.loop_variables[var_name]
 
-            return self.dependency_resolver.get_variable_type(var_name, self.scope)
+            variable_type = self.dependency_resolver.get_variable_type(
+                var_name, self.scope
+            )
+
+            if variable_type:
+                return variable_type
+
+            # if not variable, it can be a function and being passed as callable.
+
+            function_metadata = self.dependency_resolver.get_method_metadata(var_name)
+
+            if function_metadata:
+                arg_types = []
+                func_args = function_metadata["args"]
+                func_return_type = function_metadata["return_type"]
+
+                for arg in func_args:
+                    if arg["is_kwarg"] == False:
+                        arg_types.append(arg["arg_type"])
+
+                return f"callable[{','.join(arg_types)}]->{func_return_type}"
+
+            return
 
         elif isinstance(node, ast.Compare):
             # Comparisons always result in boolean

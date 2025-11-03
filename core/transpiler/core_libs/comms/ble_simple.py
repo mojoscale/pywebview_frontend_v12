@@ -186,7 +186,7 @@ class BLESimple:
         __use_as_is__ = False
         __translation__ = "{self}.notify({uuid}, {value})"
 
-    def on_connect(self, callback: callable) -> None:
+    def on_connect(self, callback: callable[[], None]) -> None:
         """
         Register a function to call on connection.
 
@@ -198,7 +198,7 @@ class BLESimple:
         __use_as_is__ = False
         __translation__ = "{self}.on_connect({callback})"
 
-    def on_disconnect(self, callback: callable) -> None:
+    def on_disconnect(self, callback: callable[[], None]) -> None:
         """
         Register a function to call on disconnect.
 
@@ -210,7 +210,7 @@ class BLESimple:
         __use_as_is__ = False
         __translation__ = "{self}.on_disconnect({callback})"
 
-    def on_write(self, uuid: str, callback: callable) -> None:
+    def on_write(self, uuid: str, callback: callable[[str], None]) -> None:
         """
         Set a callback for write events.
 
@@ -223,7 +223,7 @@ class BLESimple:
         __use_as_is__ = False
         __translation__ = "{self}.on_write({uuid}, {callback})"
 
-    def on_notify(self, uuid: str, callback: callable) -> None:
+    def on_notify(self, uuid: str, callback: callable[[str], None]) -> None:
         """
         Set a callback for notify events.
 

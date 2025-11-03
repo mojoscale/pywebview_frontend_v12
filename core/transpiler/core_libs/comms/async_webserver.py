@@ -253,7 +253,9 @@ class AsyncWebHandler:
 
     # --- Filtering ---
 
-    def set_filter(self, filter_func: callable) -> AsyncWebHandler:
+    def set_filter(
+        self, filter_func: callable[[AsyncWebServerRequest], bool]
+    ) -> AsyncWebHandler:
         """
         Assign a filter function that decides if this handler should process a request.
 
@@ -400,7 +402,9 @@ class AsyncWebServer:
 
         pass
 
-    def on(self, path: str, method: str, handler: callable) -> None:
+    def on(
+        self, path: str, method: str, handler: callable[[AsyncWebServerRequest], None]
+    ) -> None:
         """
         Registers a request handler for a specific path and method.
 

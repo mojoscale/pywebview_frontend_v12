@@ -271,10 +271,7 @@ def interrupts() -> None:
     raise NotImplementedError("interrupts is not implemented")
 
 
-from typing import Callable
-
-
-def attachInterrupt(pin: int, ISR: callable, mode: int) -> None:
+def attachInterrupt(pin: int, ISR: callable[[], None], mode: int) -> None:
     """
     Attaches an interrupt to a pin, triggered on a particular mode.
 

@@ -9,6 +9,7 @@ from .transpiler import (
     is_core_python_type,
     is_builtin_function,
     extract_annotation_type,
+    get_python_builtin_class_method_type,
 )
 import importlib
 import os
@@ -99,6 +100,30 @@ def has_invalid_chars(s: str) -> bool:
         if code < 32 or code > 126:
             return True
     return False
+
+
+def safe_visit(method):
+    """Decorator to catch unexpected exceptions at node level."""
+
+    def wrapper(self, node, *args, **kwargs):
+        try:
+            return method(self, node, *args, **kwargs)
+        except Exception as ex:
+            lineno = getattr(node, "lineno", 1)
+            col = getattr(node, "col_offset", 1)
+            # Add a soft, user-facing error instead of killing the linter
+            msg = (
+                f"⚠️ Internal error while checking this line: "
+                f"{type(ex).__name__} - {ex}. "
+                f"Try simplifying or rewriting this line."
+            )
+            self.errors.append({"line": lineno, "column": col, "message": msg})
+            # Print traceback for your own debugging
+            print("⚠️ [LINTER CRASH TRACEBACK]")
+            traceback.print_exc()
+            return None
+
+    return wrapper
 
 
 class LintCode(ast.NodeVisitor):
@@ -268,6 +293,19 @@ class LintCode(ast.NodeVisitor):
     def visit_List(self, node: ast.List):
         """Validate literal lists: all elements same type, and of allowed scalar types."""
         # ALLOWED_TYPES = (ast.Constant,)
+
+        # ✅ Detect empty list
+        if len(node.elts) == 0:
+            parent = getattr(node, "parent", None)
+            # Not assigned, not part of an annotation, not in a call, not in return
+            if not isinstance(
+                parent, (ast.Assign, ast.AnnAssign, ast.Call, ast.Return, ast.keyword)
+            ):
+                self.add_error(
+                    node,
+                    "Empty list literal '[]' used as a standalone expression. "
+                    "It must be assigned or annotated explicitly.",
+                )
         ALLOWED_VALUE_TYPES = ("str", "int", "float", "bool")
 
         element_types = []
@@ -313,6 +351,17 @@ class LintCode(ast.NodeVisitor):
 
     def visit_Dict(self, node: ast.Dict):
         """Validate literal dicts: key/value type restrictions and uniformity."""
+        # ✅ Detect empty dict
+        if len(node.keys) == 0:
+            parent = getattr(node, "parent", None)
+            if not isinstance(
+                parent, (ast.Assign, ast.AnnAssign, ast.Call, ast.Return, ast.keyword)
+            ):
+                self.add_error(
+                    node,
+                    "Empty dict literal '{}' used as a standalone expression. "
+                    "It must be assigned or annotated explicitly.",
+                )
         ALLOWED_VALUE_TYPES = ("str", "int", "float", "bool")
 
         key_types = []
@@ -570,8 +619,15 @@ class LintCode(ast.NodeVisitor):
 
         saved_args = []
 
-        for arg in node.args.args:
+        # node.args.defaults gives default values for keyword-style args
+        # alignment is from the *end* of node.args.args
+        defaults = node.args.defaults
+        kwarg_start_index = len(node.args.args) - len(defaults)
+
+        for idx, arg in enumerate(node.args.args):
             arg_name = arg.arg
+            is_kwarg = idx >= kwarg_start_index  # ✅ arg has a default value
+
             try:
                 if arg.annotation is not None:
                     arg_type = self.type_analyzer._extract_annotation(arg.annotation)
@@ -579,18 +635,23 @@ class LintCode(ast.NodeVisitor):
                 else:
                     self.add_error(
                         arg,
-                        f"Invalid type annotation for argument '{arg_name}' in function '{func_name}': {str(ex)}",
+                        f"Invalid type annotation for argument '{arg_name}' in function '{func_name}': Missing annotation",
                     )
                     arg_type = None
             except Exception as ex:
-                # gracefully record the issue, not crash
                 self.add_error(
                     arg,
                     f"Invalid type annotation for argument '{arg_name}' in function '{func_name}': {str(ex)}",
                 )
                 arg_type = None
 
-            saved_args.append({"arg_name": arg_name, "arg_type": arg_type})
+            saved_args.append(
+                {
+                    "name": arg_name,
+                    "arg_type": arg_type,
+                    "is_kwarg": is_kwarg,  # ✅ added flag
+                }
+            )
 
         # Save method metadata anyway so rest of linting works
         try:
@@ -610,10 +671,10 @@ class LintCode(ast.NodeVisitor):
         # finally save the arg types
         for arg in saved_args:
             print(
-                f'saving arg {arg["arg_name"]} of type {arg["arg_type"]} for scope {self.scope}'
+                f'saving arg {arg["name"]} of type {arg["arg_type"]} for scope {self.scope}'
             )
             self.dependency_resolver.insert_variable(
-                arg["arg_name"],
+                arg["name"],
                 arg["arg_type"],
                 self.module_name,
                 "user",
@@ -893,6 +954,12 @@ class LintCode(ast.NodeVisitor):
         is_lhs_subscript = isinstance(target, ast.Subscript)
         rhs_type = self.type_analyzer.get_node_type(node.value)
 
+        if rhs_type == "None":
+            self.add_error(
+                node,
+                f"Invalid assignment: expressions of type 'void' cannot be assigned or used in any value context.",
+            )
+
         if is_lhs_name:
             lhs_name = target.id
 
@@ -991,29 +1058,85 @@ class LintCode(ast.NodeVisitor):
         self.visit(node.value)
 
     def _check_passed_method_args(
-        self, call_args: list[str], saved_args: list[dict], method_name: str, node
+        self, call_args: list[dict], saved_args: list[dict], method_name: str, node
     ) -> None:
+        """
+        Validate whether passed arguments in a function call match the
+        expected (saved) method signature.
+
+        Each argument in `call_args` and `saved_args` is a dict:
+            {
+                "name": str | None,
+                "arg_type": str | None,
+                "is_kwarg": bool
+            }
+
+        Checks:
+            1. Positional argument count and type match.
+            2. Keyword argument type match (order ignored).
+            3. Unexpected or missing kwargs.
+        """
         errors = []
-        if len(saved_args) != len(call_args):
+
+        # --- Separate positional and keyword arguments ---
+        saved_pos = [a for a in saved_args if not a["is_kwarg"]]
+        saved_kw = [a for a in saved_args if a["is_kwarg"]]
+        call_pos = [a for a in call_args if not a["is_kwarg"]]
+        call_kw = [a for a in call_args if a["is_kwarg"]]
+
+        # -------------------------------------------------
+        # ✅ Check 1: Positional argument count
+        # -------------------------------------------------
+        if len(call_pos) != len(saved_pos):
             errors.append(
-                f"{method_name} takes {len(saved_args)} arguments; but you passed {len(call_args)}",
+                f"{method_name}() expects {len(saved_pos)} positional argument(s) "
+                f"({', '.join(a['name'] or '<unnamed>' for a in saved_pos)}), "
+                f"but {len(call_pos)} were passed."
             )
-
         else:
-            for i in range(len(saved_args)):
-                arg = saved_args[i]
+            # -------------------------------------------------
+            # ✅ Check 2: Positional argument type matching
+            # -------------------------------------------------
+            for i, saved in enumerate(saved_pos):
+                call = call_pos[i]
+                expected_type = saved.get("arg_type")
+                passed_type = call.get("arg_type")
 
-                if arg["arg_type"] != call_args[i]:
-                    if arg["arg_type"] == "callable":
-                        # this should be an already defined function.
-                        # func_metadata = self.dependency_resolver.get_method_metadata()
-                        print(f"arg looks like {call_args}")
-                    else:
-                        print(f"[LINT]arg is {arg}")
-                        errors.append(
-                            f'{arg["name"]} is expected of type {arg["arg_type"]}, but you passed {call_args[i]}'
-                        )
+                if expected_type != passed_type:
+                    errors.append(
+                        f"{method_name}(): positional argument #{i+1} "
+                        f"({saved['name'] or '<unnamed>'}) expects type "
+                        f"'{expected_type}', but got '{passed_type}'."
+                    )
 
+        # -------------------------------------------------
+        # ✅ Check 3: Keyword argument handling
+        # -------------------------------------------------
+        saved_kw_map = {a["name"]: a for a in saved_kw if a["name"]}
+        call_kw_map = {a["name"]: a for a in call_kw if a["name"]}
+
+        # Check each passed kwarg
+        for name, call_arg in call_kw_map.items():
+            if name not in saved_kw_map:
+                errors.append(
+                    f"{method_name}() got an unexpected keyword argument '{name}'."
+                )
+                continue
+
+            expected_type = saved_kw_map[name].get("arg_type")
+            passed_type = call_arg.get("arg_type")
+
+            if expected_type != passed_type:
+                errors.append(
+                    f"{method_name}(): keyword argument '{name}' expects type "
+                    f"'{expected_type}', but got '{passed_type}'."
+                )
+
+        # No error if saved_kw exists but not passed — optional kwargs are fine.
+
+        # -------------------------------------------------
+        # 🚨 Record errors
+        # -------------------------------------------------
         for error in errors:
             self.add_error(node, error)
 
@@ -1022,23 +1145,32 @@ class LintCode(ast.NodeVisitor):
         """if self.scope == "global":
         self.add_error(node, "Methods can be only called within a function body.")"""
         func = node.func
-
         call_args = []
 
+        # --- Positional args ---
         for arg in node.args:
             arg_type = self.type_analyzer.get_node_type(arg)
 
-            if not arg_type:
-                # this can be a loop variable
-                # e.g: for x in custom_list
-                # x will be resolved here
-                if isinstance(arg, ast.Name):
-                    try:
-                        arg_type = self.loop_variables[arg.id]
-                    except KeyError:
-                        pass
-            call_args.append(arg_type)
+            # Try to resolve loop variables if type missing
+            if not arg_type and isinstance(arg, ast.Name):
+                arg_type = self.loop_variables.get(arg.id, None)
+
+            call_args.append({"name": None, "arg_type": arg_type, "is_kwarg": False})
+
             self.visit(arg)
+
+        # --- Keyword args ---
+        for kw in node.keywords:
+            kw_name = kw.arg  # name in x=1
+            kw_value = kw.value
+            arg_type = self.type_analyzer.get_node_type(kw_value)
+
+            if not arg_type and isinstance(kw_value, ast.Name):
+                arg_type = self.loop_variables.get(kw_value.id, None)
+
+            call_args.append({"name": kw_name, "arg_type": arg_type, "is_kwarg": True})
+
+            self.visit(kw_value)
 
         print(f"call of node type {func}")
 
@@ -1120,7 +1252,18 @@ class LintCode(ast.NodeVisitor):
                     )
 
                     if is_core_python_type(variable_type):
-                        pass
+                        variable_class = variable_type.split(",")[0]
+
+                        method_return_type = get_python_builtin_class_method_type(
+                            variable_class, method_name
+                        )
+
+                        if not method_return_type:
+                            # this function is not allowed
+                            self.add_error(
+                                node,
+                                f"Method `{method_name}` from class `{variable_class}` is not allowed. Please use alternatives.",
+                            )
 
                     else:
                         # this is custom class type.
@@ -1208,12 +1351,14 @@ class LintCode(ast.NodeVisitor):
         Check if a bare function name is used illegally (not called, not passed as arg, not assigned).
         Only check right-hand side since LHS is likely being defined.
         """
+        parent = getattr(node, "parent", None)
         if isinstance(node.ctx, ast.Load):  # Right-hand side (being read)
             var_name = node.id
 
             is_variable_defined = self.dependency_resolver.variable_exists(var_name)
+            function_metadata = self.dependency_resolver.get_method_metadata(var_name)
 
-            if not is_variable_defined:
+            if not is_variable_defined and not function_metadata:
                 if self.is_within_For:
                     if var_name in self.loop_variables:
                         return
@@ -1221,6 +1366,41 @@ class LintCode(ast.NodeVisitor):
                 self.add_error(
                     node, f"'{var_name}' is not defined anywhere. This could be a typo."
                 )
+
+            elif not is_variable_defined and function_metadata:
+                # this is a callable, which are only allowed as arg or kwarg
+                func_args_kwargs = function_metadata["args"]
+                kwargs = []
+                for arg in func_args_kwargs:
+                    if arg["is_kwarg"] == True:
+                        kwargs.append(arg)
+
+                if isinstance(parent, ast.Call) and node in parent.args:
+                    # is a positional argument in a function call
+                    # check if user is passing any kwarg (not allowed)
+
+                    if len(kwargs) > 0:
+                        self.add_error(
+                            node,
+                            f"Callback functions are not allowed to have key-word args. Please only use positional args",
+                        )
+
+                # 2️Check if it's a keyword argument
+                elif isinstance(parent, ast.keyword) and parent.value is node:
+                    # is a keyword argument for key
+                    # check if user is passing any kwarg (not allowed)
+                    if len(kwargs) > 0:
+                        self.add_error(
+                            node,
+                            f"Callback functions are not allowed to have key-word args. Please only use positional args",
+                        )
+
+                else:
+                    # its being used incorrectly.
+                    self.add_error(
+                        node,
+                        f"Calling method '{var_name}' without parentheses is not allowed.",
+                    )
 
             else:
                 return
@@ -1265,6 +1445,12 @@ class LintCode(ast.NodeVisitor):
         if isinstance(node.value, str):
             if has_invalid_chars(node.value):
                 self.add_error(node, "Special characters are not allowed.")
+
+
+# ---- Auto-wrap all visit_* methods ----
+for name, func in list(LintCode.__dict__.items()):
+    if name.startswith("visit_") and callable(func):
+        setattr(LintCode, name, safe_visit(func))
 
 
 def main(code, sql_conn, platform, path_to_core_libs, module_name="main"):
