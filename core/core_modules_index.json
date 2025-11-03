@@ -424,7 +424,7 @@
           },
           {
             "name": "set_filter",
-            "signature": "(self, filter_func: callable[[AsyncWebServerRequest], None]) -> AsyncWebHandler",
+            "signature": "(self, filter_func: callable[[AsyncWebServerRequest], bool]) -> AsyncWebHandler",
             "doc": "Assign a filter function that decides if this handler should process a request.\n\nArgs:\n    filter_func (ArRequestFilterFunction): The filtering function.\n\nReturns:\n    AsyncWebHandler: The same handler instance (for chaining).\n\nTranslation:\n    {self}.setFilter({1})"
           },
           {
@@ -975,7 +975,7 @@
       },
       {
         "name": "attachInterrupt",
-        "signature": "(pin: int, ISR: callable, mode: int) -> None",
+        "signature": "(pin: int, ISR: callable[[], None], mode: int) -> None",
         "doc": "Attaches an interrupt to a pin, triggered on a particular mode.\n\nArgs:\n    pin (int): The pin to attach the interrupt to.\n    ISR (Callable): A function to call when the interrupt is triggered.\n    mode (int): The condition to trigger the interrupt (RISING, FALLING, or CHANGE).\n\nReturns:\n    None"
       },
       {

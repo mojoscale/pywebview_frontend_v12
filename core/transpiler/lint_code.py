@@ -9,6 +9,7 @@ from .transpiler import (
     is_core_python_type,
     is_builtin_function,
     extract_annotation_type,
+    get_python_builtin_class_method_type,
 )
 import importlib
 import os
@@ -1251,7 +1252,18 @@ class LintCode(ast.NodeVisitor):
                     )
 
                     if is_core_python_type(variable_type):
-                        pass
+                        variable_class = variable_type.split(",")[0]
+
+                        method_return_type = get_python_builtin_class_method_type(
+                            variable_class, method_name
+                        )
+
+                        if not method_return_type:
+                            # this function is not allowed
+                            self.add_error(
+                                node,
+                                f"Method `{method_name}` from class `{variable_class}` is not allowed. Please use alternatives.",
+                            )
 
                     else:
                         # this is custom class type.
@@ -1344,9 +1356,9 @@ class LintCode(ast.NodeVisitor):
             var_name = node.id
 
             is_variable_defined = self.dependency_resolver.variable_exists(var_name)
-            is_function_defined = self.dependency_resolver.get_method_metadata(var_name)
+            function_metadata = self.dependency_resolver.get_method_metadata(var_name)
 
-            if not is_variable_defined and not is_function_defined:
+            if not is_variable_defined and not function_metadata:
                 if self.is_within_For:
                     if var_name in self.loop_variables:
                         return
@@ -1355,19 +1367,33 @@ class LintCode(ast.NodeVisitor):
                     node, f"'{var_name}' is not defined anywhere. This could be a typo."
                 )
 
-            elif not is_variable_defined and is_function_defined:
+            elif not is_variable_defined and function_metadata:
                 # this is a callable, which are only allowed as arg or kwarg
+                func_args_kwargs = function_metadata["args"]
+                kwargs = []
+                for arg in func_args_kwargs:
+                    if arg["is_kwarg"] == True:
+                        kwargs.append(arg)
 
                 if isinstance(parent, ast.Call) and node in parent.args:
                     # is a positional argument in a function call
-                    # do nothing
-                    pass
+                    # check if user is passing any kwarg (not allowed)
+
+                    if len(kwargs) > 0:
+                        self.add_error(
+                            node,
+                            f"Callback functions are not allowed to have key-word args. Please only use positional args",
+                        )
 
                 # 2️Check if it's a keyword argument
                 elif isinstance(parent, ast.keyword) and parent.value is node:
                     # is a keyword argument for key
-                    # do nothing
-                    pass
+                    # check if user is passing any kwarg (not allowed)
+                    if len(kwargs) > 0:
+                        self.add_error(
+                            node,
+                            f"Callback functions are not allowed to have key-word args. Please only use positional args",
+                        )
 
                 else:
                     # its being used incorrectly.

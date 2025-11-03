@@ -351,7 +351,7 @@ def get_python_builtin_class_method_type(class_name, method_name):
         elif method_name in ("bit_length", "bit_count", "numerator", "denominator"):
             return "int"
 
-    return "auto"
+    return
 
 
 """def extract_annotation_type(node):
