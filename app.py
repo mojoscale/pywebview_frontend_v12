@@ -296,7 +296,7 @@ class Api:
     # ------------------------
     # Add to your __init__ method
 
-    def compile(self, project_id, upload=False, port=None):
+    def compile(self, project_id, upload=True, port=None):
         """Schedule a compile job and return immediately."""
         project = get_project_from_id(project_id)
         if not project:

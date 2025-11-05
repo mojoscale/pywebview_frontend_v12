@@ -11,8 +11,10 @@ import webview
 import sys
 import sqlite3
 from pathlib import Path
-from .utils import get_bundled_python_exe
-from .db import db_path as DB_PATH
+from core.utils import get_bundled_python_exe
+from core.db import db_path as DB_PATH
+
+from core.serial_manager import get_valid_serial_port
 
 from core.transpiler.transpiler import main as transpiler_main
 
@@ -43,6 +45,91 @@ def find_first_serial_port():
     if not ports:
         raise RuntimeError("❌ No serial ports found.")
     return ports[0].device
+
+
+import serial
+import serial.tools.list_ports
+import time
+
+
+def find_esp_serial_port(preferred_baud=115200, probe=True, timeout=1.5):
+    """
+    Auto-detect any ESP device connected via serial (ESP32/ESP8266/ESP32-S3/C3 etc).
+
+    Strategy:
+      1. Scan all available serial ports.
+      2. Match known Espressif and USB-to-UART bridge VIDs/PIDs.
+      3. If no direct match, try to probe each port for ESP bootloader banner.
+      4. Return the first port that looks like an ESP device.
+
+    Returns:
+      str: The serial port name (e.g., 'COM6' or '/dev/ttyUSB0'), or None if not found.
+    """
+
+    # Known USB vendor IDs for ESP and bridges
+    known_vids = {
+        0x303A: "Espressif",
+        0x10C4: "Silicon Labs (CP210x)",
+        0x1A86: "QinHeng (CH340)",
+        0x0403: "FTDI",
+        0x2341: "Arduino (may host ESP chips)",
+        0x2E8A: "Raspberry Pi (RP2040 boards with ESP co-modules)",
+    }
+
+    ports = list(serial.tools.list_ports.comports())
+    if not ports:
+        print("❌ No serial ports found.")
+        return None
+
+    print("🔍 Scanning available serial ports...")
+    for p in ports:
+        desc = f"{p.description or ''}".lower()
+        vid = getattr(p, "vid", None)
+        pid = getattr(p, "pid", None)
+        print(f"   - {p.device}: VID={vid}, PID={pid}, Desc={desc}")
+
+        # --- Step 1: Match known VIDs or descriptions ---
+        if vid in known_vids or any(
+            word in desc
+            for word in [
+                "esp32",
+                "esp8266",
+                "espressif",
+                "silicon labs",
+                "ch340",
+                "cp210",
+                "usb serial",
+                "ftdi",
+            ]
+        ):
+            print(
+                f"✅ Candidate ESP device detected on {p.device} ({known_vids.get(vid, desc)})"
+            )
+            return p.device
+
+    # --- Step 2: Probe all ports if nothing matched ---
+    if probe:
+        print(
+            "🧪 No direct match found; probing each port for ESP bootloader response..."
+        )
+        for p in ports:
+            try:
+                with serial.Serial(p.device, preferred_baud, timeout=timeout) as ser:
+                    ser.reset_input_buffer()
+                    ser.write(b"\r\n")
+                    time.sleep(0.3)
+                    data = ser.read(128).decode(errors="ignore").lower()
+                    if any(
+                        keyword in data
+                        for keyword in ["esp32", "esp8266", "espressif", "rst:"]
+                    ):
+                        print(f"✅ ESP bootloader detected on {p.device}")
+                        return p.device
+            except Exception as e:
+                print(f"⚠️ Skipping {p.device}: {e}")
+
+    print("❌ No ESP device detected.")
+    return None
 
 
 def is_platformio_installed(target_dir: str) -> bool:
@@ -530,17 +617,27 @@ async def compile_project(
             parsed["specs"]["additional"]["Platform"] = platform
 
         if upload and parsed["success"]:
-            actual_port = port or find_first_serial_port()
-            print(f"🧭 Selected serial port: {actual_port}")
-            release_serial_port(actual_port)
-            await asyncio.sleep(1)
-            u_stdout, u_stderr, u_code = await stream_command_to_terminal(
-                pio_cmd + ["run", "-t", "upload", f"--upload-port={actual_port}"],
-                cwd=build_dir,
-                env=env,
-            )
-            parsed["upload_success"] = u_code == 0
-            parsed["upload_port"] = actual_port
+            # actual_port = port or find_first_serial_port()
+            actual_port = find_esp_serial_port()
+            if actual_port:
+                print(f"🧭 Selected serial port: {actual_port}")
+                release_serial_port(actual_port)
+                await asyncio.sleep(1)
+                u_stdout, u_stderr, u_code = await stream_command_to_terminal(
+                    pio_cmd + ["run", "-t", "upload", f"--upload-port={actual_port}"],
+                    cwd=build_dir,
+                    env=env,
+                )
+                parsed["upload_success"] = u_code == 0
+                parsed["upload_port"] = actual_port
+
+            else:
+                print("❌ No valid serial port detected.")
+                return {
+                    "success": False,
+                    "error": "No valid serial port found",
+                    "message": "ESP32 not detected. Please reconnect and try again.",
+                }
 
         # Return the structured result for frontend
         result = {
