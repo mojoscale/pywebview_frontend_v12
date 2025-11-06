@@ -3852,7 +3852,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 f"Unsupported binary operation between {left_type} and {right_type}: {ast.dump(node)}"
             )
 
-    def visit_Constant(self, node):
+    """def visit_Constant(self, node):
         value = node.value
 
         if value is None:
@@ -3861,6 +3861,27 @@ class ArduinoTranspiler(ast.NodeVisitor):
             return "true" if value else "false"
         elif isinstance(value, str):
             escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+            return f'String("{escaped}")'
+        return str(value)"""
+
+    def visit_Constant(self, node):
+        value = node.value
+
+        if value is None:
+            return "null"
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        elif isinstance(value, str):
+            # Escape for safe embedding in C++ literal:
+            # - Preserve literal backslashes and \n sequences
+            # - Do NOT introduce real newlines
+            escaped = (
+                value.encode(
+                    "unicode_escape"
+                )  # convert real newlines → \n, tabs → \t, etc.
+                .decode("utf-8")
+                .replace('"', '\\"')  # escape quotes
+            )
             return f'String("{escaped}")'
         return str(value)
 

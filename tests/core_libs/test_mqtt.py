@@ -1,5 +1,6 @@
 import comms.wifi as w
 import comms.mqtt as m
+import core.arduino as ad
 
 wi_fi_client = w.WiFiClient()
 
@@ -11,10 +12,12 @@ def callback(topic: str, payload: str) -> None:
 
 
 def setup() -> None:
+    w.wifi_begin("ssid", "pass")
     while not w.wifi_is_connected():
-        w.wifi_begin("ssid", "password")
+        ad.delay(1000)
+        print("connection.....")
 
-    psc.set_server("mqtt.mojoscale.com")
+    psc.set_server("broker.hivemq.com")
     psc.set_callback(callback)
     psc.connect("client_id", username="user", password="password")
 
@@ -25,6 +28,8 @@ def setup() -> None:
     psc.unsubscribe("topic")
 
     is_connected = psc.connected()
+
+    print(f"is mqtt connected: {is_connected}")
 
     psc.set_keep_alive(10)
     psc.setSocketTimeout(10)

@@ -1155,6 +1155,11 @@ class LintCode(ast.NodeVisitor):
             if not arg_type and isinstance(arg, ast.Name):
                 arg_type = self.loop_variables.get(arg.id, None)
 
+            if not arg_type:
+                self.add_error(
+                    node, f"You are passing 'NoneType' as arg, which is not allowed."
+                )
+
             call_args.append({"name": None, "arg_type": arg_type, "is_kwarg": False})
 
             self.visit(arg)
