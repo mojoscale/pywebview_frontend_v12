@@ -2527,7 +2527,7 @@
       },
       {
         "name": "spiffs_open",
-        "signature": "(path: str, mode: str) -> None",
+        "signature": "(path: str, mode: str) -> File",
         "doc": "Opens a file in the SPIFFS filesystem.\n\nArgs:\n    path (str): Path to the file.\n    mode (str): File mode (e.g., 'r', 'w', 'a').\n\nReturns:\n    File object or None: File handle if successful, None otherwise."
       },
       {
@@ -2576,7 +2576,89 @@
         "doc": "Prints or returns general information about the SPIFFS filesystem.\n(Custom implementation required)"
       }
     ],
-    "classes": [],
+    "classes": [
+      {
+        "name": "File",
+        "doc": "Represents a handle to an open file in the SPIFFS filesystem.\n\n class mirrors the behavior of the C++ `fs::File` class used with SPIFFS.\nYou should not create a File directly; instead, use `SPIFFS.open(path, mode)`\n(or in the transpiler, `spiffs_open(path, mode)`).\n\nThe File object allows reading, writing, and managing files in the\nSPIFFS or LittleFS filesystem on ESP32/ESP8266.",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self) -> None",
+            "doc": "Creates an empty File object.\nNormally, you obtain a File from `spiffs_open()`."
+          },
+          {
+            "name": "write",
+            "signature": "(self, data: str) -> int",
+            "doc": "Writes data to the file.\n\nArgs:\n    data (str): The data to write to the file.\n\nReturns:\n    int: The number of bytes written."
+          },
+          {
+            "name": "print",
+            "signature": "(self, data: str) -> int",
+            "doc": "Writes data to the file (without a newline).\n\nArgs:\n    data (str): The text to print.\n\nReturns:\n    int: The number of bytes written."
+          },
+          {
+            "name": "println",
+            "signature": "(self, data: str) -> int",
+            "doc": "Writes data followed by a newline character to the file.\n\nArgs:\n    data (str): The text to print with a newline.\n\nReturns:\n    int: The number of bytes written."
+          },
+          {
+            "name": "available",
+            "signature": "(self) -> int",
+            "doc": "Returns the number of bytes available for reading.\n\nReturns:\n    int: The number of bytes that can be read without blocking."
+          },
+          {
+            "name": "size",
+            "signature": "(self) -> int",
+            "doc": "Returns the total size of the file in bytes.\n\nReturns:\n    int: The file size in bytes."
+          },
+          {
+            "name": "position",
+            "signature": "(self) -> int",
+            "doc": "Returns the current position of the file cursor.\n\nReturns:\n    int: The current byte offset in the file."
+          },
+          {
+            "name": "seek",
+            "signature": "(self, pos: int, mode: int = 0) -> bool",
+            "doc": "Moves the file cursor to a specific position.\n\nArgs:\n    pos (int): The byte position to move to.\n    mode (int, optional): The seek mode:\n        0 = SeekSet (absolute)\n        1 = SeekCur (relative)\n        2 = SeekEnd (from end)\n\nReturns:\n    bool: True if seek succeeded, False otherwise."
+          },
+          {
+            "name": "close",
+            "signature": "(self) -> None",
+            "doc": "Closes the file handle and releases resources."
+          },
+          {
+            "name": "is_directory",
+            "signature": "(self) -> bool",
+            "doc": "Checks whether  File object refers to a directory.\n\nReturns:\n    bool: True if  is a directory, False otherwise."
+          },
+          {
+            "name": "name",
+            "signature": "(self) -> str",
+            "doc": "Returns the name (path) of the file.\n\nReturns:\n    str: The file name or path."
+          },
+          {
+            "name": "rewind",
+            "signature": "(self) -> None",
+            "doc": "Resets the file cursor to the beginning of the file."
+          },
+          {
+            "name": "read_string",
+            "signature": "(self) -> str",
+            "doc": "Reads the file content as a string until EOF.\n\nReturns:\n    str: The entire file content."
+          },
+          {
+            "name": "peek",
+            "signature": "(self) -> int",
+            "doc": "Returns the next byte without advancing the file cursor.\n\nReturns:\n    int: The next byte as an integer, or -1 if end of file."
+          },
+          {
+            "name": "flush",
+            "signature": "(self) -> None",
+            "doc": "Forces any buffered data to be written to storage."
+          }
+        ]
+      }
+    ],
     "variables": []
   }
 }

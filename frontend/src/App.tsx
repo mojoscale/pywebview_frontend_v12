@@ -6,6 +6,7 @@ import UpdateBanner from "./components/UpdateBanner";
 import Home from "./pages/Home";
 import CreateProject from "./pages/CreateProject";
 import IDEPage from "./pages/IDEPage";
+//import IDEPageV2 from "./pages/IDEPageV2";
 import EnvironmentVariablesForm from "./pages/EnvironmentVariablesForm";
 import TerminalView from "./components/TerminalView";
 

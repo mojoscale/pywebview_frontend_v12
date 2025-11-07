@@ -434,7 +434,11 @@ if __name__ == "__main__":
         frontend_path = Path(__file__).parent / "frontend" / "dist" / "index.html"
         window_url = frontend_path.as_uri()
 
-    window = webview.create_window(APP_WINDOW_NAME, url=window_url, js_api=api)
+    window = webview.create_window(
+        APP_WINDOW_NAME,
+        url=window_url,
+        js_api=api,
+    )
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

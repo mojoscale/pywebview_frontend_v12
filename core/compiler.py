@@ -556,6 +556,20 @@ def get_platformio_command(user_app_dir: str):
     ], env
 
 
+def notify_frontend(status: str, message: str):
+    """
+    Send real-time build/upload status updates to the frontend.
+    Your frontend should define:
+        window.__updateBuildStatus = (phase, msg) => { ... }
+    """
+    try:
+        js = f"window.__updateBuildStatus({status!r}, {message!r})"
+        webview.windows[0].evaluate_js(js)
+        print(f"[UI] {status}: {message}")
+    except Exception as e:
+        print(f"[UI Error] {e}")
+
+
 async def compile_project(
     py_files: dict,
     board: str,
@@ -569,27 +583,30 @@ async def compile_project(
         commit_hash = str(uuid.uuid4()).replace("-", "_")
         DB_CONN = sqlite3.connect(DB_PATH)
 
+        notify_frontend("start", "Starting transpilation...")
         transpiler = transpiler_main(
             commit_hash, DB_CONN, py_files, CORE_LIBS_PATH, platform
         )
+        notify_frontend("transpile_done", "Transpilation complete.")
 
         files = transpiler["code"]
         for filename, code in files.items():
             print(f"\n{'='*40}\n📄 {filename}\n{'='*40}")
             print(code.strip())
             print("\n")
+
         dependencies = transpiler["dependencies"]
         print("📦 Starting compilation...")
 
-        # Get PlatformIO command - this will automatically install if needed
+        notify_frontend("setup", "Preparing build environment...")
         pio_cmd, pio_env = get_platformio_command(user_app_dir)
-
         build_dir = prepare_build_folder()
         print(f"📁 Build folder prepared: {build_dir}")
         write_transpiled_code(files, build_dir)
         print("✍️ Transpiled files written.")
         write_platformio_ini(board, platform, build_dir, dependencies=dependencies)
         print(f"📝 platformio.ini written for board '{board}'.")
+        notify_frontend("setup_done", "Build environment ready.")
 
         # Merge environments
         env = os.environ.copy()
@@ -599,39 +616,115 @@ async def compile_project(
         print(f"🔍 Command: {' '.join(pio_cmd)}")
         print(f"🔍 Working Directory: {build_dir}")
 
+        notify_frontend("compile", "Compiling firmware...")
         stdout, stderr, code = await stream_command_to_terminal(
             pio_cmd + ["run"], cwd=build_dir, env=env
         )
+        notify_frontend("compile_done", "Compilation complete.")
 
         parsed = parse_platformio_result(stdout, stderr)
-
-        # DEBUG: Log what we found
         print(f"🔍 Parse result - success: {parsed['success']}, return code: {code}")
-
-        # Trust the parse function - it's correctly detecting failures
-        # Don't override with the potentially incorrect return code
 
         # Add board info to specs
         if "specs" in parsed:
             parsed["specs"]["additional"]["Board"] = board
             parsed["specs"]["additional"]["Platform"] = platform
 
+        # --- Upload phase with BOOT notification ---
         if upload and parsed["success"]:
-            # actual_port = port or find_first_serial_port()
-            actual_port = find_esp_serial_port()
+            actual_port = port or find_esp_serial_port()
             if actual_port:
                 print(f"🧭 Selected serial port: {actual_port}")
                 release_serial_port(actual_port)
                 await asyncio.sleep(1)
-                u_stdout, u_stderr, u_code = await stream_command_to_terminal(
-                    pio_cmd + ["run", "-t", "upload", f"--upload-port={actual_port}"],
+
+                # ✅ Ask user to press BOOT button (upload hasn't started yet)
+                notify_frontend(
+                    "press_boot",
+                    "Hold the BOOT button on your ESP32 now and keep it pressed...",
+                )
+                await asyncio.sleep(3)  # Give user time to press BOOT
+
+                # Create an event to track when upload actually starts
+                upload_started = asyncio.Event()
+
+                async def monitor_upload_output(stream, collector, upload_started):
+                    """Monitor output and detect when upload actually begins"""
+                    while True:
+                        line = await stream.readline()
+                        if not line:
+                            break
+                        decoded = line.decode(errors="ignore").rstrip()
+                        collector.append(decoded)
+
+                        # ✅ Print to local terminal
+                        print(decoded)
+
+                        # ✅ Detect upload start by looking for progress indicators
+                        if not upload_started.is_set():
+                            if any(
+                                indicator in decoded.lower()
+                                for indicator in [
+                                    "writing at",
+                                    "uploading",
+                                    "%",
+                                    "bytes",
+                                    "compressed",
+                                ]
+                            ):
+                                upload_started.set()
+                                notify_frontend(
+                                    "uploading",
+                                    "Upload in progress... You can release the BOOT button now.",
+                                )
+
+                        # ✅ Send ALL upload progress to frontend terminal
+                        try:
+                            webview.windows[0].evaluate_js(
+                                f"window.__appendTerminalLog({decoded!r})"
+                            )
+                        except Exception as e:
+                            print(f"[TerminalLog] JS error: {e}")
+
+                # Run upload with progress monitoring
+                process = await asyncio.create_subprocess_exec(
+                    *pio_cmd + ["run", "-t", "upload", f"--upload-port={actual_port}"],
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                     cwd=build_dir,
                     env=env,
                 )
-                parsed["upload_success"] = u_code == 0
-                parsed["upload_port"] = actual_port
 
+                stdout_data, stderr_data = [], []
+
+                # Start monitoring tasks
+                await asyncio.gather(
+                    monitor_upload_output(process.stdout, stdout_data, upload_started),
+                    monitor_upload_output(process.stderr, stderr_data, upload_started),
+                    return_exceptions=True,
+                )
+
+                u_code = await process.wait()
+                u_stdout = "\n".join(stdout_data)
+                u_stderr = "\n".join(stderr_data)
+
+                # If upload never technically "started" but completed successfully,
+                # still mark it as started for UI consistency
+                if u_code == 0 and not upload_started.is_set():
+                    notify_frontend("uploading", "Upload completed successfully!")
+
+                if u_code == 0:
+                    notify_frontend(
+                        "upload_done", "✅ Upload complete! Rebooting board..."
+                    )
+                    parsed["upload_success"] = True
+                    parsed["upload_port"] = actual_port
+                else:
+                    notify_frontend("upload_failed", "❌ Upload failed.")
+                    parsed["upload_success"] = False
+                    parsed["upload_port"] = actual_port
             else:
+                notify_frontend("error", "No valid serial port found.")
                 print("❌ No valid serial port detected.")
                 return {
                     "success": False,
@@ -639,7 +732,7 @@ async def compile_project(
                     "message": "ESP32 not detected. Please reconnect and try again.",
                 }
 
-        # Return the structured result for frontend
+        notify_frontend("done", "Build process completed.")
         result = {
             "success": parsed["success"],
             "message": parsed.get("message", "Compilation completed"),
@@ -648,11 +741,9 @@ async def compile_project(
             "suggestions": parsed.get("suggestions", []),
         }
 
-        # Add error info if compilation failed
         if not parsed["success"]:
             result["error"] = parsed.get("error", "Compilation failed")
             if parsed.get("errors"):
-                # Include all errors for debugging
                 result["errors"] = parsed["errors"]
 
         print(f"📊 Final result: {result}")
@@ -660,6 +751,7 @@ async def compile_project(
 
     except FileNotFoundError as e:
         error_msg = f"PlatformIO not installed: {e}"
+        notify_frontend("error", error_msg)
         print(f"❌ {error_msg}")
         return {
             "success": False,
@@ -670,8 +762,10 @@ async def compile_project(
                 "Check if PlatformIO is properly configured",
             ],
         }
+
     except Exception as e:
         error_msg = f"Unexpected error during compilation: {e}"
+        notify_frontend("error", error_msg)
         print(f"❌ {error_msg}")
         return {
             "success": False,
