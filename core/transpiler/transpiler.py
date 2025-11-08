@@ -454,7 +454,7 @@ def extract_annotation_type(node):
                     args = ["?"]
 
                 return_type = extract_annotation_type(return_node)
-                return f"callable[{', '.join(args)}]->{return_type}"
+                return f"callable[{','.join(args)}]->{return_type}"
 
             # Case 2: Callable[None] or Callable[T]
             elif isinstance(sub, (ast.Constant, ast.Name)):

@@ -1,15 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { Card, Typography, Input, Button, Space } from "antd";
-import { 
-  PlayCircleOutlined, 
-  PauseCircleOutlined, 
-  ClearOutlined, 
+import {
+  PlayCircleOutlined,
+  PauseCircleOutlined,
+  ClearOutlined,
   DownloadOutlined,
   UsbOutlined,
   DragOutlined,
-  CloseOutlined
+  CloseOutlined,
 } from "@ant-design/icons";
-import { useSerial } from "../contexts/SerialContext";
 
 const { Text, Title } = Typography;
 
@@ -19,17 +18,29 @@ interface TerminalViewProps {
 }
 
 export default function TerminalView({ onClose, onHeightChange }: TerminalViewProps) {
-  const { terminalLogs, clearTerminal, serialConnected, monitoring } = useSerial();
-
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   const [command, setCommand] = useState("");
   const [lineCount, setLineCount] = useState(0);
+  const [monitoring, setMonitoring] = useState(false);
+  const [serialConnected, setSerialConnected] = useState(false);
+
   const terminalRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
   const startY = useRef(0);
   const startHeight = useRef(300);
 
-  // Auto-scroll to bottom when new lines are added
+  // 🔹 Listen for serial-log events from backend
+  useEffect(() => {
+    const handleSerialLog = (event: CustomEvent) => {
+      setTerminalLogs((prev) => [...prev, event.detail]);
+    };
+
+    window.addEventListener("serial-log", handleSerialLog as EventListener);
+    return () => window.removeEventListener("serial-log", handleSerialLog as EventListener);
+  }, []);
+
+  // 🔹 Auto-scroll when new lines arrive
   useEffect(() => {
     if (terminalRef.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
@@ -37,7 +48,7 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
     setLineCount(terminalLogs.length);
   }, [terminalLogs]);
 
-  // Drag to resize
+  // 🔹 Drag to resize terminal panel
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing.current) return;
@@ -76,25 +87,55 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
     };
   }, [onHeightChange]);
 
-  const handleEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  // 🔹 Send command to backend
+  const handleEnter = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && command.trim()) {
-      // In a real implementation, you would send the command to the serial device
-      // For now, we'll just add it to the logs for demonstration
-      const newLogs = [
-        `> ${command}`,
-        `✅ Command sent to device`,
-        `📤 Sent: ${command.length} bytes`
-      ];
-      // Note: You might want to use a proper state update here
-      // This is just for demonstration
-      newLogs.forEach(line => {
-        // This would ideally be handled by your serial context
-        console.log("Command:", line);
-      });
+      setTerminalLogs((prev) => [...prev, `> ${command}`]);
+      try {
+        const res = await window.pywebview.api.send_serial_command(command);
+        if (res.status === "ok") {
+          setTerminalLogs((prev) => [...prev, `📤 Sent ${res.sent} bytes`]);
+        } else {
+          setTerminalLogs((prev) => [...prev, `❌ ${res.message || "Error sending command"}`]);
+        }
+      } catch (err: any) {
+        setTerminalLogs((prev) => [...prev, `❌ ${err.message || err}`]);
+      }
       setCommand("");
     }
   };
 
+  // 🔹 Start/stop monitoring
+  const toggleMonitoring = async () => {
+    try {
+      if (monitoring) {
+        const res = await window.pywebview.api.stop_serial_monitor();
+        if (res.status === "stopped") {
+          setMonitoring(false);
+          setSerialConnected(false);
+          setTerminalLogs((prev) => [...prev, "🛑 Monitoring stopped"]);
+        }
+      } else {
+        const res = await window.pywebview.api.start_serial_monitor();
+        if (res.status === "connected") {
+          setMonitoring(true);
+          setSerialConnected(true);
+          setTerminalLogs((prev) => [...prev, `🚀 Connected to ${res.port}`]);
+        } else {
+          setTerminalLogs((prev) => [...prev, `❌ ${res.message || "Connection failed"}`]);
+        }
+      }
+    } catch (err: any) {
+      setTerminalLogs((prev) => [...prev, `❌ ${err.message || err}`]);
+    }
+  };
+
+  // 🔹 Clear terminal
+  const clearTerminal = () => {
+    setTerminalLogs([]);
+  };
+
+  // 🔹 Export logs
   const downloadLogs = () => {
     const logContent = terminalLogs.join("\n");
     const blob = new Blob([logContent], { type: "text/plain" });
@@ -104,11 +145,6 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
     a.download = `serial-monitor-${new Date().toISOString().split("T")[0]}.log`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const toggleMonitoring = () => {
-    // This would toggle monitoring in your serial context
-    console.log("Toggle monitoring");
   };
 
   return (
@@ -123,16 +159,16 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
         border: "1px solid #333",
         borderBottom: "none",
       }}
-      bodyStyle={{ 
-        padding: "0", 
-        display: "flex", 
-        flexDirection: "column", 
+      bodyStyle={{
+        padding: "0",
+        display: "flex",
+        flexDirection: "column",
         flex: 1,
         height: "100%",
-        overflow: "hidden" // Important: Prevent card body from scrolling
+        overflow: "hidden",
       }}
     >
-      {/* Resize Handle */}
+      {/* Resize handle */}
       <div
         ref={resizeRef}
         style={{
@@ -145,34 +181,38 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
           position: "relative",
           opacity: 0.9,
           borderTop: "2px solid rgba(255,255,255,0.3)",
-          flexShrink: 0, // Prevent resize handle from shrinking
+          flexShrink: 0,
         }}
       >
         <DragOutlined style={{ color: "white", fontSize: "16px" }} />
-        <div style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          color: "white",
-          fontSize: "10px",
-          fontWeight: "bold",
-          textShadow: "0 1px 2px rgba(0,0,0,0.5)"
-        }}>
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            color: "white",
+            fontSize: "10px",
+            fontWeight: "bold",
+            textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+          }}
+        >
           DRAG TO RESIZE
         </div>
       </div>
 
       {/* Header */}
-      <div style={{
-        background: "linear-gradient(135deg, #1890ff 0%, #096dd9 100%)",
-        padding: "12px 16px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        borderBottom: "1px solid #333",
-        flexShrink: 0, // Prevent header from shrinking
-      }}>
+      <div
+        style={{
+          background: "linear-gradient(135deg, #1890ff 0%, #096dd9 100%)",
+          padding: "12px 16px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderBottom: "1px solid #333",
+          flexShrink: 0,
+        }}
+      >
         <Space>
           <UsbOutlined style={{ color: "white", fontSize: "16px" }} />
           <Title level={5} style={{ color: "white", margin: 0 }}>
@@ -193,39 +233,29 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
         </Space>
       </div>
 
-      {/* Terminal Content - This is the scrollable section */}
+      {/* Terminal log area */}
       <div
         ref={terminalRef}
         style={{
           flex: 1,
           overflowY: "auto",
-          overflowX: "hidden",
-          fontFamily: "'Fira Code', 'Cascadia Code', 'Monaco', 'Consolas', monospace",
+          fontFamily: "'Fira Code', monospace",
           fontSize: "13px",
           lineHeight: "1.4",
           whiteSpace: "pre-wrap",
           color: "#00ff00",
           padding: "16px",
           background: "#000",
-          backgroundImage: `
-            radial-gradient(circle at 25% 25%, #0a0a0a 0%, transparent 50%),
-            radial-gradient(circle at 75% 75%, #0a0a0a 0%, transparent 50%)
-          `,
           margin: "12px",
           borderRadius: "8px",
           boxShadow: "inset 0 0 20px rgba(0, 255, 0, 0.1)",
-          wordBreak: "break-word",
-          minHeight: 0, // Important for flex child scrolling
         }}
       >
         {terminalLogs.length === 0 ? (
-          <div style={{ 
-            color: "#666", 
-            textAlign: "center", 
-            padding: "20px",
-            fontStyle: "italic" 
-          }}>
-            No terminal output yet. Connect to a device to see serial data.
+          <div
+            style={{ color: "#666", textAlign: "center", padding: "20px", fontStyle: "italic" }}
+          >
+            No terminal output yet. Start monitoring to view serial data.
           </div>
         ) : (
           terminalLogs.map((line, idx) => (
@@ -235,48 +265,30 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
                 color: line.startsWith(">") ? "#ffa500" :
                        line.startsWith("✅") ? "#00ff00" :
                        line.startsWith("❌") ? "#ff4444" :
-                       line.startsWith("⚠️") ? "#ffaa00" :
                        line.startsWith("📤") ? "#00ffff" :
-                       line.startsWith("🔧") ? "#a855f7" :
-                       line.startsWith("🚀") ? "#00ff88" : 
-                       line.startsWith("📦") ? "#ffa500" : "#00ff00",
-                textShadow: "0 0 1px currentColor",
+                       line.startsWith("🛑") ? "#ffaa00" :
+                       line.startsWith("🚀") ? "#00ff88" : "#00ff00",
                 marginBottom: "4px",
-                wordBreak: "break-word",
-                display: "block",
               }}
             >
               {line}
             </div>
           ))
         )}
-        
-        {/* Scroll indicator */}
-        {terminalLogs.length > 20 && (
-          <div style={{ 
-            color: "#666", 
-            fontSize: "11px", 
-            textAlign: "center",
-            marginTop: "10px",
-            padding: "4px",
-            borderTop: "1px solid #333",
-            opacity: 0.7
-          }}>
-            Scroll to see more... ({terminalLogs.length} lines)
-          </div>
-        )}
       </div>
 
-      {/* Control Bar */}
-      <div style={{
-        padding: "12px 16px",
-        background: "rgba(0, 0, 0, 0.3)",
-        borderTop: "1px solid #333",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        flexShrink: 0, // Prevent control bar from shrinking
-      }}>
+      {/* Footer / Controls */}
+      <div
+        style={{
+          padding: "12px 16px",
+          background: "rgba(0, 0, 0, 0.3)",
+          borderTop: "1px solid #333",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexShrink: 0,
+        }}
+      >
         <Space>
           <Button
             type="primary"
@@ -286,12 +298,12 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
             style={{
               background: monitoring ? "#faad14" : "#52c41a",
               border: "none",
-              borderRadius: "6px"
+              borderRadius: "6px",
             }}
           >
-            {monitoring ? "Pause" : "Resume"}
+            {monitoring ? "Stop" : "Start"}
           </Button>
-          
+
           <Button
             size="small"
             icon={<ClearOutlined />}
@@ -300,12 +312,12 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
               background: "#ff4d4f",
               color: "white",
               border: "none",
-              borderRadius: "6px"
+              borderRadius: "6px",
             }}
           >
             Clear
           </Button>
-          
+
           <Button
             size="small"
             icon={<DownloadOutlined />}
@@ -314,7 +326,7 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
               background: "#1890ff",
               color: "white",
               border: "none",
-              borderRadius: "6px"
+              borderRadius: "6px",
             }}
           >
             Export
@@ -335,7 +347,6 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
             borderRadius: "6px",
             padding: "6px 12px",
           }}
-          prefix={<Text style={{ color: "#00ff00", fontFamily: "monospace" }}></Text>}
         />
       </div>
     </Card>

@@ -1,209 +1,561 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Layout, Spin, Button, Modal } from "antd";
+import { Layout, Spin, Button, Modal, Progress, Alert, Steps } from "antd";
 import { useParams } from "react-router-dom";
 import ModuleExplorer from "../components/ModuleExplorer";
 import IDE from "../components/IDE";
-import { MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
+import { 
+    MenuFoldOutlined, 
+    MenuUnfoldOutlined, 
+    StopOutlined,
+    CodeOutlined,
+    BuildOutlined,
+    UploadOutlined,
+    CheckCircleOutlined
+} from "@ant-design/icons";
 
 const { Sider, Content, Header } = Layout;
+const { Step } = Steps;
 
 const IDEPage: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
-  const [isApiReady, setIsApiReady] = useState(false);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [modalMessages, setModalMessages] = useState<string[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isSiderCollapsed, setIsSiderCollapsed] = useState(false);
-  const logEndRef = useRef<HTMLDivElement | null>(null);
+    const { projectId } = useParams<{ projectId: string }>();
+    const [isApiReady, setIsApiReady] = useState(false);
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [isSiderCollapsed, setIsSiderCollapsed] = useState(false);
+    const [currentPhase, setCurrentPhase] = useState<string>("");
+    const [progressPercent, setProgressPercent] = useState<number>(0);
+    const [finalResult, setFinalResult] = useState<any>(null);
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [showUploadPrompt, setShowUploadPrompt] = useState(false);
+    const [hasCompilationError, setHasCompilationError] = useState(false);
+    const [hasUploadError, setHasUploadError] = useState(false);
+    const [uploadLogs, setUploadLogs] = useState<string[]>([]);
+    const [showUploadLogs, setShowUploadLogs] = useState(false);
+    const logEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Scroll modal to bottom as messages stream in
-  useEffect(() => {
-    if (logEndRef.current) logEndRef.current.scrollIntoView({ behavior: "smooth" });
-  }, [modalMessages]);
-
-  // Wait for pywebview API
-  useEffect(() => {
-    const checkApiReady = () => {
-      if (window.pywebview?.api) {
-        setIsApiReady(true);
-        return true;
-      }
-      return false;
+    // Phase → progress mapping
+    const phaseProgress: Record<string, number> = {
+        begin_transpile: 10,
+        end_transpile: 25,
+        begin_compile: 40,
+        end_compile: 70,
+        start_upload: 80,
+        end_upload: 95,
+        all_done: 100,
+        error: 100,
+        cancelled: 100,
     };
 
-    if (checkApiReady()) return;
+    // Auto-scroll upload logs
+    useEffect(() => {
+        if (logEndRef.current && showUploadLogs) {
+            logEndRef.current.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [uploadLogs, showUploadLogs]);
 
-    const handleReady = () => checkApiReady();
-    window.addEventListener("pywebviewready", handleReady);
+    // PyWebView API readiness
+    useEffect(() => {
+        const checkApi = () => {
+            if (window.pywebview?.api) {
+                setIsApiReady(true);
+                return true;
+            }
+            return false;
+        };
+        if (checkApi()) return;
+        const interval = setInterval(() => checkApi(), 100);
+        return () => clearInterval(interval);
+    }, []);
 
-    const interval = setInterval(() => checkApiReady(), 100);
-    const timeoutId = setTimeout(() => {
-      clearInterval(interval);
-      console.warn("pywebview API not available in IDEPage");
-    }, 5000);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeoutId);
-      window.removeEventListener("pywebviewready", handleReady);
-    };
-  }, []);
-
-  // Real-time messages from backend
-  useEffect(() => {
-    window.__updateBuildStatus = (phase: string, message: string) => {
-      setModalMessages(prev => [...prev, `${phase.toUpperCase()}: ${message}`]);
-    };
-  }, []);
-
-  // Trigger backend compile call
-  const handleCompile = async (withUpload = false) => {
-    if (!isApiReady || !window.pywebview?.api) {
-      Modal.warning({
-        title: "Backend not ready",
-        content: "Please wait for PyWebView API to initialize.",
-      });
-      return;
-    }
-
-    setModalMessages([]);
-    setIsModalVisible(true);
-    setIsUploading(withUpload);
-
-    try {
-      const res = await window.pywebview.api.compile(projectId, withUpload);
-      if (res.success) {
-        setModalMessages(prev => [...prev, "✅ Build completed successfully"]);
-      } else {
-        setModalMessages(prev => [
-          ...prev,
-          `❌ Build failed: ${res.error || res.message}`,
-        ]);
-      }
-    } catch (err: any) {
-      console.error(err);
-      setModalMessages(prev => [
-        ...prev,
-        `❌ Error: ${err.message || err.toString()}`,
-      ]);
-    }
-  };
-
-  const toggleSider = () => {
-    setIsSiderCollapsed(!isSiderCollapsed);
-  };
-
-  if (!projectId) {
-    return (
-      <Layout
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <Spin size="large" />
-      </Layout>
-    );
-  }
-
-  return (
-    <Layout style={{ minHeight: "100vh", overflow: "hidden" }}>
-      {/* Collapsible Sidebar */}
-      <Sider 
-        width={300} 
-        theme="light" 
-        style={{ background: "#fafafa" }}
-        collapsed={isSiderCollapsed}
-        collapsedWidth={0}
-        trigger={null}
-        collapsible
-      >
-        <div style={{ padding: "16px", borderBottom: "1px solid #f0f0f0" }}>
-          <h5 style={{ margin: 0 }}>Module Explorer</h5>
-        </div>
-        <div style={{ height: "calc(100vh - 80px)", overflow: "auto" }}>
-          <ModuleExplorer />
-        </div>
-      </Sider>
-
-      {/* Main content with buttons */}
-      <Layout style={{ background: "#fff" }}>
-        <Header
-          style={{
-            background: "#fff",
-            borderBottom: "1px solid #f0f0f0",
-            padding: "8px 16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "8px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {/* Toggle button for module explorer */}
-            <Button 
-              type="text"
-              icon={isSiderCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={toggleSider}
-              title={isSiderCollapsed ? "Show Module Explorer" : "Hide Module Explorer"}
-              style={{ 
-                border: "1px solid #d9d9d9",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            />
+    // Unified backend event handler
+    useEffect(() => {
+        window.__onCompilerEvent = (ev: any) => {
+            const { phase, text, level } = ev;
+            console.log(`[EVENT] ${phase}: ${text}`);
             
-            {/* Compile buttons */}
-            <Button type="primary" onClick={() => handleCompile(false)}>
-              Compile
-            </Button>
-            <Button type="primary" danger onClick={() => handleCompile(true)}>
-              Compile & Upload
-            </Button>
-          </div>
-        </Header>
+            setCurrentPhase(phase);
+            setProgressPercent(phaseProgress[phase] ?? progressPercent);
 
-        <Content style={{ padding: 0 }}>
-          <IDE projectId={projectId} isApiReady={isApiReady} />
-        </Content>
-      </Layout>
+            // Track errors
+            if (phase === "error") {
+                if (text.includes("Compilation failed") || text.includes("Build failed")) {
+                    setHasCompilationError(true);
+                    setShowUploadPrompt(false);
+                } else if (text.includes("Upload failed") || text.includes("No compatible device")) {
+                    setHasUploadError(true);
+                }
+            }
 
-      {/* Modal showing compile progress */}
-      <Modal
-        open={isModalVisible}
-        title={isUploading ? "Compiling & Uploading..." : "Compiling..."}
-        onCancel={() => setIsModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsModalVisible(false)}>
-            Close
-          </Button>,
-        ]}
-        width={600}
-      >
-        <div
-          style={{
-            background: "#111",
-            color: "#0f0",
-            fontFamily: "monospace",
-            padding: "12px",
-            height: "50vh",
-            overflowY: "auto",
-            borderRadius: "6px",
-          }}
-        >
-          {modalMessages.length === 0 ? (
-            <div>⏳ Starting build process...</div>
-          ) : (
-            modalMessages.map((msg, i) => <div key={i}>{msg}</div>)
-          )}
-          <div ref={logEndRef} />
-        </div>
-      </Modal>
-    </Layout>
-  );
+            // Show upload prompt when compilation completes successfully
+            if (phase === "end_compile" && isUploading && !hasCompilationError) {
+                setShowUploadPrompt(true);
+                setShowUploadLogs(true); // Start showing logs when upload phase begins
+            }
+
+            // Capture upload logs - look for progress indicators
+            if (showUploadLogs && text) {
+                const lowerText = text.toLowerCase();
+                // Capture important upload-related messages
+                if (lowerText.includes('upload') || 
+                    lowerText.includes('writing') || 
+                    lowerText.includes('flash') ||
+                    lowerText.includes('boot') ||
+                    lowerText.includes('serial') ||
+                    lowerText.includes('progress') ||
+                    lowerText.includes('%') ||
+                    lowerText.includes('bytes') ||
+                    lowerText.includes('hash') ||
+                    lowerText.includes('leaving') ||
+                    text.includes('❌') ||
+                    text.includes('✅') ||
+                    text.includes('⚠️')) {
+                    setUploadLogs(prev => [...prev, text]);
+                }
+            }
+
+            // Handle completion
+            if (phase === "all_done" || phase === "error" || phase === "cancelled") {
+                const success = determineOverallSuccess(phase, hasCompilationError, hasUploadError, isUploading);
+                setFinalResult({
+                    success,
+                    error: !success ? getFinalErrorMessage(hasCompilationError, hasUploadError, text) : undefined,
+                    phase: phase
+                });
+                setShowUploadPrompt(false);
+            }
+        };
+
+        // Also capture terminal logs during upload phase
+        window.__appendTerminalLog = (logLine: string) => {
+            if (showUploadLogs && logLine && logLine.trim()) {
+                const lowerLine = logLine.toLowerCase();
+                // Capture upload progress indicators
+                if (lowerLine.includes('writing at') || 
+                    lowerLine.includes('uploading') ||
+                    lowerLine.includes('%') ||
+                    lowerLine.includes('bytes') ||
+                    lowerLine.includes('compressed') ||
+                    lowerLine.includes('hash of data verified') ||
+                    lowerLine.includes('leaving...') ||
+                    lowerLine.includes('hard resetting')) {
+                    setUploadLogs(prev => [...prev, logLine]);
+                }
+            }
+        };
+
+        return () => {
+            window.__onCompilerEvent = undefined;
+            window.__appendTerminalLog = undefined;
+        };
+    }, [progressPercent, isUploading, hasCompilationError, hasUploadError, showUploadLogs]);
+
+    // Determine overall success based on all phases
+    const determineOverallSuccess = (finalPhase: string, compilationError: boolean, uploadError: boolean, wasUploading: boolean) => {
+        if (finalPhase === "error" || finalPhase === "cancelled") {
+            return false;
+        }
+        if (compilationError) {
+            return false;
+        }
+        if (wasUploading && uploadError) {
+            return false;
+        }
+        return finalPhase === "all_done";
+    };
+
+    // Get appropriate error message
+    const getFinalErrorMessage = (compilationError: boolean, uploadError: boolean, lastErrorText: string) => {
+        if (compilationError) {
+            return "Compilation failed - check your code for errors";
+        }
+        if (uploadError) {
+            return "Upload failed - check device connection";
+        }
+        return lastErrorText || "Build process failed";
+    };
+
+    // Reset modal when closed
+    useEffect(() => {
+        if (!isModalVisible) {
+            setProgressPercent(0);
+            setFinalResult(null);
+            setCurrentPhase("");
+            setSessionId(null);
+            setShowUploadPrompt(false);
+            setHasCompilationError(false);
+            setHasUploadError(false);
+            setUploadLogs([]);
+            setShowUploadLogs(false);
+        }
+    }, [isModalVisible]);
+
+    // Start compile
+    const handleCompile = async (withUpload = false) => {
+        if (!isApiReady || !window.pywebview?.api) {
+            Modal.warning({
+                title: "Backend not ready",
+                content: "PyWebView API not initialized.",
+            });
+            return;
+        }
+
+        setIsModalVisible(true);
+        setIsUploading(withUpload);
+        setProgressPercent(0);
+        setCurrentPhase("begin_transpile");
+        setFinalResult(null);
+        setShowUploadPrompt(false);
+        setHasCompilationError(false);
+        setHasUploadError(false);
+        setUploadLogs([]);
+        setShowUploadLogs(false);
+
+        try {
+            const res = await window.pywebview.api.compile(projectId, withUpload);
+            setSessionId(res.session_id || null);
+        } catch (err: any) {
+            setCurrentPhase("error");
+            setProgressPercent(100);
+            setHasCompilationError(true);
+        }
+    };
+
+    // Cancel build
+    const handleCancel = async () => {
+        if (sessionId && window.pywebview?.api?.cancel_session) {
+            await window.pywebview.api.cancel_session(sessionId);
+            setShowUploadPrompt(false);
+        }
+    };
+
+    const toggleSider = () => setIsSiderCollapsed(!isSiderCollapsed);
+
+    // Status color
+    const getStatusColor = () => {
+        if (currentPhase === "error" || hasCompilationError || hasUploadError) return "#ff4d4f";
+        if (currentPhase === "cancelled") return "#faad14";
+        if (currentPhase === "all_done" && !hasCompilationError && (!isUploading || !hasUploadError)) return "#52c41a";
+        return "#1890ff";
+    };
+
+    const getStatusText = () => {
+        if (hasCompilationError) return "Compilation failed";
+        if (hasUploadError) return "Upload failed";
+        
+        if (showUploadPrompt) {
+            return "Ready for upload - follow instructions below";
+        }
+        
+        switch (currentPhase) {
+            case "begin_transpile": return "Transpiling Python code...";
+            case "end_transpile": return "Transpilation complete";
+            case "begin_compile": return "Compiling firmware...";
+            case "end_compile": return "Compilation successful";
+            case "start_upload": return "Uploading to device...";
+            case "end_upload": return "Upload complete!";
+            case "all_done": return "All steps completed successfully";
+            case "cancelled": return "Cancelled by user";
+            case "error": return "Error occurred";
+            default: return "Processing...";
+        }
+    };
+
+    // Get current step for the Steps component
+    const getCurrentStep = () => {
+        if (["error", "cancelled"].includes(currentPhase) || hasCompilationError || hasUploadError) return -1;
+        if (currentPhase === "all_done") return isUploading ? 3 : 2;
+        if (currentPhase.includes("upload") || showUploadPrompt) return 2;
+        if (currentPhase.includes("compile")) return 1;
+        return 0;
+    };
+
+    // Get phase status
+    const getPhaseStatus = (phase: string) => {
+        if (currentPhase === "error" || hasCompilationError || hasUploadError) {
+            if (phase === "transpile" && hasCompilationError) return "error";
+            if (phase === "compile" && hasCompilationError) return "error";
+            if (phase === "upload" && hasUploadError) return "error";
+            return "wait";
+        }
+        
+        if (currentPhase === "cancelled") return "warning";
+        
+        if (phase === "transpile") {
+            if (currentPhase.includes("transpile")) return "process";
+            if (currentPhase.includes("compile") || currentPhase.includes("upload") || showUploadPrompt) return "finish";
+            return "wait";
+        }
+        
+        if (phase === "compile") {
+            if (currentPhase.includes("compile")) return "process";
+            if (currentPhase.includes("upload") || showUploadPrompt) return "finish";
+            return "wait";
+        }
+        
+        if (phase === "upload") {
+            if (currentPhase.includes("upload") || showUploadPrompt) return "process";
+            if (currentPhase === "all_done") return "finish";
+            return "wait";
+        }
+        
+        return "wait";
+    };
+
+    // Format upload log messages with colors
+    const formatLogMessage = (msg: string) => {
+        const lower = msg.toLowerCase();
+        if (lower.includes("error") || lower.includes("failed") || msg.includes("❌") || lower.includes("fatal"))
+            return <span style={{ color: "#ff4d4f" }}>{msg}</span>;
+        if (lower.includes("warning") || msg.includes("⚠️"))
+            return <span style={{ color: "#faad14" }}>{msg}</span>;
+        if (lower.includes("success") || msg.includes("✅") || lower.includes("hash of data verified") || lower.includes("leaving..."))
+            return <span style={{ color: "#52c41a" }}>{msg}</span>;
+        if (lower.includes("upload") || lower.includes("writing") || lower.includes("bytes") || lower.includes("%"))
+            return <span style={{ color: "#1890ff" }}>{msg}</span>;
+        return <span style={{ color: "#ccc" }}>{msg}</span>;
+    };
+
+    if (!projectId) {
+        return (
+            <Layout
+                style={{
+                    minHeight: "100vh",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                }}
+            >
+                <Spin size="large" />
+            </Layout>
+        );
+    }
+
+    return (
+        <Layout style={{ minHeight: "100vh" }}>
+            <Sider
+                width={300}
+                theme="light"
+                style={{ background: "#fafafa" }}
+                collapsed={isSiderCollapsed}
+                collapsedWidth={0}
+                trigger={null}
+                collapsible
+            >
+                <div style={{ padding: 16, borderBottom: "1px solid #f0f0f0" }}>
+                    <h5 style={{ margin: 0 }}>Module Explorer</h5>
+                </div>
+                <div style={{ height: "calc(100vh - 80px)", overflow: "auto" }}>
+                    <ModuleExplorer />
+                </div>
+            </Sider>
+
+            <Layout style={{ background: "#fff" }}>
+                <Header
+                    style={{
+                        background: "#fff",
+                        borderBottom: "1px solid #f0f0f0",
+                        padding: "8px 16px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                    }}
+                >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Button
+                            type="text"
+                            icon={isSiderCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                            onClick={toggleSider}
+                        />
+                        <Button 
+                            type="primary" 
+                            icon={<BuildOutlined />}
+                            onClick={() => handleCompile(false)}
+                        >
+                            Compile
+                        </Button>
+                        <Button 
+                            type="primary" 
+                            danger 
+                            icon={<UploadOutlined />}
+                            onClick={() => handleCompile(true)}
+                        >
+                            Compile & Upload
+                        </Button>
+                    </div>
+                </Header>
+
+                <Content>
+                    <IDE projectId={projectId} isApiReady={isApiReady} />
+                </Content>
+            </Layout>
+
+            {/* Build Modal */}
+            <Modal
+                open={isModalVisible}
+                title={
+                    <div>
+                        <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
+                            {isUploading ? "Compiling & Uploading to Device" : "Compiling Project"}
+                        </div>
+                        <div style={{ color: getStatusColor(), marginTop: 4, fontSize: '14px' }}>
+                            {getStatusText()}
+                        </div>
+                    </div>
+                }
+                onCancel={() => setIsModalVisible(false)}
+                footer={[
+                    <Button
+                        key="cancel"
+                        icon={<StopOutlined />}
+                        danger
+                        onClick={handleCancel}
+                        disabled={["all_done", "error", "cancelled"].includes(currentPhase) || hasCompilationError || hasUploadError}
+                    >
+                        Cancel
+                    </Button>,
+                    <Button 
+                        key="close" 
+                        type="primary" 
+                        onClick={() => setIsModalVisible(false)}
+                    >
+                        Close
+                    </Button>,
+                ]}
+                width={600}
+                style={{ top: 20 }}
+            >
+                {/* Progress Steps */}
+                <Steps
+                    current={getCurrentStep()}
+                    status={
+                        hasCompilationError || hasUploadError ? "error" : 
+                        currentPhase === "cancelled" ? "error" : "process"
+                    }
+                    style={{ marginBottom: 24 }}
+                >
+                    <Step 
+                        title="Transpiling" 
+                        description="Converting Python to C++"
+                        icon={<CodeOutlined />}
+                        status={getPhaseStatus("transpile")}
+                    />
+                    <Step 
+                        title="Compiling" 
+                        description="Building firmware"
+                        icon={<BuildOutlined />}
+                        status={getPhaseStatus("compile")}
+                    />
+                    {isUploading && (
+                        <Step 
+                            title="Uploading" 
+                            description="Flashing to device"
+                            icon={<UploadOutlined />}
+                            status={getPhaseStatus("upload")}
+                        />
+                    )}
+                    <Step 
+                        title="Complete" 
+                        description="All done"
+                        icon={<CheckCircleOutlined />}
+                    />
+                </Steps>
+
+                <Progress
+                    percent={progressPercent}
+                    strokeColor={getStatusColor()}
+                    showInfo={true}
+                    style={{ marginBottom: 16 }}
+                />
+
+                {/* Upload Instructions - Always show during upload phase */}
+                {showUploadPrompt && (
+                    <Alert
+                        message="Upload Instructions"
+                        description={
+                            <div>
+                                <p><strong>For ESP32:</strong> Hold the BOOT button, then the upload will start automatically.</p>
+                                <p><strong>Watch the logs below for progress:</strong></p>
+                                <ul style={{ fontSize: '12px', color: '#666', margin: '8px 0', paddingLeft: '16px' }}>
+                                    <li>When you see "Writing at..." or progress percentage, you can release BOOT button</li>
+                                    <li>When you see "Hash of data verified" or "Leaving...", upload is complete</li>
+                                </ul>
+                            </div>
+                        }
+                        type="warning"
+                        showIcon
+                        style={{ marginBottom: 16 }}
+                    />
+                )}
+
+                {/* Upload Progress Logs - Only show during upload phase */}
+                {showUploadLogs && (
+                    <div style={{ marginBottom: 16 }}>
+                        <div style={{ 
+                            fontSize: '14px', 
+                            fontWeight: 'bold', 
+                            marginBottom: '8px',
+                            color: '#1890ff'
+                        }}>
+                            📤 Upload Progress
+                        </div>
+                        <div
+                            style={{
+                                background: "#111",
+                                color: "#fff",
+                                padding: "12px",
+                                borderRadius: "6px",
+                                maxHeight: "200px",
+                                overflowY: "auto",
+                                fontFamily: "'Courier New', monospace",
+                                fontSize: "12px",
+                                lineHeight: "1.4",
+                            }}
+                        >
+                            {uploadLogs.length === 0 ? (
+                                <div style={{ color: "#777" }}>
+                                    Waiting for upload to start... Hold BOOT button if required.
+                                </div>
+                            ) : (
+                                uploadLogs.map((log, i) => (
+                                    <div key={i} style={{ marginBottom: "2px" }}>
+                                        {formatLogMessage(log)}
+                                    </div>
+                                ))
+                            )}
+                            <div ref={logEndRef} />
+                        </div>
+                    </div>
+                )}
+
+                {/* Final summary */}
+                {finalResult && (
+                    <Alert
+                        message={finalResult.success ? "✅ Build Successful" : "❌ Build Failed"}
+                        description={
+                            finalResult.success 
+                                ? "All operations completed successfully" 
+                                : finalResult.error || "Build process encountered an error"
+                        }
+                        type={finalResult.success ? "success" : "error"}
+                        showIcon
+                        style={{ marginBottom: 16 }}
+                    />
+                )}
+
+                {/* Current Status Message - Only show when no other specific content */}
+                {!finalResult && !showUploadPrompt && !showUploadLogs && (
+                    <div style={{ 
+                        textAlign: 'center', 
+                        padding: '20px', 
+                        color: '#666',
+                        fontStyle: 'italic'
+                    }}>
+                        {getStatusText()}
+                    </div>
+                )}
+            </Modal>
+        </Layout>
+    );
 };
 
 export default IDEPage;
