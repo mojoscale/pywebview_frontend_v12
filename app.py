@@ -52,7 +52,7 @@ from core.completions import get_python_completions
 from core.serial_manager import get_valid_serial_port
 
 # Detect packaged app
-if getattr(sys, "frozen", False):
+if getattr(sys, "frozen", False) or hasattr(sys, "_MEIPASS"):
     # Running as packaged executable (Nuitka/PyInstaller)
     BASE_DIR = Path(sys.executable).parent
 else:
@@ -548,8 +548,6 @@ class Api:
 # ------------------------
 if __name__ == "__main__":
     check_or_create_app_dir()
-    generate_pyi_stubs(CORE_LIBS)
-    docs_generator()
 
     DEV = "--dev" in sys.argv
     api = Api()
@@ -558,6 +556,8 @@ if __name__ == "__main__":
 
     if DEV:
         window_url = "http://localhost:5173"
+        generate_pyi_stubs(CORE_LIBS)
+        docs_generator()
 
     else:
         frontend_path = Path(__file__).parent / "frontend" / "dist" / "index.html"
