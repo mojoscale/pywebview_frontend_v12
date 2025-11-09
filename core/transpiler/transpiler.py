@@ -454,7 +454,7 @@ def extract_annotation_type(node):
                     args = ["?"]
 
                 return_type = extract_annotation_type(return_node)
-                return f"callable[{', '.join(args)}]->{return_type}"
+                return f"callable[{','.join(args)}]->{return_type}"
 
             # Case 2: Callable[None] or Callable[T]
             elif isinstance(sub, (ast.Constant, ast.Name)):
@@ -556,7 +556,7 @@ def _extract_chain(node: ast.Call):
             # unhandled type (e.g., Subscript, etc.)
             result.append(
                 {
-                    "value": ast.dump(current),
+                    "value": current,
                     "type": type(current).__name__.lower(),
                     "args": [],
                     "kwargs": [],
@@ -1835,7 +1835,7 @@ class TypeAnalyzer:
             called_entity_type = called_entity["type"]
             called_entity_value = called_entity["value"]
             if not prev_type:
-                if called_entity_type == "const":
+                if called_entity_type not in ("call", "attr"):
                     # basically a call like [1, 2, 3].split()
                     # prev_statement = self.visit(called_entity_value)
                     prev_type = self.get_node_type(called_entity_value) or "str"
@@ -2654,7 +2654,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
             raise NotImplementedError(f"Unsupported binary operator: {ast.dump(op)}")
         return f"({left} {operator} {right})"
 
-    def visit_Dict(self, node, context=None):
+    """def visit_Dict(self, node, context=None):
         print(f"visiting dict with context {context}")
         keys = node.keys
         values = node.values
@@ -2691,7 +2691,30 @@ class ArduinoTranspiler(ast.NodeVisitor):
             else:
                 inferred_type = "auto"
 
-        return f'PyDict<{inferred_type}>("{c_string_literal}")'
+        return f'PyDict<{inferred_type}>("{c_string_literal}")'"""
+
+    def visit_Dict(self, node, context=None):
+        keys = node.keys
+        values = node.values
+        pairs = []
+        inferred_type = None
+
+        for k, v in zip(keys, values):
+            key_cpp = self.visit(k)
+            val_cpp = self.visit(v)
+            value_type = self.type_analyzer.get_node_type(v)
+            inferred_type = get_cpp_python_type(value_type)
+            pairs.append(f"{{{key_cpp}, {val_cpp}}}")
+
+        if not inferred_type:
+            inferred_type = "auto"
+            if context:
+                context_split = context.split(",")
+                if len(context_split) == 3 and context_split[0] == "dict":
+                    inferred_type = get_cpp_python_type(context_split[2])
+
+        cpp_code = f"PyDict<{inferred_type}>({{{', '.join(pairs)}}})"
+        return cpp_code
 
     def visit_Import(self, node):
         imports = list()
@@ -2752,6 +2775,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
     def _call_analyzer(self, call_chain: dict, node):
         prev_type = None
         prev_statement = None
+        prev_entity_type = None
         print(f"processing call chain {call_chain}")
 
         for called_entity in call_chain:
@@ -2759,12 +2783,13 @@ class ArduinoTranspiler(ast.NodeVisitor):
             called_entity_type = called_entity["type"]
             called_entity_value = called_entity["value"]
             if not prev_type:
-                if called_entity_type == "const":
+                if called_entity_type not in ("call", "attr"):
                     # basically a call like [1, 2, 3].split()
                     prev_statement = self.visit(called_entity_value)
                     prev_type = (
                         self.type_analyzer.get_node_type(called_entity_value) or "str"
                     )
+                    prev_entity_type = "const"
                     print(f"found {called_entity_value} type {prev_type}")
 
                 elif called_entity_type == "attr":
@@ -2776,6 +2801,8 @@ class ArduinoTranspiler(ast.NodeVisitor):
                     )
 
                     print(f"found module {module_name}")
+
+                    prev_entity_type = "attr"
 
                     if module_name:
                         # this is an imported module
@@ -2795,6 +2822,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                     args = called_entity["args"]
                     kwargs = called_entity["kwargs"]
                     visited_args = self._visit_function_args(args)
+                    prev_entity_type = "call"
                     args_type = [
                         self.type_analyzer.get_node_type(arg) for arg in node.args
                     ]
@@ -2895,6 +2923,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                                 f"[CA] translation is {called_entity_translation} and args kwargs are {method_args_kwargs}"
                             )
                             prev_statement = f"{called_entity_translation.format(**method_args_kwargs)}"
+                            prev_entity_type = "call"
 
                         else:
                             """args = self._process_func_args(
@@ -2924,9 +2953,44 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
                             prev_type = called_entity_return_type
                             print(f"found args {args}")
-                            prev_statement = called_entity_translation.format(
-                                **method_args_kwargs
+
+                            is_eval = self.dependency_resolver.get_method_is_eval(
+                                method_name, module_name
                             )
+
+                            print(f"method {method_name} is eval: {is_eval}")
+
+                            if is_eval:
+                                if (
+                                    method_name == "get_env_var"
+                                    and module_name == "core.env_vars"
+                                ):
+                                    var_name = args[0].value
+                                    pass_args = {"var_name": var_name}
+                                    translation_parsed = (
+                                        ast.parse(
+                                            f'"{eval(called_entity_translation.format(**pass_args))}"'
+                                        )
+                                        .body[0]
+                                        .value
+                                    )
+
+                                    prev_statement = self.visit(translation_parsed)
+
+                                else:
+                                    translation = called_entity_translation.format(
+                                        **method_args_kwargs
+                                    )
+                                    print(
+                                        f"translation for eval method {method_name} for module {module_name} is {translation}"
+                                    )
+                                    prev_statement = eval(translation)
+
+                            else:
+                                prev_statement = called_entity_translation.format(
+                                    **method_args_kwargs
+                                )
+                            prev_entity_type = "call"
 
                     else:
                         transformed_core_type = prev_type.split(",")[0]
@@ -2939,19 +3003,34 @@ class ArduinoTranspiler(ast.NodeVisitor):
                                 custom_float_type=True,
                             )
 
+                            args = self._visit_function_args(args)
+
                             joined_args = ",".join(args)
 
                             if prev_type == "str" and method_name == "isspace":
                                 prev_statement = f"{cpp_type}({prev_statement}).py{method_name}({joined_args})"
-                            else:
-                                print(f"got prev statement {prev_statement}")
+                            elif transformed_core_type in (
+                                "str",
+                                "int",
+                                "float",
+                                "bool",
+                            ):
                                 prev_statement = f"{cpp_type}({prev_statement}).{method_name}({joined_args})"
-
-                                print(f"now prev statement is {prev_statement}")
+                            else:
+                                if prev_entity_type == "attr":
+                                    # this is attr and is already init with c++ type.
+                                    # DONOT reinit with c++ type, else the method will work on a copy.
+                                    prev_statement = (
+                                        f"{prev_statement}.{method_name}({joined_args})"
+                                    )
+                                else:
+                                    # this is probably a constant and needs to be initialized with c++ type.
+                                    prev_statement = f"{cpp_type}({prev_statement}).{method_name}({joined_args})"
 
                             prev_type = get_python_builtin_class_method_type(
                                 prev_type, method_name
                             )
+                            prev_entity_type = "call"
 
                         else:
                             # here prev_type is class name, prev_statement is class instance
@@ -2994,6 +3073,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                             prev_statement = called_entity_translation.format(
                                 **method_args_kwargs
                             )
+                            prev_entity_type = "call"
 
         return {"translation": prev_statement, "type": prev_type}
 
@@ -3806,7 +3886,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 f"Unsupported binary operation between {left_type} and {right_type}: {ast.dump(node)}"
             )
 
-    def visit_Constant(self, node):
+    """def visit_Constant(self, node):
         value = node.value
 
         if value is None:
@@ -3815,6 +3895,27 @@ class ArduinoTranspiler(ast.NodeVisitor):
             return "true" if value else "false"
         elif isinstance(value, str):
             escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+            return f'String("{escaped}")'
+        return str(value)"""
+
+    def visit_Constant(self, node):
+        value = node.value
+
+        if value is None:
+            return "null"
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        elif isinstance(value, str):
+            # Escape for safe embedding in C++ literal:
+            # - Preserve literal backslashes and \n sequences
+            # - Do NOT introduce real newlines
+            escaped = (
+                value.encode(
+                    "unicode_escape"
+                )  # convert real newlines → \n, tabs → \t, etc.
+                .decode("utf-8")
+                .replace('"', '\\"')  # escape quotes
+            )
             return f'String("{escaped}")'
         return str(value)
 

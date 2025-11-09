@@ -7,6 +7,9 @@ from importlib import resources
 import json
 import os
 import re
+import serial
+import serial.tools.list_ports
+import time
 
 import jedi
 
@@ -46,9 +49,10 @@ from core.env_manager import (
 
 from core.core_modules_index_generator import main as docs_generator
 from core.completions import get_python_completions
+from core.serial_manager import get_valid_serial_port
 
 # Detect packaged app
-if getattr(sys, "frozen", False):
+if getattr(sys, "frozen", False) or hasattr(sys, "_MEIPASS"):
     # Running as packaged executable (Nuitka/PyInstaller)
     BASE_DIR = Path(sys.executable).parent
 else:
@@ -58,6 +62,14 @@ else:
 
 CORE_LIBS_PATH = os.path.join(BASE_DIR, "core", "transpiler", "core_libs")
 CORE_STUBS_PATH = os.path.join(BASE_DIR, "core", "transpiler", "core_stubs")
+
+
+# Serial monitor
+_serial_instance = None
+_monitor_thread = None
+_monitoring = False
+_connected_port = None
+_log_callback = None  # set by frontend via pywebview.expose()
 
 
 class Api:
@@ -134,6 +146,8 @@ class Api:
         return get_available_platforms()
 
     def get_boards(self):
+        boards = get_available_boards()
+
         return get_available_boards()
 
     # ------------------------
@@ -297,20 +311,17 @@ class Api:
     # Add to your __init__ method
 
     def compile(self, project_id, upload=False, port=None):
-        """Schedule a compile job and return immediately."""
+        """Schedule a compile job."""
         project = get_project_from_id(project_id)
         if not project:
-            return {"success": False, "error": f"Project {project_id} not found."}
+            return {"success": False, "error": f"Project {project_id} not found"}
 
         board = project["metadata"].get("board_id")
         platform = project["metadata"].get("platform")
         code_files = {"main.py": get_project_code_from_id(project_id)}
 
         if not board or not platform:
-            return {
-                "success": False,
-                "error": "Board/platform not set in project metadata",
-            }
+            return {"success": False, "error": "Board/platform not set"}
 
         task = {
             "project_id": project_id,
@@ -321,23 +332,22 @@ class Api:
             "port": port,
         }
 
-        if not self.loop_ready:
-            return {"success": False, "error": "Main loop not ready"}
-
-        # Initialize compile status
         self.compile_status[project_id] = {
             "completed": False,
             "success": False,
             "in_progress": True,
-            "message": "Compilation scheduled",
+            "message": "Compilation queued",
+            "session_id": None,
         }
 
-        # Push into async compile queue
+        if not self.loop_ready:
+            return {"success": False, "error": "Main loop not ready"}
+
         self.main_loop.call_soon_threadsafe(self.compile_queue.put_nowait, task)
         return {"success": True, "message": "Compilation scheduled"}
 
     async def compile_worker(self):
-        """Background worker to process compile tasks sequentially."""
+        """Processes compile tasks sequentially."""
         self.loop_ready = True
         while True:
             task = await self.compile_queue.get()
@@ -353,12 +363,13 @@ class Api:
                     port=task["port"],
                 )
 
-                # Update completion status
+                session_id = result.get("session_id")
                 self.compile_status[project_id] = {
                     "completed": True,
                     "success": result.get("success", False),
                     "in_progress": False,
-                    "message": result.get("message", "Compilation completed"),
+                    "message": result.get("message", "Done"),
+                    "session_id": session_id,
                     "error": result.get("error"),
                     "warnings": result.get("warnings", []),
                     "specs": result.get("specs", {}),
@@ -376,11 +387,23 @@ class Api:
                 self.compile_queue.task_done()
 
     def get_compile_status(self, project_id):
-        """Get the current compilation status for a project"""
-        if project_id not in self.compile_status:
-            return {"exists": False}
+        """Get current compile or upload state."""
+        return self.compile_status.get(project_id, {"exists": False})
 
-        return self.compile_status[project_id]
+    def cancel_compile(self, project_id):
+        """Cancel an ongoing compilation."""
+        status = self.compile_status.get(project_id)
+        if not status or not status.get("session_id"):
+            return {"success": False, "error": "No active session"}
+        session_id = status["session_id"]
+        ok = cancel_session(session_id)
+        if ok:
+            status["in_progress"] = False
+            status["completed"] = True
+            status["success"] = False
+            status["message"] = "Cancelled by user"
+            return {"success": True, "message": "Cancelled"}
+        return {"success": False, "error": "Session not found or inactive"}
 
     # ------------------------
     # Environment Variables
@@ -413,14 +436,118 @@ class Api:
         """Update multiple environment variables at once."""
         return bulk_update(pairs)
 
+    # ==========================================================
+    # SERIAL MONITOR SECTION
+    # ==========================================================
+    def start_serial_monitor(self, baudrate=115200):
+        """Auto-detect serial port and start background monitor."""
+        global _serial_instance, _monitor_thread, _monitoring, _connected_port
+
+        if _monitoring:
+            return {"status": "already_running"}
+
+        port = get_valid_serial_port()
+        if not port:
+            return {"status": "error", "message": "No valid serial port found"}
+
+        try:
+            _serial_instance = serial.Serial(port, baudrate, timeout=0.1)
+            _connected_port = port
+            _monitoring = True
+
+            _monitor_thread = threading.Thread(
+                target=self._serial_monitor_loop, daemon=True
+            )
+            _monitor_thread.start()
+
+            print(f"✅ Serial connected automatically to {port}")
+            return {"status": "connected", "port": port}
+
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def _serial_monitor_loop(self):
+        """Continuously read serial and push lines to the frontend."""
+        import json, webview
+
+        global _serial_instance, _monitoring, _connected_port
+
+        while _monitoring and _serial_instance:
+            try:
+                if _serial_instance.in_waiting:
+                    line = _serial_instance.readline().decode(errors="ignore").strip()
+                    if line:
+                        print(f"[SERIAL] {line}")  # backend log for debugging
+
+                        # 🚀 Send to frontend as a CustomEvent
+                        script = (
+                            f"window.dispatchEvent(new CustomEvent('serial-log', "
+                            f"{{ detail: {json.dumps(line)} }}));"
+                        )
+                        try:
+                            webview.windows[0].evaluate_js(script)
+                        except Exception as e:
+                            print(f"[EVAL ERROR] {e}")
+                else:
+                    time.sleep(0.05)
+
+            except Exception as e:
+                print(f"[SERIAL ERROR] {e}")
+                break
+
+        print(f"🔴 Serial disconnected from {_connected_port}")
+        _monitoring = False
+        _connected_port = None
+
+    def stop_serial_monitor(self):
+        """Stop serial monitor and close port."""
+        global _serial_instance, _monitoring, _connected_port
+        _monitoring = False
+        if _serial_instance:
+            try:
+                _serial_instance.close()
+            except Exception:
+                pass
+        _connected_port = None
+        print("🛑 Serial monitor stopped")
+        return {"status": "stopped"}
+
+    def send_serial_command(self, command: str):
+        """Send a command string to the current serial device."""
+        global _serial_instance
+        if not _serial_instance:
+            return {"status": "error", "message": "No active serial connection"}
+
+        try:
+            _serial_instance.write((command + "\n").encode())
+            return {"status": "ok", "sent": len(command)}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def register_serial_callback(self):
+        """
+        Frontend calls this once to register a Python-side event forwarder.
+        The callback will emit serial lines to JS via evaluate_js.
+        """
+        import webview
+
+        global _log_callback
+
+        def _callback(line):
+            # Emit to JS as a custom event
+            script = f"window.dispatchEvent(new CustomEvent('serial-log', {{ detail: {json.dumps(line)} }}))"
+            webview.windows[0].evaluate_js(script)
+
+        _log_callback = _callback
+        print("📡 Serial callback registered")
+        return {"status": "registered"}
+
 
 # ------------------------
 # Main entry
 # ------------------------
 if __name__ == "__main__":
     check_or_create_app_dir()
-    generate_pyi_stubs(CORE_LIBS)
-    docs_generator()
 
     DEV = "--dev" in sys.argv
     api = Api()
@@ -429,12 +556,18 @@ if __name__ == "__main__":
 
     if DEV:
         window_url = "http://localhost:5173"
+        generate_pyi_stubs(CORE_LIBS)
+        docs_generator()
 
     else:
         frontend_path = Path(__file__).parent / "frontend" / "dist" / "index.html"
         window_url = frontend_path.as_uri()
 
-    window = webview.create_window(APP_WINDOW_NAME, url=window_url, js_api=api)
+    window = webview.create_window(
+        APP_WINDOW_NAME,
+        url=window_url,
+        js_api=api,
+    )
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

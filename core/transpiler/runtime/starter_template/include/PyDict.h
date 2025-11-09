@@ -221,8 +221,11 @@ public:
     }
 
     void clear() {
-        for (int i = 0; i < capacity; i++) data[i].occupied = false;
+        delete[] data;
+        capacity = 8;
         length = 0;
+        data = new Entry[capacity];
+        for (int i = 0; i < capacity; i++) data[i].occupied = false;
     }
 
     int size() const {

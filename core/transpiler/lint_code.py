@@ -1140,12 +1140,28 @@ class LintCode(ast.NodeVisitor):
         for error in errors:
             self.add_error(node, error)
 
+    def _check_args_for_callables(self, node, args):
+        print(f"[CAFC] checking args")
+        for arg in args:
+            print(f"[CAFC] checking for arg `{arg}`")
+            function_metadata = self.dependency_resolver.get_method_metadata(arg)
+            print(f"[CAFC] found function metadata {function_metadata}")
+
+            if function_metadata:
+                self.add_error(
+                    node,
+                    f"You are passing method `{arg}` without parentheses. This is not allowed.",
+                )
+
+        return
+
     def visit_Call(self, node):
         # can only be called within function
         """if self.scope == "global":
         self.add_error(node, "Methods can be only called within a function body.")"""
         func = node.func
         call_args = []
+        arg_names = []
 
         # --- Positional args ---
         for arg in node.args:
@@ -1155,9 +1171,19 @@ class LintCode(ast.NodeVisitor):
             if not arg_type and isinstance(arg, ast.Name):
                 arg_type = self.loop_variables.get(arg.id, None)
 
+            if arg_type in ("None", "NoneType", "auto"):
+                self.add_error(
+                    node, f"You are passing 'NoneType' as arg, which is not allowed."
+                )
+
             call_args.append({"name": None, "arg_type": arg_type, "is_kwarg": False})
 
-            self.visit(arg)
+            visited_arg = self.visit(arg)
+
+            arg_name = None
+            if isinstance(arg, ast.Name):
+                arg_name = arg.id
+            arg_names.append(arg_name)
 
         # --- Keyword args ---
         for kw in node.keywords:
@@ -1252,6 +1278,8 @@ class LintCode(ast.NodeVisitor):
                     )
 
                     if is_core_python_type(variable_type):
+                        self._check_args_for_callables(node, arg_names)
+
                         variable_class = variable_type.split(",")[0]
 
                         method_return_type = get_python_builtin_class_method_type(
@@ -1309,6 +1337,8 @@ class LintCode(ast.NodeVisitor):
 
             if is_builtin_function(method_name):
                 builtin_func_metadata = get_core_func_metadata(method_name)
+
+                self._check_args_for_callables(node, arg_names)
 
                 print(
                     f"[CORETYPE]: checking for {method_name}, {builtin_func_metadata}"

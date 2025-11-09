@@ -11,462 +11,126 @@ import webview
 import sys
 import sqlite3
 from pathlib import Path
-from .utils import get_bundled_python_exe
-from .db import db_path as DB_PATH
-
+from core.utils import get_bundled_python_exe
+from core.db import db_path as DB_PATH
 from core.transpiler.transpiler import main as transpiler_main
+from typing import Optional, Dict, Any, List
+from enum import Enum
+import time
+
+
+# hide the terminal wondow from openeing for subprocess.
+
+
+if os.name == "nt":
+    _orig_popen = subprocess.Popen
+
+    def _quiet_popen(*args, **kwargs):
+        kwargs.setdefault("creationflags", 0)
+        kwargs["creationflags"] |= subprocess.CREATE_NO_WINDOW
+        startupinfo = kwargs.get("startupinfo") or subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        kwargs["startupinfo"] = startupinfo
+        return _orig_popen(*args, **kwargs)
+
+    subprocess.Popen = _quiet_popen
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CORE_LIBS_PATH = os.path.join(BASE_DIR, "transpiler", "core_libs")
+STARTER_TEMPLATE = (
+    Path(__file__).resolve().parent.parent
+    / "core"
+    / "transpiler"
+    / "runtime"
+    / "starter_template"
+)
 
-# Global state to track installation
-_PLATFORMIO_INSTALLED = False
-
-
-def _get_relevant_platform_version(platform):
-    if platform == "espressif32":
-        return f"{platform}@6.5.0"
-    return platform
-
-
-def release_serial_port(port: str):
-    """Ensure no lingering lock on the serial port."""
-    try:
-        with serial.Serial(port, baudrate=115200, timeout=1) as ser:
-            print(f"🔌 Released serial port: {port}")
-    except serial.SerialException as e:
-        print(f"⚠️ Could not open {port} to release: {e}")
+# =============================================================================
+# Compiler Session System
+# =============================================================================
 
 
-def find_first_serial_port():
-    ports = list(serial.tools.list_ports.comports())
-    if not ports:
-        raise RuntimeError("❌ No serial ports found.")
-    return ports[0].device
+class SessionPhase(str, Enum):
+    BEGIN_TRANSPILE = "begin_transpile"
+    END_TRANSPILE = "end_transpile"
+    BEGIN_COMPILE = "begin_compile"
+    END_COMPILE = "end_compile"
+    START_UPLOAD = "start_upload"
+    END_UPLOAD = "end_upload"
+    ALL_DONE = "all_done"
+    ERROR = "error"
+    CANCELLED = "cancelled"
 
 
-def is_platformio_installed(target_dir: str) -> bool:
-    for item in os.listdir(target_dir):
-        if item.startswith("platformio") and (
-            item.endswith(".dist-info") or os.path.isdir(os.path.join(target_dir, item))
-        ):
-            return True
+class CompilerEvent:
+    def __init__(self, phase: SessionPhase, text: str, level: str = "info"):
+        self.phase = phase
+        self.text = text
+        self.level = level
+        self.timestamp = time.time()
+
+    def to_dict(self):
+        return {
+            "phase": self.phase.value,
+            "text": self.text,
+            "level": self.level,
+            "timestamp": self.timestamp,
+        }
+
+
+class CompilerSession:
+    def __init__(self, session_id: str = None):
+        self.id = session_id or str(uuid.uuid4())
+        self.process: Optional[asyncio.subprocess.Process] = None
+        self.cancelled = False
+
+    async def send(self, phase: SessionPhase, text: str, level: str = "info"):
+        """Send structured compiler event to frontend."""
+        event = CompilerEvent(phase, text, level)
+        print(f"[{phase.value}] {text}")
+        try:
+            webview.windows[0].evaluate_js(
+                f"window.__onCompilerEvent({event.to_dict()})"
+            )
+        except Exception:
+            pass
+
+    async def cancel(self):
+        if self.cancelled:
+            return
+        self.cancelled = True
+        if self.process and self.process.returncode is None:
+            try:
+                self.process.terminate()
+                await asyncio.sleep(0.5)
+                if self.process.returncode is None:
+                    self.process.kill()
+            except ProcessLookupError:
+                pass
+        await self.send(SessionPhase.CANCELLED, "Build cancelled by user", "warn")
+
+
+_active_sessions: Dict[str, CompilerSession] = {}
+
+
+def create_session() -> CompilerSession:
+    s = CompilerSession()
+    _active_sessions[s.id] = s
+    return s
+
+
+def cancel_session(session_id: str):
+    session = _active_sessions.get(session_id)
+    if session:
+        asyncio.create_task(session.cancel())
+        return True
     return False
 
 
-async def stream_command_to_terminal(cmd, cwd=None, env=None):
-    """
-    Run a subprocess command, stream its output to terminal + frontend,
-    and also collect logs for later parsing.
-    Returns (stdout_str, stderr_str, exit_code).
-    """
-    process = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        cwd=cwd,
-        env=env,
-    )
-
-    stdout_data, stderr_data = [], []
-
-    async def stream_output(stream, collector):
-        while True:
-            line = await stream.readline()
-            if not line:
-                break
-            decoded = line.decode(errors="ignore").rstrip()
-            collector.append(decoded)
-
-            # ✅ Print to local terminal
-            print(decoded)
-
-            # ✅ Send to frontend terminal
-            try:
-                webview.windows[0].evaluate_js(
-                    f"window.__appendTerminalLog({decoded!r})"
-                )
-            except Exception as e:
-                print(f"[TerminalLog] JS error: {e}")
-
-    await asyncio.gather(
-        stream_output(process.stdout, stdout_data),
-        stream_output(process.stderr, stderr_data),
-    )
-
-    code = await process.wait()
-    return "\n".join(stdout_data), "\n".join(stderr_data), code
-
-
-def ensure_pip_and_install_pio(python_exe: str, target_dir: str):
-    print(f"🧪 Checking for pip in: {python_exe}")
-
-    def has_pip():
-        try:
-            subprocess.run(
-                [python_exe, "-m", "pip", "--version"], check=True, capture_output=True
-            )
-            return True
-        except subprocess.CalledProcessError:
-            return False
-
-    if not has_pip():
-        print("⚠️ pip not found. Trying to install with ensurepip...")
-        try:
-            subprocess.run([python_exe, "-m", "ensurepip", "--upgrade"], check=True)
-            print("✅ pip installed using ensurepip.")
-        except Exception as e:
-            print("❌ ensurepip failed:", e)
-            print("📥 Downloading get-pip.py as fallback...")
-            with urllib.request.urlopen("https://bootstrap.pypa.io/get-pip.py") as resp:
-                code = resp.read()
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as tmpfile:
-                tmpfile.write(code)
-                tmpfile_path = tmpfile.name
-            subprocess.run([python_exe, tmpfile_path], check=True)
-            print("✅ pip installed using get-pip.py")
-
-    if not is_platformio_installed(target_dir):
-        print("📦 Installing PlatformIO into:", target_dir)
-        subprocess.run(
-            [
-                python_exe,
-                "-m",
-                "pip",
-                "install",
-                "--upgrade",
-                "--target",
-                target_dir,
-                "platformio",
-            ],
-            check=True,
-        )
-        print("✅ PlatformIO installation complete.")
-    else:
-        print("🟢 PlatformIO already installed. Skipping pip install.")
-
-
-def parse_platformio_result(stdout: str, stderr: str) -> dict:
-    # Combine all output for analysis
-    all_output = stdout + "\n" + stderr
-
-    # DEBUG: Print what we're analyzing
-    print(f"🔍 Analyzing output for success/failure...")
-    print(f"🔍 stdout contains [SUCCESS]: {'[SUCCESS]' in stdout}")
-    print(f"🔍 stdout contains [FAILED]: {'[FAILED]' in stdout}")
-    print(f"🔍 stderr contains error: {'error:' in stderr.lower()}")
-    print(
-        f"🔍 all_output contains compilation error: {any(word in all_output.lower() for word in ['error:', '*** [', 'failed'])}"
-    )
-
-    # Check for the most obvious failure markers FIRST
-    has_failed_marker = "[FAILED]" in stdout
-    has_success_marker = "[SUCCESS]" in stdout
-
-    # Check for compiler/linker errors
-    has_compiler_error = any(
-        pattern in all_output
-        for pattern in ["error:", "*** [", "does not name a type", "Error 1"]
-    )
-
-    # Check for specific error patterns that indicate failure
-    has_specific_errors = any(
-        error_pattern in all_output
-        for error_pattern in [
-            "does not name a type",
-            "expected",
-            "undefined reference",
-            "compilation terminated",
-            "No such file or directory",
-        ]
-    )
-
-    # If we have ANY failure markers or errors, compilation failed
-    # If we have success marker AND no failure indicators, compilation succeeded
-    compilation_failed = has_failed_marker or has_compiler_error or has_specific_errors
-    compilation_succeeded = has_success_marker and not compilation_failed
-
-    print(
-        f"🔍 Final determination: failed={compilation_failed}, succeeded={compilation_succeeded}"
-    )
-
-    result = {
-        "success": compilation_succeeded,
-        "message": "Compilation successful"
-        if compilation_succeeded
-        else "Compilation failed",
-        "specs": {
-            "flash": {"used": 0, "total": 0},
-            "ram": {"used": 0, "total": 0},
-            "additional": {},
-        },
-        "warnings": [],
-        "suggestions": [],
-        "errors": [],
-    }
-
-    lines_out = stdout.splitlines()
-    lines_err = stderr.splitlines()
-
-    # Only parse memory usage if compilation was successful
-    memory_parsed = False
-    if compilation_succeeded:
-        for line in lines_out:
-            # Parse RAM usage
-            if "RAM:" in line and "used" in line and "bytes from" in line:
-                match = re.search(r"used\s+(\d+)\s+bytes\s+from\s+(\d+)", line)
-                if match:
-                    result["specs"]["ram"]["used"] = int(match.group(1))
-                    result["specs"]["ram"]["total"] = int(match.group(2))
-                    memory_parsed = True
-
-            # Parse Flash usage
-            elif "Flash:" in line and "used" in line and "bytes from" in line:
-                match = re.search(r"used\s+(\d+)\s+bytes\s+from\s+(\d+)", line)
-                if match:
-                    result["specs"]["flash"]["used"] = int(match.group(1))
-                    result["specs"]["flash"]["total"] = int(match.group(2))
-                    memory_parsed = True
-
-            # Parse firmware info
-            elif "firmware.elf" in line and "Linking" in line:
-                result["specs"]["additional"]["Firmware ELF"] = line.strip().split()[-1]
-            elif "firmware.bin" in line and "Building" in line:
-                result["specs"]["additional"]["Firmware BIN"] = line.strip().split()[-1]
-
-            # Parse duration
-            elif "Took" in line and "seconds" in line:
-                match = re.search(r"Took ([\d.]+) seconds", line)
-                if match:
-                    result["specs"]["additional"]["Duration"] = f"{match.group(1)}s"
-
-    # Collect ALL errors and warnings
-    for line in lines_out + lines_err:
-        line_lower = line.lower()
-        if "error:" in line_lower:
-            if line.strip() not in result["errors"]:
-                result["errors"].append(line.strip())
-        elif "warning:" in line_lower:
-            if line.strip() not in result["warnings"]:
-                result["warnings"].append(line.strip())
-
-    # Specifically look for compilation error patterns
-    for line in lines_out:
-        if any(
-            pattern in line for pattern in ["*** [", "Error 1", "does not name a type"]
-        ):
-            if line.strip() not in result["errors"]:
-                result["errors"].append(line.strip())
-
-    # Set the main error message if compilation failed
-    if compilation_failed:
-        if result["errors"]:
-            # Use the first meaningful error as the main error
-            for error in result["errors"]:
-                if "error:" in error.lower():
-                    result["error"] = error
-                    break
-            else:
-                result["error"] = (
-                    result["errors"][0] if result["errors"] else "Compilation failed"
-                )
-        else:
-            result["error"] = "Compilation failed - check build output"
-
-    # Generate helpful suggestions based on the errors
-    if compilation_failed:
-        all_errors_text = " ".join(result["errors"]).lower()
-
-        if "does not name a type" in all_errors_text:
-            result["suggestions"] = [
-                "Check for undefined variables or functions",
-                "Verify all variables are declared before use",
-                "Check for missing #include statements",
-            ]
-        elif "undefined reference" in all_errors_text:
-            result["suggestions"] = [
-                "Check if all required libraries are included",
-                "Verify function declarations match definitions",
-                "Check library dependencies in platformio.ini",
-            ]
-        elif (
-            "memory" in all_errors_text
-            or "ram" in all_errors_text
-            or "flash" in all_errors_text
-        ):
-            result["suggestions"] = [
-                "Reduce global variable usage",
-                "Use PROGMEM for constant data",
-                "Optimize string usage with F() macro",
-            ]
-        else:
-            result["suggestions"] = [
-                "Check the compilation output for specific error details"
-            ]
-
-    print(
-        f"🔍 Parse result: success={result['success']}, error={result.get('error', 'None')}"
-    )
-    return result
-
-
-def install_platformio_once(user_app_dir: str):
-    """
-    Install PlatformIO once during app installation/setup.
-    This should be called separately from your main application setup.
-    """
-    global _PLATFORMIO_INSTALLED
-
-    if _PLATFORMIO_INSTALLED:
-        print("🟢 PlatformIO already installed (cached).")
-        return True
-
-    pio_home = os.path.join(user_app_dir, ".platformio")
-    python_exe = get_bundled_python_exe()
-
-    print("🚀 Installing PlatformIO for first-time use...")
-    print(f"🔍 Using Python: {python_exe}")
-    print(f"🔍 PlatformIO home: {pio_home}")
-
-    try:
-        # Use virtual environment approach for better reliability
-        venv_dir = os.path.join(pio_home, "platformio_venv")
-        marker_file = Path(venv_dir) / ".pio_installed"
-
-        if marker_file.exists():
-            print("🟢 PlatformIO virtual environment already exists.")
-            _PLATFORMIO_INSTALLED = True
-            return True
-
-        print(f"🔧 Creating virtual environment in: {venv_dir}")
-
-        # Create virtual environment
-        result = subprocess.run(
-            [python_exe, "-m", "venv", venv_dir], capture_output=True, text=True
-        )
-
-        if result.returncode != 0:
-            print(f"❌ Virtual environment creation failed: {result.stderr}")
-            return False
-
-        print("✅ Virtual environment created.")
-
-        # Get venv Python executable
-        if sys.platform == "win32":
-            venv_python = os.path.join(venv_dir, "Scripts", "python.exe")
-        else:
-            venv_python = os.path.join(venv_dir, "bin", "python")
-
-        # Wait a bit for venv to be fully ready
-        import time
-
-        time.sleep(2)
-
-        # Install PlatformIO
-        print("📦 Installing PlatformIO in virtual environment...")
-
-        # Upgrade pip first
-        pip_result = subprocess.run(
-            [venv_python, "-m", "pip", "install", "--upgrade", "pip"],
-            capture_output=True,
-            text=True,
-        )
-
-        if pip_result.returncode != 0:
-            print(f"⚠️ Pip upgrade had issues: {pip_result.stderr}")
-
-        # Install PlatformIO
-        pio_result = subprocess.run(
-            [venv_python, "-m", "pip", "install", "platformio"],
-            capture_output=True,
-            text=True,
-        )
-
-        if pio_result.returncode != 0:
-            print(f"❌ PlatformIO installation failed: {pio_result.stderr}")
-            return False
-
-        marker_file.write_text("installed")
-        print("✅ PlatformIO installed successfully!")
-
-        # Verify installation
-        verify_result = subprocess.run(
-            [
-                venv_python,
-                "-c",
-                'import platformio; print(f"PlatformIO version: {platformio.__version__}")',
-            ],
-            capture_output=True,
-            text=True,
-        )
-
-        if verify_result.returncode == 0:
-            print(f"✅ {verify_result.stdout.strip()}")
-        else:
-            print(f"⚠️ Verification had issues: {verify_result.stderr}")
-
-        _PLATFORMIO_INSTALLED = True
-        return True
-
-    except Exception as e:
-        print(f"❌ Unexpected error during PlatformIO installation: {e}")
-        return False
-
-
-def get_platformio_command(user_app_dir: str):
-    """
-    Get the PlatformIO command and environment for compilation.
-    This assumes PlatformIO is already installed via install_platformio_once().
-    """
-    pio_home = os.path.join(user_app_dir, ".platformio")
-    venv_dir = os.path.join(pio_home, "platformio_venv")
-
-    # Get the correct Python executable for the platform
-    if sys.platform == "win32":
-        venv_python = os.path.join(venv_dir, "Scripts", "python.exe")
-    else:
-        venv_python = os.path.join(venv_dir, "bin", "python")
-
-    # Verify the virtual environment exists
-    if not os.path.exists(venv_python):
-        # Try to install it automatically
-        print("🔄 PlatformIO not found, attempting automatic installation...")
-        success = install_platformio_once(user_app_dir)
-        if not success:
-            raise FileNotFoundError(
-                f"PlatformIO virtual environment not found at {venv_python} and "
-                f"automatic installation failed. Please run install_platformio_once() first."
-            )
-        # After installation, verify again
-        if not os.path.exists(venv_python):
-            raise FileNotFoundError(
-                f"PlatformIO virtual environment still not found at {venv_python} "
-                f"after installation attempt."
-            )
-
-    env = os.environ.copy()
-    env["PLATFORMIO_CORE_DIR"] = pio_home
-
-    # Test that PlatformIO is accessible
-    try:
-        result = subprocess.run(
-            [venv_python, "-c", "import platformio; print('PlatformIO available')"],
-            capture_output=True,
-            text=True,
-            env=env,
-        )
-        if result.returncode != 0:
-            print(f"⚠️ PlatformIO test had issues: {result.stderr}")
-            # Don't raise here, let it try to run anyway
-    except Exception as e:
-        print(f"⚠️ PlatformIO verification had issues: {e}")
-        # Don't raise here, let it try to run anyway
-
-    return [
-        venv_python,
-        "-c",
-        "import platformio.__main__; platformio.__main__.main()",
-    ], env
+# =============================================================================
+# Main Compile Routine
+# =============================================================================
 
 
 async def compile_project(
@@ -478,210 +142,296 @@ async def compile_project(
     port=None,
     dependencies=None,
 ):
+    """Unified compile + upload flow with event streaming and dependency support."""
+    session = create_session()
     try:
+        # ---------------------------------------------------------------------
+        # 1. Transpile
+        # ---------------------------------------------------------------------
+        await session.send(SessionPhase.BEGIN_TRANSPILE, "Transpiling Python code...")
         commit_hash = str(uuid.uuid4()).replace("-", "_")
         DB_CONN = sqlite3.connect(DB_PATH)
-
         transpiler = transpiler_main(
             commit_hash, DB_CONN, py_files, CORE_LIBS_PATH, platform
         )
+        await session.send(SessionPhase.END_TRANSPILE, "Transpilation complete")
 
         files = transpiler["code"]
-        for filename, code in files.items():
-            print(f"\n{'='*40}\n📄 {filename}\n{'='*40}")
-            print(code.strip())
-            print("\n")
-        dependencies = transpiler["dependencies"]
-        print("📦 Starting compilation...")
+        dependencies = (dependencies or []) + transpiler.get("dependencies", [])
 
-        # Get PlatformIO command - this will automatically install if needed
-        pio_cmd, pio_env = get_platformio_command(user_app_dir)
+        # ---------------------------------------------------------------------
+        # 💡 NEW: Pretty-print the transpiled C++ code to terminal
+        # ---------------------------------------------------------------------
+        import textwrap
 
+        print("\n==================== 🧩 Transpiled Arduino Code ====================\n")
+        for name, code in files.items():
+            # Determine file type
+            ext = "ino" if name == "main.py" else "h"
+            file_label = f"{name.replace('.py', f'.{ext}')}"
+            print(f"📄 {file_label}:\n")
+
+            # Re-indent for nice visual display
+            formatted = textwrap.indent(code.strip(), "    ")
+            print(formatted)
+            print("\n" + "-" * 70 + "\n")
+
+        print("===================== ✅ End of Transpiled Code =====================\n")
+
+        # ---------------------------------------------------------------------
+        # 2. Build Environment Setup
+        # ---------------------------------------------------------------------
+        await session.send(SessionPhase.BEGIN_COMPILE, "Setting up build folder...")
         build_dir = prepare_build_folder()
-        print(f"📁 Build folder prepared: {build_dir}")
         write_transpiled_code(files, build_dir)
-        print("✍️ Transpiled files written.")
-        write_platformio_ini(board, platform, build_dir, dependencies=dependencies)
-        print(f"📝 platformio.ini written for board '{board}'.")
+        write_platformio_ini(board, platform, build_dir, dependencies)
+        await session.send(SessionPhase.BEGIN_COMPILE, "Build folder ready")
 
-        # Merge environments
+        # Get PlatformIO
+        pio_cmd, pio_env = get_platformio_command(user_app_dir)
         env = os.environ.copy()
         env.update(pio_env)
 
-        print(f"🚀 Running PlatformIO compile in: {build_dir}")
-        print(f"🔍 Command: {' '.join(pio_cmd)}")
-        print(f"🔍 Working Directory: {build_dir}")
+        # ---------------------------------------------------------------------
+        # 3. Compilation
+        # ---------------------------------------------------------------------
+        await session.send(SessionPhase.BEGIN_COMPILE, "Starting compilation...")
+        cmd = pio_cmd + ["run"]
 
-        stdout, stderr, code = await stream_command_to_terminal(
-            pio_cmd + ["run"], cwd=build_dir, env=env
-        )
-
-        parsed = parse_platformio_result(stdout, stderr)
-
-        # DEBUG: Log what we found
-        print(f"🔍 Parse result - success: {parsed['success']}, return code: {code}")
-
-        # Trust the parse function - it's correctly detecting failures
-        # Don't override with the potentially incorrect return code
-
-        # Add board info to specs
-        if "specs" in parsed:
-            parsed["specs"]["additional"]["Board"] = board
-            parsed["specs"]["additional"]["Platform"] = platform
-
-        if upload and parsed["success"]:
-            actual_port = port or find_first_serial_port()
-            print(f"🧭 Selected serial port: {actual_port}")
-            release_serial_port(actual_port)
-            await asyncio.sleep(1)
-            u_stdout, u_stderr, u_code = await stream_command_to_terminal(
-                pio_cmd + ["run", "-t", "upload", f"--upload-port={actual_port}"],
+        # MODIFIED: Add CREATE_NO_WINDOW flag for Windows
+        if sys.platform == "win32":
+            session.process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=build_dir,
+                env=env,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+        else:
+            session.process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
                 cwd=build_dir,
                 env=env,
             )
-            parsed["upload_success"] = u_code == 0
-            parsed["upload_port"] = actual_port
 
-        # Return the structured result for frontend
-        result = {
-            "success": parsed["success"],
-            "message": parsed.get("message", "Compilation completed"),
+        stdout, stderr = [], []
+
+        async def stream(pipe, collector):
+            while True:
+                line = await pipe.readline()
+                if not line:
+                    break
+                decoded = line.decode(errors="ignore").rstrip()
+                collector.append(decoded)
+                await session.send(SessionPhase.BEGIN_COMPILE, decoded)
+
+        await asyncio.gather(
+            stream(session.process.stdout, stdout),
+            stream(session.process.stderr, stderr),
+        )
+        code = await session.process.wait()
+        session.process = None
+
+        parsed = parse_platformio_result("\n".join(stdout), "\n".join(stderr))
+        if not parsed["success"] or code != 0:
+            await session.send(SessionPhase.ERROR, "Compilation failed", "error")
+            return parsed
+
+        await session.send(SessionPhase.END_COMPILE, "Compilation successful")
+
+        # ---------------------------------------------------------------------
+        # 4. Upload (fixed event logic)
+        # ---------------------------------------------------------------------
+        upload_success = False
+        if upload:
+            await session.send(SessionPhase.START_UPLOAD, "Starting upload...")
+
+            actual_port = port or find_esp_serial_port()
+            if not actual_port:
+                await session.send(
+                    SessionPhase.ERROR, "❌ No ESP device detected", "error"
+                )
+                return {"success": False, "error": "No ESP device found"}
+
+            cmd = pio_cmd + ["run", "-t", "upload", f"--upload-port={actual_port}"]
+
+            # MODIFIED: Add CREATE_NO_WINDOW flag for Windows
+            if sys.platform == "win32":
+                session.process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=build_dir,
+                    env=env,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+            else:
+                session.process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=build_dir,
+                    env=env,
+                )
+
+            out_lines = []
+
+            async def monitor_upload(pipe):
+                """Stream upload logs, emit `[uploading]` events, detect failure."""
+                while True:
+                    line = await pipe.readline()
+                    if not line:
+                        break
+                    decoded = line.decode(errors="ignore").rstrip()
+                    out_lines.append(decoded)
+
+                    # Categorize based on message content
+                    lower = decoded.lower()
+                    if "error" in lower or "failed" in lower or "fatal" in lower:
+                        await session.send(SessionPhase.ERROR, decoded, "error")
+                    elif (
+                        "uploading" in lower
+                        or "serial port" in lower
+                        or "hard resetting" in lower
+                    ):
+                        await session.send(SessionPhase.START_UPLOAD, decoded)
+                    else:
+                        await session.send(SessionPhase.START_UPLOAD, decoded)
+
+            await asyncio.gather(
+                monitor_upload(session.process.stdout),
+                monitor_upload(session.process.stderr),
+            )
+
+            code = await session.process.wait()
+            session.process = None
+            combined_out = "\n".join(out_lines)
+
+            if code == 0 and "failed" not in combined_out.lower():
+                upload_success = True
+                await session.send(SessionPhase.END_UPLOAD, "✅ Upload complete")
+            else:
+                await session.send(SessionPhase.ERROR, "❌ Upload failed", "error")
+                await session.send(
+                    SessionPhase.END_UPLOAD, "❌ Upload failed (check logs)", "error"
+                )
+
+        # ---------------------------------------------------------------------
+        # 5. Done
+        # ---------------------------------------------------------------------
+        await session.send(SessionPhase.ALL_DONE, "All done")
+        return {
+            "success": parsed["success"] and (upload_success or not upload),
+            "upload_success": upload_success,
             "specs": parsed.get("specs", {}),
-            "warnings": parsed.get("warnings", []),
-            "suggestions": parsed.get("suggestions", []),
+            "message": "Process completed",
+            "session_id": session.id,
         }
 
-        # Add error info if compilation failed
-        if not parsed["success"]:
-            result["error"] = parsed.get("error", "Compilation failed")
-            if parsed.get("errors"):
-                # Include all errors for debugging
-                result["errors"] = parsed["errors"]
-
-        print(f"📊 Final result: {result}")
-        return result
-
-    except FileNotFoundError as e:
-        error_msg = f"PlatformIO not installed: {e}"
-        print(f"❌ {error_msg}")
-        return {
-            "success": False,
-            "error": error_msg,
-            "message": "PlatformIO installation required",
-            "suggestions": [
-                "Run PlatformIO installation",
-                "Check if PlatformIO is properly configured",
-            ],
-        }
     except Exception as e:
-        error_msg = f"Unexpected error during compilation: {e}"
-        print(f"❌ {error_msg}")
-        return {
-            "success": False,
-            "error": error_msg,
-            "message": "Compilation failed due to unexpected error",
-            "suggestions": [
-                "Check the console for detailed error information",
-                "Verify your Python code syntax",
-                "Ensure all required libraries are available",
-            ],
-        }
+        await session.send(SessionPhase.ERROR, f"Unexpected error: {e}", "error")
+        return {"success": False, "error": str(e)}
+    finally:
+        _active_sessions.pop(session.id, None)
 
 
-def prepare_build_folder():
-    # 🔑 safer: starter_template lives one level up from core/
-    project_root = Path(__file__).resolve().parent.parent
-    starter = project_root / "core" / "transpiler" / "runtime" / "starter_template"
+# =============================================================================
+# Helpers
+# =============================================================================
 
-    if not starter.exists():
-        raise FileNotFoundError(f"Starter template not found at {starter}")
+
+def prepare_build_folder() -> str:
+    """Copy starter template and return a temporary build directory."""
+    if not STARTER_TEMPLATE.exists():
+        raise FileNotFoundError(f"Starter template not found at {STARTER_TEMPLATE}")
 
     build_dir = tempfile.mkdtemp(prefix="build_")
-    print(f"📁 Copying starter template from {starter} to {build_dir}")
-    shutil.copytree(str(starter), build_dir, dirs_exist_ok=True)
+    shutil.copytree(str(STARTER_TEMPLATE), build_dir, dirs_exist_ok=True)
+    print(f"📁 Build folder prepared at {build_dir}")
     return build_dir
 
 
-def write_transpiled_code(transpiled: dict, build_dir: str):
+def write_transpiled_code(files: dict, build_dir: str):
+    """Write .ino and .h files into src/include as per PlatformIO structure."""
     src_dir = os.path.join(build_dir, "src")
     include_dir = os.path.join(build_dir, "include")
-
     os.makedirs(src_dir, exist_ok=True)
     os.makedirs(include_dir, exist_ok=True)
 
-    for filename, code in transpiled.items():
-        if filename == "main.py":
-            filepath = os.path.join(src_dir, "main.ino")
+    for name, code in files.items():
+        if name == "main.py":
+            out_path = os.path.join(src_dir, "main.ino")
         else:
-            filepath = os.path.join(include_dir, filename.replace(".py", ".h"))
-        with open(filepath, "w") as f:
+            out_path = os.path.join(include_dir, name.replace(".py", ".h"))
+        with open(out_path, "w", encoding="utf-8") as f:
             f.write(code)
-        print(f"📄 Wrote {filepath}")
+        print(f"✍️ Wrote {out_path}")
 
 
-def get_build_flags(platform: str):
-    core_build_flags = ["-std=gnu++17"]
+def write_platformio_ini(board: str, platform: str, build_dir: str, dependencies: list):
+    """Generate platformio.ini including dependencies and build flags."""
+    deps = ["ArduinoJson@6.21.4"] + list(set(dependencies or []))
+    build_flags = ["-std=gnu++17", "-DARDUINO_USB_MODE=1", "-DSPIFFS_USE_LEGACY=1"]
+    unflags = ["-std=gnu++11", "-std=gnu++14"]
 
-    PLATFORM_BUILD_FLAGS = {
-        "espressif32": ["-DARDUINO_USB_MODE=1", "-DSPIFFS_USE_LEGACY=1"],
-        "espressif8266": ["-DSPIFFS_USE_LEGACY=1"],
-    }
-
-    platform_flags = PLATFORM_BUILD_FLAGS.get(platform, [])
-    return core_build_flags + platform_flags
-
-
-def write_platformio_ini(
-    board: str,
-    platform: str,
-    build_dir: str,
-    upload_speed=921600,
-    monitor_speed=115200,
-    dependencies=None,
-):
-    platform = _get_relevant_platform_version(platform)
-    if dependencies is None:
-        dependencies = []
-
-    all_deps = ["ArduinoJson@6.21.4"] + dependencies
-    deps_block = "\n".join(f"  {dep}" for dep in all_deps)
-
-    build_flags = get_build_flags(platform)
-    build_flags_block = "\n".join(f"  {flag}" for flag in build_flags)
-
-    build_unflags = ["-std=gnu++11", "-std=gnu++14", "-std=c++11", "-std=c++14"]
-    build_unflags_block = "\n".join(f"  {flag}" for flag in build_unflags)
-
-    content = (
-        "[env:{board}]\n"
-        "platform = {platform}\n"
-        "board = {board}\n"
-        "framework = arduino\n"
-        "upload_speed = {upload_speed}\n"
-        "monitor_speed = {monitor_speed}\n"
-        "build_unflags =\n{build_unflags_block}\n\n"
-        "build_flags =\n{build_flags_block}\n\n"
-        "lib_deps =\n{deps_block}\n"
-    ).format(
-        board=board,
-        platform=platform,
-        upload_speed=upload_speed,
-        monitor_speed=monitor_speed,
-        build_unflags_block=build_unflags_block,
-        build_flags_block=build_flags_block,
-        deps_block=deps_block,
+    ini = (
+        f"[env:{board}]\n"
+        f"platform = {platform}\n"
+        f"board = {board}\n"
+        f"framework = arduino\n"
+        f"upload_speed = 921600\n"
+        f"monitor_speed = 115200\n"
+        f"build_unflags =\n  " + "\n  ".join(unflags) + "\n\n"
+        f"build_flags =\n  " + "\n  ".join(build_flags) + "\n\n"
+        f"lib_deps =\n  " + "\n  ".join(deps) + "\n"
     )
 
     ini_path = os.path.join(build_dir, "platformio.ini")
-    with open(ini_path, "w") as f:
-        f.write(content)
-    print(f"📝 Wrote platformio.ini to {ini_path}")
-
-    with open(ini_path) as f:
-        print("📄 Final platformio.ini content:\n" + f.read())
+    with open(ini_path, "w", encoding="utf-8") as f:
+        f.write(ini)
+    print(f"📝 platformio.ini written to {ini_path}")
+    print(ini)
 
 
-# Convenience function to check and install PlatformIO if needed
-def ensure_platformio_installed(user_app_dir: str):
-    """Ensure PlatformIO is installed, install if needed."""
-    return install_platformio_once(user_app_dir)
+def get_platformio_command(user_app_dir: str):
+    pio_home = os.path.join(user_app_dir, ".platformio")
+    venv = os.path.join(pio_home, "platformio_venv")
+    exe = (
+        os.path.join(venv, "Scripts", "python.exe")
+        if sys.platform == "win32"
+        else os.path.join(venv, "bin", "python")
+    )
+    env = os.environ.copy()
+    env["PLATFORMIO_CORE_DIR"] = pio_home
+    return [exe, "-c", "import platformio.__main__; platformio.__main__.main()"], env
+
+
+def parse_platformio_result(stdout: str, stderr: str) -> dict:
+    """Basic parser for PlatformIO build output."""
+    combined = stdout + "\n" + stderr
+    failed = any("error:" in line.lower() for line in combined.splitlines())
+    result = {
+        "success": not failed,
+        "message": "Build success" if not failed else "Build failed",
+        "specs": {},
+    }
+    # (Memory parse optional here)
+    return result
+
+
+def parse_upload_result(code: int, stdout: str, stderr: str) -> bool:
+    """Check upload success."""
+    return code == 0 or "Hard resetting" in stdout
+
+
+def find_esp_serial_port() -> Optional[str]:
+    ports = list(serial.tools.list_ports.comports())
+    for p in ports:
+        desc = p.description.lower() if p.description else ""
+        if "esp32" in desc or "espressif" in desc or "cp210" in desc or "ch340" in desc:
+            print(f"✅ ESP device detected at {p.device}")
+            return p.device
+    return ports[0].device if ports else None

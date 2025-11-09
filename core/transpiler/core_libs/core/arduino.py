@@ -18,6 +18,7 @@ MSBFIRST: int = 1
 
 __include_modules__ = ""
 __dependencies__ = ""
+__include_internal_modules__ = "helpers/ArduinoHelper"
 
 # ---- Functions ----
 

@@ -26,7 +26,7 @@ def setup() -> None:
     img_width = image.get_width()
     img_height = image.get_height()
 
-    did_send_http = camera.send_http("localhost:8000")
+    # did_send_http = camera.send_http("localhost:8000")
 
     camera.stream_http()
 

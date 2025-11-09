@@ -16,10 +16,10 @@ import {
   Typography
 } from "antd";
 import {
-  PlayCircleOutlined,
+  //PlayCircleOutlined,
   CodeOutlined,
-  UploadOutlined,
-  BugOutlined,
+  //UploadOutlined,
+  //BugOutlined,
   SaveOutlined,
   EyeOutlined,
   EyeInvisibleOutlined,
@@ -32,48 +32,12 @@ import MonacoEditor from "@monaco-editor/react";
 import type * as monaco from "monaco-editor";
 import ArduinoTranspilerLog from "./ArduinoTranspilerLog";
 
+import type { Project, Board, CompletionItem, CompilationResult } from '../types'; // Remove unused imports
+
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-interface Project {
-  project_id: string;
-  name: string;
-  description: string;
-  is_active: boolean;
-  updated_at: string;
-  created_at: string;
-  project_type: string;
-  metadata?: {
-    platform?: string;
-    board_name?: string;
-    board_id?: string;
-    board_name_id?: string;
-    [key: string]: any;
-  };
-}
 
-interface CompletionItem {
-  label: string;
-  kind: number | string;
-  insertText?: string;
-  documentation?: string;
-  detail?: string;
-}
-
-interface CompilationResult {
-  success: boolean;
-  message?: string;
-  error?: string;
-  fileName?: string;
-  warnings?: string[];
-  suggestions?: string[];
-  specs?: {
-    flash: { used: number; total: number };
-    ram: { used: number; total: number };
-    additional?: { [key: string]: string };
-  };
-  timestamp?: string;
-}
 
 interface IDEProps {
   projectId: string;
@@ -92,7 +56,8 @@ const BoardSelect: React.FC<{ value?: string; onChange?: (value: string) => void
           const result = await window.pywebview.api.get_boards();
           console.log("Fetched boards:", result);
           if (Array.isArray(result)) {
-            setBoards(result);
+            //setBoards(result);
+            setBoards(result.map((board: Board) => board.name));
           }
         }
       } catch (err) {
@@ -223,57 +188,76 @@ const IDE: React.FC<IDEProps> = ({ projectId, isApiReady }) => {
     fetchProject();
   }, [fetchProject]);
 
-  // Poll for compilation results
-  const startPollingForResults = useCallback(async () => {
-    if (!projectId || !window.pywebview?.api) return;
+ // Poll for compilation results
+const startPollingForResults = useCallback(async () => {
+  if (!projectId || !window.pywebview?.api) return;
 
-    const poll = async () => {
-      try {
-        const status = await window.pywebview?.api?.get_compile_status(projectId);
-        
-        if (status && status.completed) {
-          // Stop polling
-          if (pollingInterval) {
-            clearInterval(pollingInterval);
-            setPollingInterval(null);
-          }
-          
-          setIsCompiling(false);
-          
-          // Format the result
-          const formattedResult: CompilationResult = {
-            success: status.success,
-            fileName: project?.name || "sketch.ino",
-            message: status.message,
-            error: status.error,
-            warnings: status.warnings || [],
-            suggestions: status.suggestions || [],
-            specs: status.specs,
-            timestamp: new Date().toISOString(),
-          };
-
-          setCompilationResult(formattedResult);
-          setShowCompilationResult(true);
-          setIsResultMinimized(false);
-
-          if (status.success) {
-            message.success("✅ Compilation successful!");
-          } else {
-            message.error("❌ Compilation failed");
-          }
-        }
-      } catch (err) {
-        console.error("❌ Error polling compilation status:", err);
-      }
+  // helper to normalize specs into a consistent shape
+  const normalizeSpecs = (specs: any): CompilationResult["specs"] => {
+    if (
+      specs &&
+      typeof specs === "object" &&
+      "flash" in specs &&
+      "ram" in specs
+    ) {
+      return specs;
+    }
+    return {
+      flash: { used: 0, total: 0 },
+      ram: { used: 0, total: 0 },
+      additional: undefined,
     };
+  };
 
-    // Start polling every 2 seconds
-    const interval = setInterval(poll, 2000);
-    setPollingInterval(interval);
+  const poll = async () => {
+    try {
+      if (!window.pywebview?.api?.get_compile_status) {
+        console.warn("PyWebView API not available yet");
+        return;
+      }
+      const status = await window.pywebview.api.get_compile_status(projectId);
 
-    // Initial poll
-    poll();
-  }, [projectId, project, pollingInterval]);
+      if (status && status.completed) {
+        // Stop polling
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          setPollingInterval(null);
+        }
+
+        setIsCompiling(false);
+
+        // Normalize and format result safely
+        const formattedResult: CompilationResult = {
+          success: status.success ?? false,
+          error: status.error ?? "",
+          warnings: Array.isArray(status.warnings) ? status.warnings : [],
+          suggestions: Array.isArray(status.suggestions) ? status.suggestions : [],
+          // Remove the message property since it's not in CompilationResult
+          specs: normalizeSpecs(status.specs),
+        };
+
+        setCompilationResult(formattedResult);
+        setShowCompilationResult(true);
+        setIsResultMinimized(false);
+
+        if (formattedResult.success) {
+          message.success("✅ Compilation successful!");
+        } else {
+          message.error("❌ Compilation failed");
+        }
+      }
+    } catch (err) {
+      console.error("❌ Error polling compilation status:", err);
+    }
+  };
+
+  // Start polling every 2 seconds
+  const interval = setInterval(poll, 2000);
+  setPollingInterval(interval);
+
+  // Initial poll
+  poll();
+}, [projectId, project, pollingInterval]);
 
   // Linting
   const lintCode = useCallback(
@@ -554,11 +538,16 @@ const IDE: React.FC<IDEProps> = ({ projectId, isApiReady }) => {
     } catch (err) {
       console.error("❌ Compile error:", err);
       setIsCompiling(false);
+      // Find the error handling code and update it:
       const errorResult: CompilationResult = {
         success: false,
-        fileName: project?.name || "sketch.ino",
-        error: err instanceof Error ? err.message : "Unknown error occurred",
-        timestamp: new Date().toISOString()
+        error: err instanceof Error ? err.message : "Compilation failed", // Safe error access
+        warnings: [],
+        suggestions: [],
+        specs: {
+          flash: { used: 0, total: 0 },
+          ram: { used: 0, total: 0 },
+        },
       };
       setCompilationResult(errorResult);
       setShowCompilationResult(true);
@@ -744,96 +733,79 @@ const IDE: React.FC<IDEProps> = ({ projectId, isApiReady }) => {
         </Form>
       </Modal>
 
-      {/* Project Header Card */}
-      <Card 
-        size="small" 
-        style={{ 
-          marginBottom: 16,
-          borderRadius: 8
-        }}
-        bodyStyle={{ 
-          padding: "16px",
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start'
-        }}
-      >
+      {/* MINIMAL Project Header */}
+      <div style={{ 
+        padding: "8px 16px", 
+        borderBottom: "1px solid #d9d9d9",
+        background: "#fafafa",
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        minHeight: '48px'
+      }}>
         {loading ? (
           <Spin size="small" />
         ) : (
           <>
-            <div style={{ flex: 1 }}>
-              <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CodeOutlined style={{ color: "#1890ff", fontSize: '18px' }} />
-                  <Title level={4} style={{ margin: 0, color: '#1890ff' }}>
-                    {project ? project.name : "Unknown Project"}
-                  </Title>
-                  <Button
-                    type="text"
-                    icon={<SettingOutlined />}
-                    size="small"
-                    onClick={handleOpenProjectSettings}
-                    title="Project Settings"
-                  />
-                </div>
-                
-                {project?.description && (
-                  <Text type="secondary" style={{ fontSize: "14px", display: 'block' }}>
-                    {project.description}
-                  </Text>
-                )}
-                
-                {/* Display current board info - NO GREEN HIGHLIGHT */}
-                <div>
-                  <Text style={{ fontSize: "12px" }}>
-                    <strong>Board:</strong> {boardInfo.board_name_id || boardInfo.board_name || "No board selected"}
-                  </Text>
-                  {(boardInfo.board_id || boardInfo.platform) && (
-                    <Text type="secondary" style={{ fontSize: "11px", display: 'block', marginTop: 2 }}>
-                      {boardInfo.board_id && `ID: ${boardInfo.board_id}`}
-                      {boardInfo.board_id && boardInfo.platform && ' • '}
-                      {boardInfo.platform && `Platform: ${boardInfo.platform}`}
-                    </Text>
-                  )}
-                </div>
-              </Space>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CodeOutlined style={{ color: "#1890ff", fontSize: '16px' }} />
+              <Text strong style={{ fontSize: "16px" }}>
+                {project ? project.name : "Unknown Project"}
+              </Text>
+              
+              {/* Settings button moved next to project name */}
+              <Button
+                type="text"
+                icon={<SettingOutlined />}
+                size="small"
+                onClick={handleOpenProjectSettings}
+                title="Project Settings"
+                style={{ marginLeft: 4 }}
+              />
+              
+              {/* Board info as compact tag */}
+              {boardInfo.board_name_id || boardInfo.board_name ? (
+                <Tag 
+                  color="blue" 
+                  style={{ 
+                    margin: 0, 
+                    fontSize: '12px', 
+                    padding: '2px 6px',
+                    lineHeight: '1.2'
+                  }}
+                >
+                  {boardInfo.board_name_id || boardInfo.board_name}
+                </Tag>
+              ) : (
+                <Tag 
+                  color="default" 
+                  style={{ 
+                    margin: 0, 
+                    fontSize: '12px', 
+                    padding: '2px 6px',
+                    lineHeight: '1.2'
+                  }}
+                >
+                  No board
+                </Tag>
+              )}
             </div>
             
-            <Space>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Save button only - compile button removed */}
               <Button
-                size="middle"
-                icon={<BugOutlined />}
-                onClick={() => lintCode(code)}
-                disabled={isCompiling}
-              >
-                Run Lint
-              </Button>
-              <Button
-                size="middle"
+                type="primary"
+                size="small"
                 icon={<SaveOutlined />}
                 onClick={handleSaveProject}
-                disabled={isCompiling}
+                loading={isCompiling}
               >
                 Save
               </Button>
-              <Button
-                size="middle"
-                type="primary"
-                icon={<PlayCircleOutlined />}
-                onClick={handleCompile}
-                loading={isCompiling}
-                disabled={isCompiling}
-              >
-                <Space size={4}>
-                  <UploadOutlined />
-                  Compile / Upload
-                </Space>
-              </Button>
-            </Space>
+            </div>
           </>
         )}
-      </Card>
+      </div>
 
       {/* Compilation Result - Full View */}
       {showCompilationResult && compilationResult && (
@@ -900,7 +872,7 @@ const IDE: React.FC<IDEProps> = ({ projectId, isApiReady }) => {
         </Card>
       )}
 
-      {/* Editor Card */}
+      {/* Editor Card - Now takes more space */}
       <Card
         style={{
           flex: 1,
@@ -908,9 +880,11 @@ const IDE: React.FC<IDEProps> = ({ projectId, isApiReady }) => {
           flexDirection: "column",
           padding: 0,
           overflow: "hidden",
-          borderRadius: 8,
+          borderRadius: 0, // Remove border radius for full-height appearance
           opacity: isCompiling ? 0.6 : 1,
-          pointerEvents: isCompiling ? 'none' : 'auto'
+          pointerEvents: isCompiling ? 'none' : 'auto',
+          border: 'none', // Remove card border
+          margin: 0 // Remove any margin
         }}
         bodyStyle={{
           padding: 0,

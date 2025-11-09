@@ -1,5 +1,7 @@
 import comms.async_webserver as aw
+import comms.wifi as wi
 
+import core.arduino as ad
 
 # --- Global objects ---
 server = aw.AsyncWebServer(port=80)
@@ -21,6 +23,12 @@ def my_callback(req: aw.AsyncWebServerRequest) -> None:
 
 def setup() -> None:
     # Basic route and server start
+
+    wi.wifi_begin("ssid", "pass")
+
+    while not wi.wifi_is_connected():
+        print("connecting....")
+        ad.delay(1000)
     server.on("/", "HTTP_GET", handle_root)
     server.begin()
 
@@ -36,6 +44,8 @@ def setup() -> None:
     handler.is_request_handler_trivial()
     handler.set_authentication("admin", "pass")
     handler.set_filter(my_filter)
+
+    print(f"server running at {wi.wifi_localIP()}")
 
 
 def loop() -> None:

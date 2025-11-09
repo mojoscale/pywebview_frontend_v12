@@ -1,205 +1,112 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 interface SerialContextType {
+  terminalLogs: string[];
   serialConnected: boolean;
-  toggleMonitoring: () => Promise<void>;
   monitoring: boolean;
-  serialOutput: string[];
-  clearOutput: () => void;
-  error: string | null;
-  checkConnection: () => Promise<void>;
-  terminalLogs: string[];  // ✅ compiler/terminal logs
   clearTerminal: () => void;
+  startMonitoring: () => Promise<void>;
+  stopMonitoring: () => Promise<void>;
+  sendCommand: (cmd: string) => Promise<void>;
 }
 
-// ✅ Ensure window handlers exist early to prevent Python-side errors
-if (typeof window.onSerialStatusUpdate !== 'function') {
-  window.onSerialStatusUpdate = () => {
-    console.warn('[Default onSerialStatusUpdate] Called before React initialized.');
-  };
-}
+const SerialContext = createContext<SerialContextType | null>(null);
 
-if (typeof window.onSerialLine !== 'function') {
-  window.onSerialLine = () => {
-    console.warn('[Default onSerialLine] Called before React initialized.');
-  };
-}
-
-if (typeof window.__appendTerminalLog !== 'function') {
-  window.__appendTerminalLog = (line: string) => {
-    console.warn('[Default __appendTerminalLog] Called before React initialized. Line:', line);
-  };
-}
-
-const SerialContext = createContext<SerialContextType>({
-  serialConnected: false,
-  toggleMonitoring: async () => {},
-  monitoring: false,
-  serialOutput: [],
-  clearOutput: () => {},
-  error: null,
-  checkConnection: async () => {},
-  terminalLogs: [],
-  clearTerminal: () => {},
-});
-
-export const useSerial = () => useContext(SerialContext);
-
-export const SerialProvider = ({ children }: { children: React.ReactNode }) => {
+export const SerialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   const [serialConnected, setSerialConnected] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
-  const [serialOutput, setSerialOutput] = useState<string[]>([]);
-  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [isApiReady, setIsApiReady] = useState(false);
 
-  // ✅ Wait for pywebview API to be ready
+  // 🔹 Listen for logs from backend
   useEffect(() => {
-    const checkApiReady = () => {
-      if (window.pywebview?.api) {
-        setIsApiReady(true);
-        return true;
-      }
-      return false;
+    const handleSerialLog = (event: CustomEvent) => {
+      setTerminalLogs((prev) => [...prev, event.detail]);
     };
 
-    if (checkApiReady()) {
-      return;
-    }
-
-    const handleReady = () => {
-      if (checkApiReady()) {
-        console.log("pywebview API ready in SerialContext");
-      }
-    };
-
-    window.addEventListener('pywebviewready', handleReady);
-
-    const interval = setInterval(() => {
-      if (checkApiReady()) {
-        clearInterval(interval);
-      }
-    }, 100);
-
-    const timeoutId = setTimeout(() => {
-      clearInterval(interval);
-      console.warn("pywebview API not available in SerialContext");
-    }, 5000);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeoutId);
-      window.removeEventListener('pywebviewready', handleReady);
-    };
+    window.addEventListener("serial-log", handleSerialLog as EventListener);
+    return () => window.removeEventListener("serial-log", handleSerialLog as EventListener);
   }, []);
 
-  const checkConnection = async (): Promise<void> => {
+  // 🔹 Clear all logs
+  const clearTerminal = () => setTerminalLogs([]);
+
+  // 🔹 Start serial monitoring (backend auto-detects port)
+  const startMonitoring = async () => {
     try {
-      setError(null);
-      
-      if (!isApiReady || !window.pywebview?.api) {
-        throw new Error('Python backend API is not available');
+      if (!window.pywebview?.api?.start_serial_monitor) {
+        console.warn("PyWebView API not available yet");
+        return;
       }
-
-      const result = await window.pywebview.api.serial_port_available();
-      setSerialConnected(result?.available === true);
-      console.log('Serial connection status:', result);
-    } catch (err) {
-      console.error('Error checking serial connection:', err);
-      setError(err instanceof Error ? err.message : String(err));
-      setSerialConnected(false);
-    }
-  };
-
-  const toggleMonitoring = async (): Promise<void> => {
-    if (!isApiReady || !window.pywebview?.api) {
-      setError('Backend API is not ready');
-      return;
-    }
-
-    const newState = !monitoring;
-    setMonitoring(newState);
-
-    try {
-      if (newState) {
-        await window.pywebview.api.start_serial_monitor();
+      const res = await window.pywebview.api.start_serial_monitor();
+      if (res.status === "connected") {
+        setSerialConnected(true);
+        setMonitoring(true);
+        setTerminalLogs((prev) => [...prev, `🚀 Connected to ${res.port}`]);
       } else {
-        await window.pywebview.api.stop_serial_monitor();
+        setTerminalLogs((prev) => [...prev, `❌ ${res.message || "Failed to connect"}`]);
       }
-      console.log(`Serial monitoring ${newState ? 'started' : 'stopped'}`);
-    } catch (err) {
-      console.error('Error toggling serial monitor:', err);
-      setError(err instanceof Error ? err.message : String(err));
-      setMonitoring(!newState); // Revert state on error
+    } catch (err: any) {
+      setTerminalLogs((prev) => [...prev, `❌ ${err.message || err}`]);
     }
   };
 
-  const clearOutput = () => {
-    setSerialOutput([]);
-  };
-
-  const clearTerminal = () => {
-    setTerminalLogs([]);
-  };
-
-  // 🔁 Initialize and register handlers
-  useEffect(() => {
-    if (!isApiReady) return;
-
-    // Serial line output
-    window.onSerialLine = (line: string) => {
-      if (monitoring) {
-        setSerialOutput(prev => [...prev, line]);
+  // 🔹 Stop monitoring
+  const stopMonitoring = async () => {
+    try {
+      if (!window.pywebview?.api?.stop_serial_monitor) {
+        console.warn("PyWebView API not available yet");
+        return;
       }
-    };
-
-    // Serial connection status
-    window.onSerialStatusUpdate = (connected: boolean) => {
-      setSerialConnected(connected);
-      if (!connected && monitoring) {
+      const res = await window.pywebview.api.stop_serial_monitor();
+      if (res.status === "stopped") {
+        setSerialConnected(false);
         setMonitoring(false);
+        setTerminalLogs((prev) => [...prev, "🛑 Monitoring stopped"]);
       }
-    };
+    } catch (err: any) {
+      setTerminalLogs((prev) => [...prev, `❌ ${err.message || err}`]);
+    }
+  };
 
-    // Compiler logs
-    window.__appendTerminalLog = (line: string) => {
-      setTerminalLogs(prev => [...prev, line]);
-    };
-
-    // Check initial connection status
-    checkConnection();
-  }, [isApiReady, monitoring]);
-
-  // Cleanup effect
-  useEffect(() => {
-    return () => {
-      // Stop monitoring on unmount if active
-      if (isApiReady && window.pywebview?.api && monitoring) {
-        window.pywebview.api.stop_serial_monitor().catch(console.error);
+  // 🔹 Send a command to backend
+  const sendCommand = async (cmd: string) => {
+    if (!cmd.trim()) return;
+    setTerminalLogs((prev) => [...prev, `> ${cmd}`]);
+    try {
+      if (!window.pywebview?.api?.send_serial_command) {
+        console.warn("PyWebView API not available yet");
+        return;
       }
-
-      // ✅ Cleanup global handlers to prevent stale closures
-      window.onSerialLine = undefined;
-      window.onSerialStatusUpdate = undefined;
-      window.__appendTerminalLog = undefined;
-    };
-  }, [isApiReady, monitoring]);
+      const res = await window.pywebview.api.send_serial_command(cmd);
+      if (res.status === "ok") {
+        setTerminalLogs((prev) => [...prev, `📤 Sent ${res.sent} bytes`]);
+      } else {
+        setTerminalLogs((prev) => [...prev, `❌ ${res.message || "Error sending command"}`]);
+      }
+    } catch (err: any) {
+      setTerminalLogs((prev) => [...prev, `❌ ${err.message || err}`]);
+    }
+  };
 
   return (
     <SerialContext.Provider
       value={{
-        serialConnected,
-        toggleMonitoring,
-        monitoring,
-        serialOutput,
-        clearOutput,
-        error,
-        checkConnection,
         terminalLogs,
+        serialConnected,
+        monitoring,
         clearTerminal,
+        startMonitoring,
+        stopMonitoring,
+        sendCommand,
       }}
     >
       {children}
     </SerialContext.Provider>
   );
+};
+
+export const useSerial = () => {
+  const ctx = useContext(SerialContext);
+  if (!ctx) throw new Error("useSerial must be used inside SerialProvider");
+  return ctx;
 };

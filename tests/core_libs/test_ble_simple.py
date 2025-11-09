@@ -29,9 +29,12 @@ def setup() -> None:
 
     # Optional: call other methods just to verify transpilation
 
-    ble.is_connected()
-    ble.get_services()
-    ble.get_characteristics("1234")
+    is_connected = ble.is_connected()
+    print(f"ble is connected {is_connected}")
+    services = ble.get_services()
+    print(f"services are {services}")
+    characteristics = ble.get_characteristics("1234")
+    print(f"characteristics are {characteristics}")
 
 
 def loop() -> None:
