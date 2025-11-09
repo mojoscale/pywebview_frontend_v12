@@ -6,7 +6,7 @@ import UpdateBanner from "./components/UpdateBanner";
 import Home from "./pages/Home";
 import CreateProject from "./pages/CreateProject";
 import IDEPage from "./pages/IDEPage";
-//import IDEPageV2 from "./pages/IDEPageV2";
+
 import EnvironmentVariablesForm from "./pages/EnvironmentVariablesForm";
 import TerminalView from "./components/TerminalView";
 
@@ -95,7 +95,8 @@ function App() {
       try {
         if (!window.pywebview?.api) return;
         const result = await window.pywebview.api.serial_port_available();
-        setSerialStatus(result);
+        //setSerialStatus(result);
+        setSerialStatus({ available: result });
       } catch (err) {
         console.error("❌ Error checking serial:", err);
         setSerialStatus({ available: false });

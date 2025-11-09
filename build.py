@@ -158,7 +158,7 @@ def build():
         "--include-package=parso",
         "--include-package=core.transpiler.core_libs",
         # Disable console for Windows TBD
-        # "--windows-console-mode=disable",
+        "--windows-console-mode=disable",
         "--include-package=black",
         "--include-package=pathspec",
         "--include-package=platformdirs",

@@ -92,6 +92,11 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
     if (e.key === "Enter" && command.trim()) {
       setTerminalLogs((prev) => [...prev, `> ${command}`]);
       try {
+
+        if (!window.pywebview?.api?.send_serial_command) {
+          console.error("PyWebView API not ready");
+          return;
+        }
         const res = await window.pywebview.api.send_serial_command(command);
         if (res.status === "ok") {
           setTerminalLogs((prev) => [...prev, `📤 Sent ${res.sent} bytes`]);
@@ -109,6 +114,10 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
   const toggleMonitoring = async () => {
     try {
       if (monitoring) {
+        if (!window.pywebview?.api?.stop_serial_monitor) {
+          console.error("PyWebView API not ready");
+          return;
+        }
         const res = await window.pywebview.api.stop_serial_monitor();
         if (res.status === "stopped") {
           setMonitoring(false);
@@ -116,6 +125,12 @@ export default function TerminalView({ onClose, onHeightChange }: TerminalViewPr
           setTerminalLogs((prev) => [...prev, "🛑 Monitoring stopped"]);
         }
       } else {
+
+        if (!window.pywebview?.api?.start_serial_monitor) {
+          console.error("PyWebView API not ready");
+          return;
+        }
+
         const res = await window.pywebview.api.start_serial_monitor();
         if (res.status === "connected") {
           setMonitoring(true);

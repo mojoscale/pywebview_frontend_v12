@@ -18,6 +18,24 @@ from typing import Optional, Dict, Any, List
 from enum import Enum
 import time
 
+
+# hide the terminal wondow from openeing for subprocess.
+
+
+if os.name == "nt":
+    _orig_popen = subprocess.Popen
+
+    def _quiet_popen(*args, **kwargs):
+        kwargs.setdefault("creationflags", 0)
+        kwargs["creationflags"] |= subprocess.CREATE_NO_WINDOW
+        startupinfo = kwargs.get("startupinfo") or subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        kwargs["startupinfo"] = startupinfo
+        return _orig_popen(*args, **kwargs)
+
+    subprocess.Popen = _quiet_popen
+
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CORE_LIBS_PATH = os.path.join(BASE_DIR, "transpiler", "core_libs")
 STARTER_TEMPLATE = (
@@ -179,13 +197,25 @@ async def compile_project(
         # ---------------------------------------------------------------------
         await session.send(SessionPhase.BEGIN_COMPILE, "Starting compilation...")
         cmd = pio_cmd + ["run"]
-        session.process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=build_dir,
-            env=env,
-        )
+
+        # MODIFIED: Add CREATE_NO_WINDOW flag for Windows
+        if sys.platform == "win32":
+            session.process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=build_dir,
+                env=env,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+        else:
+            session.process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=build_dir,
+                env=env,
+            )
 
         stdout, stderr = [], []
 
@@ -227,13 +257,25 @@ async def compile_project(
                 return {"success": False, "error": "No ESP device found"}
 
             cmd = pio_cmd + ["run", "-t", "upload", f"--upload-port={actual_port}"]
-            session.process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=build_dir,
-                env=env,
-            )
+
+            # MODIFIED: Add CREATE_NO_WINDOW flag for Windows
+            if sys.platform == "win32":
+                session.process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=build_dir,
+                    env=env,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+            else:
+                session.process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=build_dir,
+                    env=env,
+                )
 
             out_lines = []
 
@@ -355,7 +397,6 @@ def write_platformio_ini(board: str, platform: str, build_dir: str, dependencies
 
 
 def get_platformio_command(user_app_dir: str):
-    """Return the PlatformIO executable command and environment."""
     pio_home = os.path.join(user_app_dir, ".platformio")
     venv = os.path.join(pio_home, "platformio_venv")
     exe = (

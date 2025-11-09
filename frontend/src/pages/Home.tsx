@@ -11,16 +11,7 @@ import { useNavigate } from "react-router-dom";
 
 const { Title, Text } = Typography;
 
-interface Project {
-  project_id: string;
-  name: string;
-  description: string;
-  is_active: boolean;
-  updated_at: string;
-  created_at: string;
-  metadata?: Record<string, any>;
-}
-
+import type { Project } from '../types'; // Import from shared types
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);

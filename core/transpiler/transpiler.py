@@ -2953,9 +2953,43 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
                             prev_type = called_entity_return_type
                             print(f"found args {args}")
-                            prev_statement = called_entity_translation.format(
-                                **method_args_kwargs
+
+                            is_eval = self.dependency_resolver.get_method_is_eval(
+                                method_name, module_name
                             )
+
+                            print(f"method {method_name} is eval: {is_eval}")
+
+                            if is_eval:
+                                if (
+                                    method_name == "get_env_var"
+                                    and module_name == "core.env_vars"
+                                ):
+                                    var_name = args[0].value
+                                    pass_args = {"var_name": var_name}
+                                    translation_parsed = (
+                                        ast.parse(
+                                            f'"{eval(called_entity_translation.format(**pass_args))}"'
+                                        )
+                                        .body[0]
+                                        .value
+                                    )
+
+                                    prev_statement = self.visit(translation_parsed)
+
+                                else:
+                                    translation = called_entity_translation.format(
+                                        **method_args_kwargs
+                                    )
+                                    print(
+                                        f"translation for eval method {method_name} for module {module_name} is {translation}"
+                                    )
+                                    prev_statement = eval(translation)
+
+                            else:
+                                prev_statement = called_entity_translation.format(
+                                    **method_args_kwargs
+                                )
                             prev_entity_type = "call"
 
                     else:

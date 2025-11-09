@@ -33,6 +33,10 @@ export const SerialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // 🔹 Start serial monitoring (backend auto-detects port)
   const startMonitoring = async () => {
     try {
+      if (!window.pywebview?.api?.start_serial_monitor) {
+        console.warn("PyWebView API not available yet");
+        return;
+      }
       const res = await window.pywebview.api.start_serial_monitor();
       if (res.status === "connected") {
         setSerialConnected(true);
@@ -49,6 +53,10 @@ export const SerialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // 🔹 Stop monitoring
   const stopMonitoring = async () => {
     try {
+      if (!window.pywebview?.api?.stop_serial_monitor) {
+        console.warn("PyWebView API not available yet");
+        return;
+      }
       const res = await window.pywebview.api.stop_serial_monitor();
       if (res.status === "stopped") {
         setSerialConnected(false);
@@ -65,6 +73,10 @@ export const SerialProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!cmd.trim()) return;
     setTerminalLogs((prev) => [...prev, `> ${cmd}`]);
     try {
+      if (!window.pywebview?.api?.send_serial_command) {
+        console.warn("PyWebView API not available yet");
+        return;
+      }
       const res = await window.pywebview.api.send_serial_command(cmd);
       if (res.status === "ok") {
         setTerminalLogs((prev) => [...prev, `📤 Sent ${res.sent} bytes`]);

@@ -146,6 +146,8 @@ class Api:
         return get_available_platforms()
 
     def get_boards(self):
+        boards = get_available_boards()
+
         return get_available_boards()
 
     # ------------------------

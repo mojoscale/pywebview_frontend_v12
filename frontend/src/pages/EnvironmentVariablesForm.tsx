@@ -26,27 +26,46 @@ import {
   CloudServerOutlined
 } from '@ant-design/icons';
 
+// Define types for environment variables
+interface EnvVariable {
+  key: string;
+  value: string;
+  isSecret?: boolean;
+}
+
+// Use the existing pywebview declaration from IDEPage.tsx
+// If you need to extend it, do it in a shared types file instead
+
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const EnvironmentVariablesForm = () => {
   const [form] = Form.useForm();
-  const [variables, setVariables] = useState<any[]>([]);
+  const [variables, setVariables] = useState<EnvVariable[]>([]);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [bulkEditVisible, setBulkEditVisible] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [showSecrets, setShowSecrets] = useState(false);
-  const [currentIsSecret, setCurrentIsSecret] = useState(false); // New state for tracking
+  const [currentIsSecret, setCurrentIsSecret] = useState(false);
+
+  // Type assertion for pywebview API methods we need
+  const pywebviewApi = window.pywebview?.api as {
+    get_all_env: () => Promise<Record<string, { value: string; is_secret?: boolean }>>;
+    update_env_value: (key: string, value: string, isSecret?: boolean) => Promise<void>;
+    create_env_value: (key: string, value: string, isSecret?: boolean) => Promise<void>;
+    delete_env_value: (key: string) => Promise<void>;
+    bulk_create_env: (pairs: Array<{ key: string; value: string }>) => Promise<void>;
+  } | undefined;
 
   // -----------------------------
   // Backend integration helpers
   // -----------------------------
   const fetchVars = async () => {
     try {
-      if (!window.pywebview?.api) return;
-      const result = await window.pywebview.api.get_all_env();
-      const parsed = Object.entries(result).map(([key, data]: [string, any]) => ({
+      if (!pywebviewApi) return;
+      const result = await pywebviewApi.get_all_env();
+      const parsed: EnvVariable[] = Object.entries(result).map(([key, data]) => ({
         key,
         value: data.value,
         isSecret: data.is_secret,
@@ -76,8 +95,8 @@ const EnvironmentVariablesForm = () => {
 
       if (editingKey) {
         // Update existing variable
-        if (!window.pywebview?.api) return;
-        await window.pywebview.api.update_env_value(
+        if (!pywebviewApi) return;
+        await pywebviewApi.update_env_value(
           values.key,
           values.value,
           isSecret
@@ -86,8 +105,8 @@ const EnvironmentVariablesForm = () => {
         setEditingKey(null);
       } else {
         // Create new variable
-        if (!window.pywebview?.api) return;
-        await window.pywebview.api.create_env_value(
+        if (!pywebviewApi) return;
+        await pywebviewApi.create_env_value(
           values.key,
           values.value,
           isSecret
@@ -105,7 +124,7 @@ const EnvironmentVariablesForm = () => {
     }
   };
 
-  const handleEdit = (record: any) => {
+  const handleEdit = (record: EnvVariable) => {
     setEditingKey(record.key);
     const isSecret = Boolean(record.isSecret);
     
@@ -121,8 +140,8 @@ const EnvironmentVariablesForm = () => {
 
   const handleDelete = async (key: string) => {
     try {
-      if (!window.pywebview?.api) return;
-      await window.pywebview.api.delete_env_value(key);
+      if (!pywebviewApi) return;
+      await pywebviewApi.delete_env_value(key);
       message.success('Variable deleted successfully');
       fetchVars();
     } catch (err) {
@@ -133,26 +152,33 @@ const EnvironmentVariablesForm = () => {
 
   const handleBulkSave = async () => {
     try {
-      const lines = bulkText.split('\n').filter(line => line.trim());
-      const newPairs: Record<string, any> = {};
-      lines.forEach(line => {
-        const [key, ...valueParts] = line.split('=');
+      const lines = bulkText.split("\n").filter((line) => line.trim());
+
+      // Prepare as {key: string, value: string} pairs
+      const formattedPairs: Array<{ key: string; value: string }> = [];
+
+      lines.forEach((line) => {
+        const [key, ...valueParts] = line.split("=");
         if (key && valueParts.length > 0) {
-          newPairs[key.trim()] = {
-            value: valueParts.join('=').trim(),
-            is_secret: false,
-          };
+          formattedPairs.push({ 
+            key: key.trim(), 
+            value: valueParts.join("=").trim() 
+          });
         }
       });
-      if (!window.pywebview?.api) return;
-      await window.pywebview.api.bulk_create_env(newPairs);
-      message.success(`Added ${Object.keys(newPairs).length} variables`);
+
+      if (!pywebviewApi) return;
+
+      // Now correctly matches the expected type
+      await pywebviewApi.bulk_create_env(formattedPairs);
+
+      message.success(`Added ${formattedPairs.length} variable${formattedPairs.length !== 1 ? "s" : ""}`);
       setBulkEditVisible(false);
-      setBulkText('');
+      setBulkText("");
       fetchVars();
     } catch (error) {
       console.error(error);
-      message.error('Invalid format. Use KEY=VALUE format, one per line.');
+      message.error("Invalid format. Use KEY=VALUE format, one per line.");
     }
   };
 
@@ -164,7 +190,7 @@ const EnvironmentVariablesForm = () => {
     message.success('Environment variables copied to clipboard!');
   };
 
-  const maskSecret = (value: string, isSecret: boolean) => {
+  const maskSecret = (value: string, isSecret?: boolean) => {
     if (isSecret && !showSecrets) {
       return '•'.repeat(8);
     }
@@ -192,7 +218,7 @@ const EnvironmentVariablesForm = () => {
       dataIndex: 'key',
       key: 'key',
       width: '30%',
-      render: (text: string, record: any) => (
+      render: (text: string, record: EnvVariable) => (
         <Space>
           <Tag color="blue">{text}</Tag>
           {record.isSecret && <EyeInvisibleOutlined style={{ color: '#ff4d4f' }} />}
@@ -203,7 +229,7 @@ const EnvironmentVariablesForm = () => {
       title: 'Value',
       dataIndex: 'value',
       key: 'value',
-      render: (value: string, record: any) => (
+      render: (value: string, record: EnvVariable) => (
         <Text code style={{ fontSize: '12px' }}>
           {maskSecret(value, record.isSecret)}
         </Text>
@@ -214,7 +240,7 @@ const EnvironmentVariablesForm = () => {
       dataIndex: 'isSecret',
       key: 'isSecret',
       width: '100px',
-      render: (isSecret: boolean) => (
+      render: (isSecret?: boolean) => (
         <Tag color={isSecret ? 'red' : 'green'}>
           {isSecret ? 'Secret' : 'Plain'}
         </Tag>
@@ -224,7 +250,7 @@ const EnvironmentVariablesForm = () => {
       title: 'Actions',
       key: 'actions',
       width: '120px',
-      render: (_: any, record: any) => (
+      render: (_: any, record: EnvVariable) => (
         <Space size="small">
           <Tooltip title="Edit">
             <Button

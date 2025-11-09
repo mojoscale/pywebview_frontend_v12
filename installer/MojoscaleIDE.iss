@@ -1,7 +1,6 @@
-#define AppVer "0.1.6"
+#define AppVer "0.2.0"
 
 [Setup]
-; Basic info
 AppName=Mojoscale
 AppVersion={#AppVer}
 DefaultDirName={pf}\Mojoscale
@@ -13,19 +12,17 @@ Compression=lzma
 SolidCompression=yes
 
 [Files]
-; Copy everything from Nuitka build
-Source: "..\build\app.dist\*"; DestDir: "{app}"; Flags: recursesubdirs
+Source: "..\build\app.dist\app.exe"; DestDir: "{app}"; DestName: "Mojoscale.exe"
+Source: "..\build\app.dist\*"; \
+    Excludes: "app.exe,*.manifest,*.exp,*.lib,*.build-id,*.bak,__pycache__,*.log,black,platformdirs,pathspec"; \
+    DestDir: "{app}"; Flags: recursesubdirs ignoreversion createallsubdirs
 
 [Icons]
-; Start Menu shortcut
-Name: "{group}\Mojoscale IDE"; Filename: "{app}\app.exe"
-
-; Optional desktop shortcut
-Name: "{commondesktop}\Mojoscale IDE"; Filename: "{app}\app.exe"; Tasks: desktopicon
+Name: "{group}\Mojoscale IDE"; Filename: "{app}\Mojoscale.exe"
+Name: "{commondesktop}\Mojoscale IDE"; Filename: "{app}\Mojoscale.exe"; Tasks: desktopicon
 
 [Tasks]
-; Checkbox in installer for creating desktop icon
 Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"
 
 [Run]
-Filename: "{app}\app.exe"
+Filename: "{app}\Mojoscale.exe"; WorkingDir: "{app}"

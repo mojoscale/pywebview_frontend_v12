@@ -1,17 +1,91 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Layout, Spin, Button, Modal, Progress, Alert, Steps } from "antd";
+import { Layout, Spin, Button, Modal, Progress, Alert, Steps, notification } from "antd";
 import { useParams } from "react-router-dom";
 import ModuleExplorer from "../components/ModuleExplorer";
 import IDE from "../components/IDE";
 import { 
     MenuFoldOutlined, 
     MenuUnfoldOutlined, 
-    StopOutlined,
     CodeOutlined,
     BuildOutlined,
     UploadOutlined,
-    CheckCircleOutlined
+    CheckCircleOutlined,
+    SyncOutlined
 } from "@ant-design/icons";
+
+import type { Project, Board, EnvVariable, CompileStatus, CompletionItem } from '../types';
+
+// Extend Window interface to include our custom properties
+declare global {
+    interface Window {
+        __onCompilerEvent?: (ev: any) => void;
+        __appendTerminalLog?: (logLine: string) => void;
+        pywebview?: {
+            api?: {
+                // Compilation methods
+                compile: (projectId: string, withUpload?: boolean) => Promise<any>;
+                cancel_session?: (sessionId: string) => Promise<void>;
+                get_compile_status: (projectId: string) => Promise<CompileStatus>;
+                
+                // Project methods
+                get_projects: () => Promise<Project[]>;
+                get_project: (projectId: string) => Promise<Project>;
+                get_project_code: (projectId: string) => Promise<{code: string}>;
+                create_project: (payload: any) => Promise<any>;
+                update_project: (payload: any) => Promise<any>;
+                save_project_files: (projectId: string, code: string) => Promise<void>;
+                
+                // Board methods
+                get_boards: () => Promise<Board[]>;
+                
+                // Code analysis methods
+                lint_code: (code: string, board: string) => Promise<{errors: Array<{
+                    line: number;
+                    column: number;
+                    message: string;
+                    severity: string;
+                }>}>;
+                format_code: (code: string) => Promise<string>;
+                get_completions: (code: string, line: number, column: number) => Promise<CompletionItem[]>;
+                
+                // Environment variables methods
+                get_all_env: () => Promise<EnvVariable[]>;
+                update_env_value: (key: string, value: string, isSecret?: boolean) => Promise<void>;
+                create_env_value: (key: string, value: string, isSecret?: boolean) => Promise<void>;
+                delete_env_value: (key: string) => Promise<void>;
+                bulk_create_env: (pairs: Array<{key: string; value: string}>) => Promise<void>;
+                
+                // Serial communication methods
+                start_serial_monitor: () => Promise<any>;
+                stop_serial_monitor: () => Promise<any>;
+                send_serial_command: (command: string) => Promise<any>;
+                serial_port_available: () => Promise<boolean>;
+                
+                // System methods
+                get_version: () => Promise<string>;
+            };
+        };
+    }
+}
+
+// Define Status type for Steps component
+type Status = 'wait' | 'process' | 'finish' | 'error';
+
+// Interface for ongoing compilation session
+interface OngoingCompilation {
+    projectId: string;
+    sessionId: string;
+    isUploading: boolean;
+    startTime: number;
+    currentPhase: string;
+    progressPercent: number;
+    hasCompilationError: boolean;
+    hasUploadError: boolean;
+    uploadLogs: string[];
+    showUploadLogs: boolean;
+    showUploadPrompt: boolean;
+    finalResult: any;
+}
 
 const { Sider, Content, Header } = Layout;
 const { Step } = Steps;
@@ -31,6 +105,8 @@ const IDEPage: React.FC = () => {
     const [hasUploadError, setHasUploadError] = useState(false);
     const [uploadLogs, setUploadLogs] = useState<string[]>([]);
     const [showUploadLogs, setShowUploadLogs] = useState(false);
+    const [ongoingCompilation, setOngoingCompilation] = useState<OngoingCompilation | null>(null);
+    const [isRestoringSession, setIsRestoringSession] = useState(false);
     const logEndRef = useRef<HTMLDivElement | null>(null);
 
     // Phase → progress mapping
@@ -45,6 +121,56 @@ const IDEPage: React.FC = () => {
         error: 100,
         cancelled: 100,
     };
+
+    // Storage key for ongoing compilation
+    const ONGOING_COMPILATION_KEY = 'ide_ongoing_compilation';
+
+    // Save ongoing compilation to localStorage
+    const saveOngoingCompilation = (compilation: OngoingCompilation | null) => {
+        try {
+            if (compilation) {
+                localStorage.setItem(ONGOING_COMPILATION_KEY, JSON.stringify(compilation));
+            } else {
+                localStorage.removeItem(ONGOING_COMPILATION_KEY);
+            }
+        } catch (error) {
+            console.warn('Failed to save ongoing compilation to localStorage:', error);
+        }
+    };
+
+    // Load ongoing compilation from localStorage
+    const loadOngoingCompilation = (): OngoingCompilation | null => {
+        try {
+            const stored = localStorage.getItem(ONGOING_COMPILATION_KEY);
+            return stored ? JSON.parse(stored) : null;
+        } catch (error) {
+            console.warn('Failed to load ongoing compilation from localStorage:', error);
+            return null;
+        }
+    };
+
+    // Check if compilation is currently active (not finished)
+    const isCompilationActive = (compilation: OngoingCompilation | null): boolean => {
+        if (!compilation) return false;
+        return !["all_done", "error", "cancelled"].includes(compilation.currentPhase);
+    };
+
+    // Check for ongoing compilation on component mount
+    useEffect(() => {
+        const storedCompilation = loadOngoingCompilation();
+        if (storedCompilation) {
+            setOngoingCompilation(storedCompilation);
+            
+            // If there's an active compilation, show notification
+            if (isCompilationActive(storedCompilation)) {
+                notification.info({
+                    message: "Ongoing Compilation Detected",
+                    description: "There's an ongoing compilation process. Click the status indicator to view progress.",
+                    duration: 5,
+                });
+            }
+        }
+    }, [projectId]);
 
     // Auto-scroll upload logs
     useEffect(() => {
@@ -69,8 +195,8 @@ const IDEPage: React.FC = () => {
 
     // Unified backend event handler
     useEffect(() => {
-        window.__onCompilerEvent = (ev: any) => {
-            const { phase, text, level } = ev;
+        const handleCompilerEvent = (ev: any) => {
+            const { phase, text } = ev;
             console.log(`[EVENT] ${phase}: ${text}`);
             
             setCurrentPhase(phase);
@@ -116,17 +242,42 @@ const IDEPage: React.FC = () => {
             // Handle completion
             if (phase === "all_done" || phase === "error" || phase === "cancelled") {
                 const success = determineOverallSuccess(phase, hasCompilationError, hasUploadError, isUploading);
-                setFinalResult({
+                const result = {
                     success,
                     error: !success ? getFinalErrorMessage(hasCompilationError, hasUploadError, text) : undefined,
                     phase: phase
-                });
+                };
+                setFinalResult(result);
                 setShowUploadPrompt(false);
+                
+                // Clear ongoing compilation when complete
+                setOngoingCompilation(null);
+                saveOngoingCompilation(null);
+            }
+
+            // Update ongoing compilation in state and storage
+            if (sessionId && projectId && !["all_done", "error", "cancelled"].includes(phase)) {
+                const ongoing: OngoingCompilation = {
+                    projectId,
+                    sessionId,
+                    isUploading,
+                    startTime: Date.now(),
+                    currentPhase: phase,
+                    progressPercent: phaseProgress[phase] ?? progressPercent,
+                    hasCompilationError,
+                    hasUploadError,
+                    uploadLogs,
+                    showUploadLogs,
+                    showUploadPrompt,
+                    finalResult: null
+                };
+                setOngoingCompilation(ongoing);
+                saveOngoingCompilation(ongoing);
             }
         };
 
         // Also capture terminal logs during upload phase
-        window.__appendTerminalLog = (logLine: string) => {
+        const handleTerminalLog = (logLine: string) => {
             if (showUploadLogs && logLine && logLine.trim()) {
                 const lowerLine = logLine.toLowerCase();
                 // Capture upload progress indicators
@@ -139,15 +290,29 @@ const IDEPage: React.FC = () => {
                     lowerLine.includes('leaving...') ||
                     lowerLine.includes('hard resetting')) {
                     setUploadLogs(prev => [...prev, logLine]);
+                    
+                    // Update ongoing compilation with new logs
+                    if (ongoingCompilation && sessionId) {
+                        const updatedCompilation = {
+                            ...ongoingCompilation,
+                            uploadLogs: [...uploadLogs, logLine]
+                        };
+                        setOngoingCompilation(updatedCompilation);
+                        saveOngoingCompilation(updatedCompilation);
+                    }
                 }
             }
         };
+
+        // Assign handlers to window
+        window.__onCompilerEvent = handleCompilerEvent;
+        window.__appendTerminalLog = handleTerminalLog;
 
         return () => {
             window.__onCompilerEvent = undefined;
             window.__appendTerminalLog = undefined;
         };
-    }, [progressPercent, isUploading, hasCompilationError, hasUploadError, showUploadLogs]);
+    }, [progressPercent, isUploading, hasCompilationError, hasUploadError, showUploadLogs, phaseProgress, sessionId, projectId, ongoingCompilation, uploadLogs]);
 
     // Determine overall success based on all phases
     const determineOverallSuccess = (finalPhase: string, compilationError: boolean, uploadError: boolean, wasUploading: boolean) => {
@@ -177,19 +342,58 @@ const IDEPage: React.FC = () => {
     // Reset modal when closed
     useEffect(() => {
         if (!isModalVisible) {
-            setProgressPercent(0);
-            setFinalResult(null);
-            setCurrentPhase("");
-            setSessionId(null);
-            setShowUploadPrompt(false);
-            setHasCompilationError(false);
-            setHasUploadError(false);
-            setUploadLogs([]);
-            setShowUploadLogs(false);
+            // Don't reset progress if we're just closing the modal but compilation is ongoing
+            if (!ongoingCompilation || ongoingCompilation.projectId !== projectId) {
+                setProgressPercent(0);
+                setFinalResult(null);
+                setCurrentPhase("");
+                setSessionId(null);
+                setShowUploadPrompt(false);
+                setHasCompilationError(false);
+                setHasUploadError(false);
+                setUploadLogs([]);
+                setShowUploadLogs(false);
+            }
         }
-    }, [isModalVisible]);
+    }, [isModalVisible, ongoingCompilation, projectId]);
 
-    // Start compile
+    // Restore compilation session
+    const restoreCompilationSession = async (compilation: OngoingCompilation) => {
+        if (!isApiReady || !window.pywebview?.api) return;
+
+        setIsRestoringSession(true);
+        setIsModalVisible(true);
+        
+        try {
+            // Restore all state from stored compilation
+            setSessionId(compilation.sessionId);
+            setIsUploading(compilation.isUploading);
+            setCurrentPhase(compilation.currentPhase);
+            setProgressPercent(compilation.progressPercent);
+            setHasCompilationError(compilation.hasCompilationError);
+            setHasUploadError(compilation.hasUploadError);
+            setUploadLogs(compilation.uploadLogs);
+            setShowUploadLogs(compilation.showUploadLogs);
+            setShowUploadPrompt(compilation.showUploadPrompt);
+            setFinalResult(compilation.finalResult);
+            
+            // Try to get current status from backend
+            if (window.pywebview.api.get_compile_status) {
+                const status = await window.pywebview.api.get_compile_status(compilation.projectId);
+                console.log('Restored compilation status:', status);
+            }
+            
+        } catch (error) {
+            console.warn('Failed to restore compilation session:', error);
+            // If restoration fails, clear the ongoing compilation
+            setOngoingCompilation(null);
+            saveOngoingCompilation(null);
+        } finally {
+            setIsRestoringSession(false);
+        }
+    };
+
+    // Start compile - SIMPLIFIED: Just show current work if ongoing
     const handleCompile = async (withUpload = false) => {
         if (!isApiReady || !window.pywebview?.api) {
             Modal.warning({
@@ -199,6 +403,25 @@ const IDEPage: React.FC = () => {
             return;
         }
 
+        if (!projectId) {
+            Modal.warning({
+                title: "Project ID missing",
+                content: "Unable to determine project ID.",
+            });
+            return;
+        }
+
+        // If there's an active compilation, just show it
+        if (ongoingCompilation && isCompilationActive(ongoingCompilation)) {
+            restoreCompilationSession(ongoingCompilation);
+            return;
+        }
+
+        // Otherwise start new compilation
+        startNewCompilation(withUpload);
+    };
+
+    const startNewCompilation = async (withUpload: boolean) => {
         setIsModalVisible(true);
         setIsUploading(withUpload);
         setProgressPercent(0);
@@ -211,20 +434,17 @@ const IDEPage: React.FC = () => {
         setShowUploadLogs(false);
 
         try {
-            const res = await window.pywebview.api.compile(projectId, withUpload);
-            setSessionId(res.session_id || null);
+            // Safe access to window.pywebview.api
+            if (window.pywebview?.api?.compile) {
+                const res = await window.pywebview.api.compile(projectId!, withUpload);
+                setSessionId(res.session_id || null);
+            } else {
+                throw new Error("Compile API not available");
+            }
         } catch (err: any) {
             setCurrentPhase("error");
             setProgressPercent(100);
             setHasCompilationError(true);
-        }
-    };
-
-    // Cancel build
-    const handleCancel = async () => {
-        if (sessionId && window.pywebview?.api?.cancel_session) {
-            await window.pywebview.api.cancel_session(sessionId);
-            setShowUploadPrompt(false);
         }
     };
 
@@ -239,6 +459,7 @@ const IDEPage: React.FC = () => {
     };
 
     const getStatusText = () => {
+        if (isRestoringSession) return "Restoring compilation session...";
         if (hasCompilationError) return "Compilation failed";
         if (hasUploadError) return "Upload failed";
         
@@ -247,8 +468,8 @@ const IDEPage: React.FC = () => {
         }
         
         switch (currentPhase) {
-            case "begin_transpile": return "Transpiling Python code...";
-            case "end_transpile": return "Transpilation complete";
+            case "begin_transpile": return "Preparing code...";
+            case "end_transpile": return "Code preparation complete";
             case "begin_compile": return "Compiling firmware...";
             case "end_compile": return "Compilation successful";
             case "start_upload": return "Uploading to device...";
@@ -270,7 +491,7 @@ const IDEPage: React.FC = () => {
     };
 
     // Get phase status
-    const getPhaseStatus = (phase: string) => {
+    const getPhaseStatus = (phase: string): Status => {
         if (currentPhase === "error" || hasCompilationError || hasUploadError) {
             if (phase === "transpile" && hasCompilationError) return "error";
             if (phase === "compile" && hasCompilationError) return "error";
@@ -278,7 +499,7 @@ const IDEPage: React.FC = () => {
             return "wait";
         }
         
-        if (currentPhase === "cancelled") return "warning";
+        if (currentPhase === "cancelled") return "wait";
         
         if (phase === "transpile") {
             if (currentPhase.includes("transpile")) return "process";
@@ -314,6 +535,9 @@ const IDEPage: React.FC = () => {
             return <span style={{ color: "#1890ff" }}>{msg}</span>;
         return <span style={{ color: "#ccc" }}>{msg}</span>;
     };
+
+    // Check if compile buttons should be disabled - fixed to return boolean
+    const isCompileDisabled = ongoingCompilation && isCompilationActive(ongoingCompilation);
 
     if (!projectId) {
         return (
@@ -370,6 +594,7 @@ const IDEPage: React.FC = () => {
                             type="primary" 
                             icon={<BuildOutlined />}
                             onClick={() => handleCompile(false)}
+                            disabled={!!isCompileDisabled}
                         >
                             Compile
                         </Button>
@@ -378,9 +603,26 @@ const IDEPage: React.FC = () => {
                             danger 
                             icon={<UploadOutlined />}
                             onClick={() => handleCompile(true)}
+                            disabled={!!isCompileDisabled}
                         >
                             Compile & Upload
                         </Button>
+                        
+                        {/* Ongoing Compilation Status Indicator */}
+                        {ongoingCompilation && isCompilationActive(ongoingCompilation) && (
+                            <Button 
+                                type="dashed" 
+                                icon={<SyncOutlined spin />}
+                                onClick={() => restoreCompilationSession(ongoingCompilation)}
+                                style={{ 
+                                    marginLeft: 8,
+                                    borderColor: getStatusColor(),
+                                    color: getStatusColor()
+                                }}
+                            >
+                                Compiling... {Math.round(ongoingCompilation.progressPercent)}%
+                            </Button>
+                        )}
                     </div>
                 </Header>
 
@@ -396,6 +638,11 @@ const IDEPage: React.FC = () => {
                     <div>
                         <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
                             {isUploading ? "Compiling & Uploading to Device" : "Compiling Project"}
+                            {ongoingCompilation && ongoingCompilation.projectId !== projectId && (
+                                <span style={{ fontSize: '12px', color: '#faad14', marginLeft: 8 }}>
+                                    (Project: {ongoingCompilation.projectId})
+                                </span>
+                            )}
                         </div>
                         <div style={{ color: getStatusColor(), marginTop: 4, fontSize: '14px' }}>
                             {getStatusText()}
@@ -404,15 +651,6 @@ const IDEPage: React.FC = () => {
                 }
                 onCancel={() => setIsModalVisible(false)}
                 footer={[
-                    <Button
-                        key="cancel"
-                        icon={<StopOutlined />}
-                        danger
-                        onClick={handleCancel}
-                        disabled={["all_done", "error", "cancelled"].includes(currentPhase) || hasCompilationError || hasUploadError}
-                    >
-                        Cancel
-                    </Button>,
                     <Button 
                         key="close" 
                         type="primary" 
@@ -424,134 +662,145 @@ const IDEPage: React.FC = () => {
                 width={600}
                 style={{ top: 20 }}
             >
-                {/* Progress Steps */}
-                <Steps
-                    current={getCurrentStep()}
-                    status={
-                        hasCompilationError || hasUploadError ? "error" : 
-                        currentPhase === "cancelled" ? "error" : "process"
-                    }
-                    style={{ marginBottom: 24 }}
-                >
-                    <Step 
-                        title="Transpiling" 
-                        description="Converting Python to C++"
-                        icon={<CodeOutlined />}
-                        status={getPhaseStatus("transpile")}
-                    />
-                    <Step 
-                        title="Compiling" 
-                        description="Building firmware"
-                        icon={<BuildOutlined />}
-                        status={getPhaseStatus("compile")}
-                    />
-                    {isUploading && (
-                        <Step 
-                            title="Uploading" 
-                            description="Flashing to device"
-                            icon={<UploadOutlined />}
-                            status={getPhaseStatus("upload")}
-                        />
-                    )}
-                    <Step 
-                        title="Complete" 
-                        description="All done"
-                        icon={<CheckCircleOutlined />}
-                    />
-                </Steps>
-
-                <Progress
-                    percent={progressPercent}
-                    strokeColor={getStatusColor()}
-                    showInfo={true}
-                    style={{ marginBottom: 16 }}
-                />
-
-                {/* Upload Instructions - Always show during upload phase */}
-                {showUploadPrompt && (
-                    <Alert
-                        message="Upload Instructions"
-                        description={
-                            <div>
-                                <p><strong>For ESP32:</strong> Hold the BOOT button, then the upload will start automatically.</p>
-                                <p><strong>Watch the logs below for progress:</strong></p>
-                                <ul style={{ fontSize: '12px', color: '#666', margin: '8px 0', paddingLeft: '16px' }}>
-                                    <li>When you see "Writing at..." or progress percentage, you can release BOOT button</li>
-                                    <li>When you see "Hash of data verified" or "Leaving...", upload is complete</li>
-                                </ul>
-                            </div>
-                        }
-                        type="warning"
-                        showIcon
-                        style={{ marginBottom: 16 }}
-                    />
-                )}
-
-                {/* Upload Progress Logs - Only show during upload phase */}
-                {showUploadLogs && (
-                    <div style={{ marginBottom: 16 }}>
-                        <div style={{ 
-                            fontSize: '14px', 
-                            fontWeight: 'bold', 
-                            marginBottom: '8px',
-                            color: '#1890ff'
-                        }}>
-                            📤 Upload Progress
+                {isRestoringSession ? (
+                    <div style={{ textAlign: 'center', padding: '40px' }}>
+                        <Spin size="large" />
+                        <div style={{ marginTop: 16, color: '#666' }}>
+                            Restoring compilation session...
                         </div>
-                        <div
-                            style={{
-                                background: "#111",
-                                color: "#fff",
-                                padding: "12px",
-                                borderRadius: "6px",
-                                maxHeight: "200px",
-                                overflowY: "auto",
-                                fontFamily: "'Courier New', monospace",
-                                fontSize: "12px",
-                                lineHeight: "1.4",
-                            }}
+                    </div>
+                ) : (
+                    <>
+                        {/* Progress Steps */}
+                        <Steps
+                            current={getCurrentStep()}
+                            status={
+                                hasCompilationError || hasUploadError ? "error" : 
+                                currentPhase === "cancelled" ? "error" : "process"
+                            }
+                            style={{ marginBottom: 24 }}
                         >
-                            {uploadLogs.length === 0 ? (
-                                <div style={{ color: "#777" }}>
-                                    Waiting for upload to start... Hold BOOT button if required.
-                                </div>
-                            ) : (
-                                uploadLogs.map((log, i) => (
-                                    <div key={i} style={{ marginBottom: "2px" }}>
-                                        {formatLogMessage(log)}
-                                    </div>
-                                ))
+                            <Step 
+                                title="Preparing code" 
+                                description="Getting code ready for compilation"
+                                icon={<CodeOutlined />}
+                                status={getPhaseStatus("transpile")}
+                            />
+                            <Step 
+                                title="Compiling" 
+                                description="Building firmware"
+                                icon={<BuildOutlined />}
+                                status={getPhaseStatus("compile")}
+                            />
+                            {isUploading && (
+                                <Step 
+                                    title="Uploading" 
+                                    description="Flashing to device"
+                                    icon={<UploadOutlined />}
+                                    status={getPhaseStatus("upload")}
+                                />
                             )}
-                            <div ref={logEndRef} />
-                        </div>
-                    </div>
-                )}
+                            <Step 
+                                title="Complete" 
+                                description="All done"
+                                icon={<CheckCircleOutlined />}
+                            />
+                        </Steps>
 
-                {/* Final summary */}
-                {finalResult && (
-                    <Alert
-                        message={finalResult.success ? "✅ Build Successful" : "❌ Build Failed"}
-                        description={
-                            finalResult.success 
-                                ? "All operations completed successfully" 
-                                : finalResult.error || "Build process encountered an error"
-                        }
-                        type={finalResult.success ? "success" : "error"}
-                        showIcon
-                        style={{ marginBottom: 16 }}
-                    />
-                )}
+                        <Progress
+                            percent={progressPercent}
+                            strokeColor={getStatusColor()}
+                            showInfo={true}
+                            style={{ marginBottom: 16 }}
+                        />
 
-                {/* Current Status Message - Only show when no other specific content */}
-                {!finalResult && !showUploadPrompt && !showUploadLogs && (
-                    <div style={{ 
-                        textAlign: 'center', 
-                        padding: '20px', 
-                        color: '#666',
-                        fontStyle: 'italic'
-                    }}>
-                        {getStatusText()}
-                    </div>
+                        {/* Upload Instructions - Always show during upload phase */}
+                        {showUploadPrompt && (
+                            <Alert
+                                message="Upload Instructions"
+                                description={
+                                    <div>
+                                        <p><strong>For ESP32:</strong> Hold the BOOT button, then the upload will start automatically.</p>
+                                        <p><strong>Watch the logs below for progress:</strong></p>
+                                        <ul style={{ fontSize: '12px', color: '#666', margin: '8px 0', paddingLeft: '16px' }}>
+                                            <li>When you see "Writing at..." or progress percentage, you can release BOOT button</li>
+                                            <li>When you see "Hash of data verified" or "Leaving...", upload is complete</li>
+                                        </ul>
+                                    </div>
+                                }
+                                type="warning"
+                                showIcon
+                                style={{ marginBottom: 16 }}
+                            />
+                        )}
+
+                        {/* Upload Progress Logs - Only show during upload phase */}
+                        {showUploadLogs && (
+                            <div style={{ marginBottom: 16 }}>
+                                <div style={{ 
+                                    fontSize: '14px', 
+                                    fontWeight: 'bold', 
+                                    marginBottom: '8px',
+                                    color: '#1890ff'
+                                }}>
+                                    📤 Upload Progress
+                                </div>
+                                <div
+                                    style={{
+                                        background: "#111",
+                                        color: "#fff",
+                                        padding: "12px",
+                                        borderRadius: "6px",
+                                        maxHeight: "200px",
+                                        overflowY: "auto",
+                                        fontFamily: "'Courier New', monospace",
+                                        fontSize: "12px",
+                                        lineHeight: "1.4",
+                                    }}
+                                >
+                                    {uploadLogs.length === 0 ? (
+                                        <div style={{ color: "#777" }}>
+                                            Waiting for upload to start... Hold BOOT button if required.
+                                        </div>
+                                    ) : (
+                                        uploadLogs.map((log, i) => (
+                                            <div key={i} style={{ marginBottom: "2px" }}>
+                                                {formatLogMessage(log)}
+                                            </div>
+                                        ))
+                                    )}
+                                    <div ref={logEndRef} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Final summary */}
+                        {finalResult && (
+                            <Alert
+                                message={finalResult.success ? "✅ Build Successful" : "❌ Build Failed"}
+                                description={
+                                    finalResult.success 
+                                        ? "All operations completed successfully" 
+                                        : finalResult.error || "Build process encountered an error"
+                                }
+                                type={finalResult.success ? "success" : "error"}
+                                showIcon
+                                style={{ marginBottom: 16 }}
+                            />
+                        )}
+
+                        {/* Current Status Message - Only show when no other specific content */}
+                        {!finalResult && !showUploadPrompt && !showUploadLogs && (
+                            <div style={{ 
+                                textAlign: 'center', 
+                                padding: '20px', 
+                                color: '#666',
+                                fontStyle: 'italic'
+                            }}>
+                                {getStatusText()}
+                            </div>
+                        )}
+                    </>
                 )}
             </Modal>
         </Layout>

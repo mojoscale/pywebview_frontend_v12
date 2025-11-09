@@ -2,6 +2,7 @@ import os
 import json
 import sys
 from pathlib import Path
+import importlib.resources as pkg_resources
 
 APP_WINDOW_NAME = "Mojoscale IDE"
 
@@ -60,7 +61,21 @@ def get_available_boards():
     with open(file_path, "r", encoding="utf-8-sig") as f:
         boards = json.load(f)
 
-    return sorted({f"{b['name']} ({b['id']})" for b in boards})
+    allowed_platforms = {"espressif32", "espressif8266"}
+    filtered = [
+        b for b in boards if str(b.get("platform", "")).lower() in allowed_platforms
+    ]
+
+    return sorted({f"{b['name']} ({b['id']})" for b in filtered})
+
+
+"""def get_available_boards():
+    # assuming available_boards.json is inside package core/
+    with pkg_resources.files("core").joinpath("available_boards.json").open(
+        "r", encoding="utf-8-sig"
+    ) as f:
+        boards = json.load(f)
+    return sorted({f"{b['name']} ({b['id']})" for b in boards})"""
 
 
 def get_platform_for_board_id(board_id: str) -> str:

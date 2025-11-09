@@ -1,4 +1,3 @@
-// src/components/ModalProjectForm.tsx
 import React, { useState, useEffect } from "react";
 import { Form, Input, Button, Space, Select, Spin, Card, Typography } from "antd";
 
@@ -19,6 +18,11 @@ interface ModalProjectFormProps {
   cancelPath?: string;
 }
 
+interface Board {
+  id: string;
+  name: string;
+}
+
 const ModalProjectForm: React.FC<ModalProjectFormProps> = ({
   initialValues = {},
   onSubmit,
@@ -29,7 +33,7 @@ const ModalProjectForm: React.FC<ModalProjectFormProps> = ({
   cancelPath,
 }) => {
   const [form] = Form.useForm();
-  const [boards, setBoards] = useState<string[]>([]);
+  const [boards, setBoards] = useState<Board[]>([]);
   const [loadingBoards, setLoadingBoards] = useState(true);
 
   // Fetch available boards via PyWebView API
@@ -38,9 +42,51 @@ const ModalProjectForm: React.FC<ModalProjectFormProps> = ({
       try {
         if (window.pywebview?.api?.get_boards) {
           const result = await window.pywebview.api.get_boards();
+          console.log("🔍 Raw boards data from backend:", result);
+          console.log("🔍 Type of data:", typeof result);
+          console.log("🔍 Is array?", Array.isArray(result));
+          
           if (Array.isArray(result)) {
-            setBoards(result);
+            // Debug each item
+            result.forEach((item, index) => {
+              console.log(`🔍 Item ${index}:`, item, "Type:", typeof item);
+            });
+
+            // Simple and safe processing
+            const validBoards: Board[] = [];
+            
+            result.forEach((item, index) => {
+              if (typeof item === 'string' && item) {
+                // Handle string items
+                
+                validBoards.push({
+                  id: item,
+                  name: item
+                });
+                
+              } else if (typeof item === 'object' && item !== null) {
+                // Handle object items - use type assertion
+                const boardItem = item as Partial<Board>;
+                const id = boardItem.id || boardItem.name || `board-${index}`;
+                const name = boardItem.name || boardItem.id || 'Unnamed Board';
+                
+                if (id && name) {
+                  validBoards.push({
+                    id: id,
+                    name: name
+                  });
+                }
+              }
+              // Ignore other types (null, undefined, etc.)
+            });
+
+            console.log("✅ Processed boards:", validBoards);
+            setBoards(validBoards);
+          } else {
+            console.warn("⚠️ Boards data is not an array:", result);
           }
+        } else {
+          console.warn("⚠️ window.pywebview.api.get_boards not available");
         }
       } catch (err) {
         console.error("❌ Error fetching boards:", err);
@@ -115,18 +161,30 @@ const ModalProjectForm: React.FC<ModalProjectFormProps> = ({
                   .includes(input.toLowerCase())
               }
             >
-              {boards.map((board) => (
-                <Select.Option key={board} value={board}>
-                  {board}
-                </Select.Option>
-              ))}
+              {boards.map((board) => {
+                // Ensure we have valid keys
+                const key = board.id || board.name;
+                if (!key) {
+                  console.warn("⚠️ Board with missing id and name:", board);
+                  return null;
+                }
+                
+                return (
+                  <Select.Option key={key} value={key}>
+                    {board.name}
+                  </Select.Option>
+                );
+              }).filter(Boolean) // Remove any null options
+              }
             </Select>
           )}
         </Form.Item>
 
         <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
           <Space style={{ display: "flex", justifyContent: "flex-end" }}>
-            <Button onClick={onCancel ?? (() => cancelPath && (window.location.href = cancelPath))}>Cancel</Button>
+            <Button onClick={onCancel ?? (() => cancelPath && (window.location.href = cancelPath))}>
+              Cancel
+            </Button>
             <Button type="primary" htmlType="submit" loading={loading}>
               {submitText}
             </Button>
