@@ -801,59 +801,97 @@ class LintCode(ast.NodeVisitor):
         self.is_within_If = False
 
     def visit_For(self, node):
+        """
+        Visit a for-loop node.
+        - Validates that 'for' is not at global scope (Arduino restriction).
+        - Infers the type of the iterable and assigns loop variable type accordingly.
+        - Registers loop variables before visiting the body (to prevent false undefined errors).
+        - Handles dict_items unpacking.
+        """
+
+        # Mark we are inside a For loop
         self.is_within_For = True
 
+        # Arduino rule: 'for' cannot appear at global level
         if self.scope == "global":
             self.add_error(node, "'for' can be only called within a function body.")
 
-        # cannot be called on global scope in arduino
-        if self.scope == "global":
-            self.add_error(node, "'for' can be only called within a function body.")
-
+        # Get type of iterable (e.g., range, list[int], dict_items[str,int], etc.)
         loop_var_type = self.type_analyzer.get_node_type(node.iter)
-        loop_type = loop_var_type.split(",")[0]
+        loop_type = loop_var_type.split(",")[0] if loop_var_type else None
         loop_var = node.target
         iterable = node.iter
 
+        # Always resolve loop variable names properly
+        def register_var(name: str, inferred_type: str):
+            """Registers a loop variable safely as defined."""
+            if not hasattr(self, "loop_variables"):
+                self.loop_variables = {}
+            self.loop_variables[name] = inferred_type or "unknown"
+            # Optional: let dependency_resolver know it’s defined
+            if hasattr(self.dependency_resolver, "register_variable"):
+                self.dependency_resolver.register_variable(
+                    name, inferred_type or "unknown"
+                )
+
+        # Handle supported loop target/iter types
         if loop_type == "range":
-            self.loop_variables[loop_var] = "int"
+            if isinstance(loop_var, ast.Name):
+                register_var(loop_var.id, "int")
+
         elif loop_type == "list":
-            element_type = loop_var_type.split(",")[1]
-            print(f"saving loop var {loop_var.id} for {iterable}")
-            self.loop_variables[loop_var.id] = element_type
+            element_type = (
+                loop_var_type.split(",")[1] if "," in loop_var_type else "unknown"
+            )
+            if isinstance(loop_var, ast.Name):
+                print(f"saving loop var {loop_var.id} for {ast.dump(iterable)}")
+                register_var(loop_var.id, element_type)
+
         elif loop_type == "dict_items":
             # Extract key and value variables from the loop target
             if isinstance(loop_var, ast.Tuple) and len(loop_var.elts) == 2:
                 key_var = loop_var.elts[0]
                 val_var = loop_var.elts[1]
-                _, key_type, value_type = loop_var_type.split(",")
-                self.loop_variables[key_var.id] = key_type
-                self.loop_variables[val_var.id] = value_type
+                parts = loop_var_type.split(",")
+                key_type = parts[1] if len(parts) > 1 else "unknown"
+                value_type = parts[2] if len(parts) > 2 else "unknown"
+                if isinstance(key_var, ast.Name):
+                    register_var(key_var.id, key_type)
+                if isinstance(val_var, ast.Name):
+                    register_var(val_var.id, value_type)
             else:
                 # Handle error case where loop target is not a tuple of two variables
                 self.add_error(
                     node,
                     "dict_items iteration requires unpacking into key, value variables",
                 )
+
         elif loop_type == "str":
-            self.loop_variables[loop_var] = "str"
+            if isinstance(loop_var, ast.Name):
+                register_var(loop_var.id, "str")
 
-        if self.scope == "global":
-            # in arduino, if only works within function/class body
-            error_text = "'For' can only be called within function body."
-            self.add_error(node, error_text)
+        else:
+            # Fallback case — still record if it's a simple variable
+            if isinstance(loop_var, ast.Name):
+                register_var(loop_var.id, "unknown")
 
-        # visit the iterator expression and target
+        # Visit iterable expression (range(), list, dict.items(), etc.)
         self.visit(node.iter)
-        # self.visit(node.target)
 
+        # Visit the body of the loop
         for stmt in node.body:
             self.visit(stmt)
 
-        # loop has ended so reset loop_variables
-        self.loop_variables = {}
+        # Visit else clause if present
+        for stmt in node.orelse:
+            self.visit(stmt)
 
+        # Done with this loop — reset state
         self.is_within_For = False
+
+        # Optionally clear loop vars only if you don't want them to leak
+        # (Python keeps them alive after the loop, but Arduino-like behavior may differ)
+        # self.loop_variables.clear()
 
     def visit_AnnAssign(self, node):
         """
