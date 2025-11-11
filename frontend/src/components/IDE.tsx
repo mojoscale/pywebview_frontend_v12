@@ -46,26 +46,30 @@ interface IDEProps {
 
 // BoardSelect Component
 const BoardSelect: React.FC<{ value?: string; onChange?: (value: string) => void }> = ({ value, onChange }) => {
-  const [boards, setBoards] = useState<string[]>([]);
+  //const [boards, setBoards] = useState<string[]>([]);
+  const [boards, setBoards] = useState<(string | Board)[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchBoards = async () => {
-      try {
-        if (window.pywebview?.api?.get_boards) {
-          const result = await window.pywebview.api.get_boards();
-          console.log("Fetched boards:", result);
-          if (Array.isArray(result)) {
-            //setBoards(result);
-            setBoards(result.map((board: Board) => board.name));
+     const fetchBoards = async () => {
+        try {
+          if (window.pywebview?.api?.get_boards) {
+            const result = await window.pywebview.api.get_boards();
+            console.log("Fetched boards:", result);
+
+            if (Array.isArray(result)) {
+              // result is already an array of strings
+              const uniqueBoards = Array.from(new Set(result.filter(Boolean)));
+              setBoards(uniqueBoards);
+            }
           }
+        } catch (err) {
+          console.error("❌ Error fetching boards:", err);
+        } finally {
+          setLoading(false);
         }
-      } catch (err) {
-        console.error("❌ Error fetching boards:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
+
 
     fetchBoards();
   }, []);
@@ -82,11 +86,15 @@ const BoardSelect: React.FC<{ value?: string; onChange?: (value: string) => void
         String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
       }
     >
-      {boards.map((board) => (
-        <Select.Option key={board} value={board}>
-          {board}
+      {boards.map((board, index) => (
+        <Select.Option 
+          key={board || `board-${index}`} 
+          value={board || `board-${index}`}
+        >
+          {board || `Unnamed Board ${index + 1}`}
         </Select.Option>
       ))}
+
     </Select>
   );
 };

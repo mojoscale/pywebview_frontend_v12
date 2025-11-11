@@ -680,6 +680,99 @@
     ],
     "variables": []
   },
+  "comms.nimble_simple": {
+    "doc": "No module docstring available",
+    "functions": [],
+    "classes": [
+      {
+        "name": "NimBLESimple",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, name: str, service_uuid: str, char_uuid: str)",
+            "doc": "Initialize a unified BLE peripheral on ESP32 using NimBLE.\n\nArgs:\n    name (str): Device name to advertise.\n    service_uuid (str): UUID of the primary BLE service.\n    char_uuid (str): UUID of the primary characteristic."
+          },
+          {
+            "name": "begin",
+            "signature": "(self, is_read = True, is_write = True, is_notify = True) -> None",
+            "doc": "Initialize the NimBLE stack, create server/service/characteristic,\nand start advertising."
+          },
+          {
+            "name": "stop",
+            "signature": "(self) -> None",
+            "doc": "Stop advertising, disconnect clients, and deinitialize BLE."
+          },
+          {
+            "name": "send",
+            "signature": "(self, data: str) -> None",
+            "doc": "Send data to the connected BLE central using notification.\n\nArgs:\n    data (str): Text or binary payload to send."
+          },
+          {
+            "name": "set_connect_callback",
+            "signature": "(self, callback: callable[[str], None]) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "set_disconnect_callback",
+            "signature": "(self, callback: callable[[str], None]) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "set_write_callback",
+            "signature": "(self, callback: callable[[str], None]) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "set_read_callback",
+            "signature": "(self, callback: callable[[], None]) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "set_notify_callback",
+            "signature": "(self, callback: callable[[], None]) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "is_connected",
+            "signature": "(self) -> bool",
+            "doc": "Check if a BLE central device is currently connected.\n\nReturns:\n    bool: True if connected, False otherwise."
+          },
+          {
+            "name": "set_power",
+            "signature": "(self, dbm: int) -> None",
+            "doc": "Adjust BLE transmit power.\n\nArgs:\n    dbm (int): Power level in dBm."
+          },
+          {
+            "name": "set_security",
+            "signature": "(self, bonding: bool = True, mitm: bool = False, sc: bool = False) -> None",
+            "doc": "Configure BLE security and pairing parameters.\n\nArgs:\n    bonding (bool): Enable bonding (persistent pairing).\n    mitm (bool): Require MITM protection.\n    sc (bool): Enable LE Secure Connections."
+          },
+          {
+            "name": "get_address",
+            "signature": "(self) -> str",
+            "doc": "Return the ESP32\u2019s local BLE MAC address.\n\nReturns:\n    str: MAC address string."
+          },
+          {
+            "name": "is_advertising",
+            "signature": "(self) -> bool",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "restart_advertising",
+            "signature": "(self) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "debug_state",
+            "signature": "(self) -> None",
+            "doc": "No docstring available"
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
   "comms.webserver": {
     "doc": "No module docstring available",
     "functions": [],
