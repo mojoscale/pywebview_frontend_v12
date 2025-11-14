@@ -19,6 +19,8 @@ from enum import Enum
 import time
 
 
+CORE_BUILD_FLAGS = ["-std=gnu++17", "-DARDUINO_USB_MODE=1", "-DSPIFFS_USE_LEGACY=1"]
+
 # hide the terminal wondow from openeing for subprocess.
 
 
@@ -158,6 +160,7 @@ async def compile_project(
 
         files = transpiler["code"]
         dependencies = (dependencies or []) + transpiler.get("dependencies", [])
+        embed_files = transpiler.get("embed_files", [])
 
         # ---------------------------------------------------------------------
         # 💡 NEW: Pretty-print the transpiled C++ code to terminal
@@ -184,7 +187,9 @@ async def compile_project(
         await session.send(SessionPhase.BEGIN_COMPILE, "Setting up build folder...")
         build_dir = prepare_build_folder()
         write_transpiled_code(files, build_dir)
-        write_platformio_ini(board, platform, build_dir, dependencies)
+        write_platformio_ini(
+            board, platform, build_dir, dependencies, embed_files=embed_files
+        )
         await session.send(SessionPhase.BEGIN_COMPILE, "Build folder ready")
 
         # Get PlatformIO
@@ -371,22 +376,28 @@ def write_transpiled_code(files: dict, build_dir: str):
         print(f"✍️ Wrote {out_path}")
 
 
-def write_platformio_ini(board: str, platform: str, build_dir: str, dependencies: list):
+def write_platformio_ini(
+    board: str, platform: str, build_dir: str, dependencies: list, embed_files=[]
+):
     """Generate platformio.ini including dependencies and build flags."""
     deps = ["ArduinoJson@6.21.4"] + list(set(dependencies or []))
-    build_flags = ["-std=gnu++17", "-DARDUINO_USB_MODE=1", "-DSPIFFS_USE_LEGACY=1"]
+    # build_flags = ["-std=gnu++17", "-DARDUINO_USB_MODE=1", "-DSPIFFS_USE_LEGACY=1"]
+
+    build_flags = CORE_BUILD_FLAGS
     unflags = ["-std=gnu++11", "-std=gnu++14"]
+    framework = "arduino"
 
     ini = (
         f"[env:{board}]\n"
         f"platform = {platform}\n"
         f"board = {board}\n"
-        f"framework = arduino\n"
+        f"framework = {framework}\n"
         f"upload_speed = 921600\n"
         f"monitor_speed = 115200\n"
         f"build_unflags =\n  " + "\n  ".join(unflags) + "\n\n"
         f"build_flags =\n  " + "\n  ".join(build_flags) + "\n\n"
-        f"lib_deps =\n  " + "\n  ".join(deps) + "\n"
+        f"lib_deps =\n  " + "\n  ".join(deps) + "\n\n"
+        f"board_build.embed_files=\n  " + "\n  ".join(embed_files) + "\n"
     )
 
     ini_path = os.path.join(build_dir, "platformio.ini")

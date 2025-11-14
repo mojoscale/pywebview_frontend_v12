@@ -615,7 +615,8 @@ class DependencyResolver:
             translated_name TEXT,
             dependencies TEXT, 
             include_internal_modules TEXT,
-            available_platforms TEXT
+            available_platforms TEXT, 
+            embed_files TEXT
 
         )
         """
@@ -1414,6 +1415,23 @@ class DependencyResolver:
         if result:
             return result[0]
 
+    def get_module_embed_files(self, module_name):
+        table_name = f"{self.current_id}_modules"
+
+        query = f"""
+        SELECT embed_files FROM 
+
+        {table_name} WHERE module_name=?
+        LIMIT 1
+
+        """
+
+        self.cursor.execute(query, (module_name,))
+        result = self.cursor.fetchone()
+
+        if result:
+            return result[0]
+
     def get_module_internal_includes(self, module_name):
         table_name = f"{self.current_id}_modules"
 
@@ -1516,6 +1534,7 @@ class DependencyResolver:
         dependencies,
         include_internal_modules,
         available_platforms,
+        embed_files="",
     ):
         data = {
             "module_name": module_name,
@@ -1524,6 +1543,7 @@ class DependencyResolver:
             "dependencies": dependencies,
             "include_internal_modules": include_internal_modules,
             "available_platforms": available_platforms,
+            "embed_files": embed_files,
         }
         table = f"{self.current_id}_modules"
         self._insert_dicts_to_table(table, [data])
@@ -1721,6 +1741,9 @@ class DependencyResolver:
 
             translated_name = self._get_dunder_value(module_tree, "__include_modules__")
             dependencies = self._get_dunder_value(module_tree, "__dependencies__")
+            embed_files = self._get_dunder_value(module_tree, "__embed_files__") or ""
+
+            print(f"[EFECS] embed files is {embed_files} for module {module_name}")
             include_internal_modules = self._get_dunder_value(
                 module_tree, "__include_internal_modules__"
             )
@@ -1736,6 +1759,7 @@ class DependencyResolver:
                 dependencies,
                 include_internal_modules,
                 available_platforms,
+                embed_files=embed_files,
             )
 
             for node in module_tree.body:
@@ -2255,6 +2279,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
         tree: ast.Module,
         dependency_resolver: DependencyResolver,
         monitor_speed: int,
+        use_serial=True,
     ):
         self.tree = tree
         self.current_module_name = current_module_name
@@ -2266,7 +2291,9 @@ class ArduinoTranspiler(ast.NodeVisitor):
         self.loop_variables = {}
         self.monitor_speed = monitor_speed
         self.dependencies = []
+        self.embed_files = []
         self.has_transpiled = False
+        self.use_serial = use_serial
         self.type_analyzer = TypeAnalyzer(
             dependency_resolver=self.dependency_resolver,
             current_module_name=self.current_module_name,
@@ -2431,11 +2458,58 @@ class ArduinoTranspiler(ast.NodeVisitor):
         result = f"{left} " + " ".join(comparisons)
         return result
 
+    def truthy_expr(self, expr) -> str:
+        """Return a C++ truthy condition for any AST node (expr)."""
+        var_type = self.type_analyzer.get_node_type(expr) or ""
+        expr_code = self.visit(expr)
+
+        # bool type stays as-is
+        if var_type.startswith(("bool", "list", "dict", "range")):
+            return expr_code
+
+        # string / list / tuple / dict
+        if var_type.startswith(("str")):
+            return f"!({expr_code}.length() != 0)"
+
+        # numeric
+        if var_type.startswith(("int", "float")):
+            return f"{expr_code} != 0"
+
+        # fallback (None, objects, pointers)
+        return f"{expr_code}.is_valid()"
+
+    def cleanup_if_condition(self, node: ast.If) -> str:
+        test = node.test
+        negate = False
+
+        # handle "if not expr"
+        if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
+            negate = True
+            test = test.operand
+
+        # handle BoolOp: and/or
+        if isinstance(test, ast.BoolOp):
+            op_str = "&&" if isinstance(test.op, ast.And) else "||"
+            parts = [self.truthy_expr(v) for v in test.values]
+            cond = f" {op_str} ".join(parts)
+            return f"!({cond})" if negate else cond
+
+        # handle single-variable / single-expression truthiness
+        # comparisons and equality ops should stay untouched
+        if isinstance(test, (ast.Compare, ast.BoolOp)):
+            return self.visit(test)
+
+        # For all other expressions (Name, Call, Subscript, Constant, Attribute...)
+        cond = self.truthy_expr(test)
+        return f"!({cond})" if negate else cond
+
     def visit_If(self, node: ast.If):
         result = []
 
         # Render the if condition
-        condition = self.visit(node.test)
+        # condition = self.visit(node.test)
+
+        condition = self.cleanup_if_condition(node)
         result.append(f"if ({condition}) {{")
 
         for stmt in node.body:
@@ -2734,9 +2808,11 @@ class ArduinoTranspiler(ast.NodeVisitor):
             include_internal_modules = (
                 self.dependency_resolver.get_module_internal_includes(alias_name)
             )
+            embed_files = self.dependency_resolver.get_module_embed_files(alias_name)
             print(f"translated modules are {translated_modules}")
             print(f"dependencies are {dependencies}")
             print(f"internal modules are {include_internal_modules}")
+            print(f"[EFECS2] embed_files {embed_files} for module {alias_name}")
 
             if dependencies:
                 for dependency in dependencies.split(","):
@@ -2751,6 +2827,10 @@ class ArduinoTranspiler(ast.NodeVisitor):
             if include_internal_modules:
                 for internal_module in include_internal_modules.split(","):
                     internal_imports.append(internal_module)
+
+            if embed_files:
+                for file in embed_files.split(","):
+                    self.embed_files.append(file)
 
         translated_code = ""
 
@@ -3473,7 +3553,8 @@ class ArduinoTranspiler(ast.NodeVisitor):
         # Step 3: Generate body
         body_lines = []
         if func_name == "setup":
-            body_lines.append(f"    Serial.begin({self.monitor_speed});")
+            if self.use_serial:
+                body_lines.append(f"    Serial.begin({self.monitor_speed});")
 
         for stmt in node.body:
             stmt_line = self.visit(stmt)
@@ -3604,7 +3685,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
 
         return "\n".join(result)
 
-    def visit_JoinedStr(self, node: ast.JoinedStr):
+    """def visit_JoinedStr(self, node: ast.JoinedStr):
         print("doing joined str")
         parts = []
         for value in node.values:
@@ -3650,6 +3731,104 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 )
 
         return f'concat_all({{{", ".join(parts)}}})'
+        """
+
+    def visit_JoinedStr(self, node: ast.JoinedStr):
+        print("doing joined str")
+
+        # Try to use snprintf for basic types
+        format_parts = []
+        format_args = []
+        can_use_sprintf = True
+
+        for value in node.values:
+            if isinstance(value, ast.FormattedValue):
+                self.visit(value.value)
+                expr_code = self.visit(value.value)
+                expr_type = self.type_analyzer.get_node_type(value.value)
+                expr_core_type = expr_type.split(",")[0]
+
+                if expr_core_type == "int":
+                    format_parts.append("%d")
+                    format_args.append(expr_code)
+                elif expr_core_type == "float":
+                    format_parts.append("%.6f")  # 6 decimal places
+                    format_args.append(expr_code)
+                elif expr_core_type == "bool":
+                    format_parts.append("%s")
+                    format_args.append(f'({expr_code} ? "true" : "false")')
+                elif expr_core_type == "str":
+                    format_parts.append("%s")
+                    format_args.append(expr_code + ".c_str()")
+                else:
+                    can_use_sprintf = False
+                    break
+
+            elif isinstance(value, ast.Constant):
+                text = str(value.value)
+                # Escape special characters for format string
+                escaped_text = text.replace("%", "%%").replace('"', '\\"')
+                format_parts.append(escaped_text)
+
+            elif isinstance(value, ast.Str):  # For Python < 3.8
+                text = value.s
+                escaped_text = text.replace("%", "%%").replace('"', '\\"')
+                format_parts.append(escaped_text)
+
+            else:
+                can_use_sprintf = False
+                break
+
+        # Use snprintf if possible
+        if can_use_sprintf and format_parts:
+            format_string = "".join(format_parts)
+            args_string = ", ".join(format_args)
+            return f'format_cstr("{format_string}", {args_string})'
+
+        # Fallback: optimized concat for complex types
+        return self._generate_optimized_concat(node)
+
+    def _generate_optimized_concat(self, node: ast.JoinedStr):
+        """Generate optimized concat for complex types"""
+        parts = []
+        for value in node.values:
+            if isinstance(value, ast.FormattedValue):
+                self.visit(value.value)
+                expr_code = self.visit(value.value)
+                expr_type = self.type_analyzer.get_node_type(value.value)
+                expr_core_type = expr_type.split(",")[0]
+
+                if expr_core_type == "str":
+                    parts.append(f"{expr_code}.c_str()")
+                elif expr_core_type in ("int", "float"):
+                    parts.append(f"String({expr_code}).c_str()")
+                elif expr_core_type in ("bool"):
+                    parts.append(f"PyBool({expr_code}).to_string().c_str()")
+                elif expr_core_type in ("list", "dict"):
+                    parts.append(f"({expr_code}).to_string().c_str()")
+                else:
+                    print_method = self.dependency_resolver.get_print_method_for_class(
+                        expr_core_type
+                    )
+                    if print_method:
+                        parts.append(f"({print_method.format(expr_code)}).c_str()")
+                    else:
+                        parts.append(f'"{expr_core_type} instance"')
+
+            elif isinstance(value, ast.Constant):
+                const_str = str(value.value).replace('"', '\\"')
+                parts.append(f'"{const_str}"')
+
+            elif isinstance(value, ast.Str):
+                const_str = value.s.replace('"', '\\"')
+                parts.append(f'"{const_str}"')
+
+            else:
+                raise NotImplementedError(
+                    f"Unsupported f-string part: {ast.dump(value)}"
+                )
+
+        return f'optimized_concat({{{", ".join(parts)}}})'
 
     def _get_node_type(self, node):
         if isinstance(node, ast.Constant):
@@ -4187,6 +4366,7 @@ def main(
     path_to_core_libs,
     platform,
     monitor_speed=115200,
+    use_serial=True,
 ):
     """
     input_files: {"file_name.py": "<py code>"}
@@ -4225,9 +4405,12 @@ def main(
         for key, tree in input_trees.items():
             print(f"\n🛠️ Transpiling {key}")
             try:
-                at = ArduinoTranspiler(key, tree, dr, monitor_speed)
+                at = ArduinoTranspiler(
+                    key, tree, dr, monitor_speed, use_serial=use_serial
+                )
                 transpiled_code[key] = at.transpile()
                 module_dependencies = at.get_dependencies()
+                embed_files = list(set(at.embed_files))
 
                 for dependency in module_dependencies:
                     dependencies.add(dependency)
@@ -4238,6 +4421,8 @@ def main(
 
         output["code"] = transpiled_code
         output["dependencies"] = list(dependencies)
+        print(f"[EFECS3] embed files are {embed_files}")
+        output["embed_files"] = embed_files
         print(f"\n✅ Transpilation complete. Files: {list(transpiled_code.keys())}")
         # dr.delete_all_tables()
         return output

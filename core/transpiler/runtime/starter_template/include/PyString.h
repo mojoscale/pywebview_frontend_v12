@@ -54,12 +54,28 @@ public:
         Serial.println(data);
     }
 
+    /**
+     * @brief Check if string is empty
+     * Equivalent to Python's `if not s:`
+     */
+    bool is_empty() const {
+        return data.length() == 0;
+    }
+
     String str() const {
         return data;
     }
 
     int len() const {
         return data.length();
+    }
+
+    /**
+     * @brief Allow implicit truthiness check (e.g. if (mylist))
+     * Equivalent to Python's `if mylist:`
+     */
+    explicit operator bool() const {
+        return !is_empty();
     }
 
     bool contains(const String& substring) const {

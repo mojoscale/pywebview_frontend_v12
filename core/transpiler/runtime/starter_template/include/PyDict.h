@@ -236,6 +236,14 @@ public:
         return length == 0;
     }
 
+    /**
+     * @brief Allow implicit truthiness check (e.g. if (mylist))
+     * Equivalent to Python's `if mylist:`
+     */
+    explicit operator bool() const {
+        return !is_empty();
+    }
+
     void update(const PyDict<T>& other) {
         for (int i = 0; i < other.capacity; ++i) {
             if (other.data[i].occupied) {

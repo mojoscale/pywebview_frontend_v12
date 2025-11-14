@@ -25,7 +25,7 @@ class PubSubClient:
         Set the MQTT broker address and port.
         """
         __use_as_is__ = False
-        __translation__ = "{self}.setServer({host}.c_str(), {port})"
+        __translation__ = "mqtt_set_server_helper({self}, {host}, {port})"
         pass
 
     def set_callback(self, callback_func: callable[[str, str], None]) -> None:
@@ -89,9 +89,7 @@ class PubSubClient:
         Publish a plain string payload to a topic.
         """
         __use_as_is__ = False
-        __translation__ = (
-            "{self}.publish({topic}.c_str(), {payload}.c_str(), {retained})"
-        )
+        __translation__ = "mqtt_publish_helper({self}, {topic}, {payload}, {retained})"
         return False
 
     def subscribe(self, topic: str, qos: int = 0) -> bool:
@@ -99,7 +97,7 @@ class PubSubClient:
         Subscribe to a topic (QoS 0).
         """
         __use_as_is__ = False
-        __translation__ = "{self}.subscribe({topic}.c_str(), {qos})"
+        __translation__ = "mqtt_subscribe_helper({self}, {topic}, {qos})"
         return False
 
     def unsubscribe(self, topic: str) -> bool:
@@ -107,7 +105,7 @@ class PubSubClient:
         Unsubscribe from a topic.
         """
         __use_as_is__ = False
-        __translation__ = "{self}.unsubscribe({topic}.c_str())"
+        __translation__ = "mqtt_unsubscribe_helper({self}, {topic})"
         return False
 
     def connected(self) -> bool:

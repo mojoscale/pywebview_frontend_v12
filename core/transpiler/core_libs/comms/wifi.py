@@ -5,7 +5,7 @@ __dependencies__ = ""
 
 def wifi_begin(ssid: str, password: str) -> None:
     __use_as_is__ = False
-    __translation__ = "WiFi.begin({ssid}, {password}); // Add timeout logic"
+    __translation__ = "wifi_begin_helper({ssid}, {password}); // Add timeout logic"
 
 
 def wifi_is_connected() -> bool:

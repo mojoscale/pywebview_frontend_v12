@@ -160,6 +160,21 @@ public:
         return false;
     }
 
+    /**
+     * @brief Check if list is empty (Python-style)
+     */
+    bool is_empty() const {
+        return length == 0;
+    }
+
+    /**
+     * @brief Allow implicit truthiness check (e.g. if (mylist))
+     * Equivalent to Python's `if mylist:`
+     */
+    explicit operator bool() const {
+        return !is_empty();
+    }
+
     void remove(T value) {
         for (int i = 0; i < length; i++) {
             if (data[i] == value) {

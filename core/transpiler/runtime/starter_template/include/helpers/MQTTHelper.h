@@ -1,3 +1,4 @@
+
 #ifndef MQTT_CONNECT_HELPER_H
 #define MQTT_CONNECT_HELPER_H
 
@@ -28,6 +29,37 @@ void internalCallback(char* topic, byte* payload, unsigned int length) {
 void setupSimpleCallback(PubSubClient& client, void (*callback)(String, String)) {
     userStringCallback = callback;
     client.setCallback(internalCallback);
+}
+
+
+void mqtt_set_server_helper(PubSubClient& client, const String& host, int port = 1883) {
+    client.setServer(host.c_str(), port);
+}
+
+
+// Safe publish: accept String topic + String payload
+inline bool mqtt_publish_helper(PubSubClient& client,
+                         const String& topic,
+                         const String& payload,
+                         bool retained = false) 
+{
+    return client.publish(topic.c_str(), payload.c_str(), retained);
+}
+
+
+// Safe subscribe
+inline bool mqtt_subscribe_helper(PubSubClient& client,
+                           const String& topic,
+                           int qos = 0)
+{
+    return client.subscribe(topic.c_str(), qos);
+}
+
+// Safe unsubscribe
+inline bool mqtt_unsubscribe_helper(PubSubClient& client,
+                             const String& topic)
+{
+    return client.unsubscribe(topic.c_str());
 }
 
 

@@ -79,3 +79,17 @@ String custom_wifi_helper_local_ip_to_string() {
     sprintf(buf, "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
     return String(buf);
 }
+
+
+/**
+ * Safe WiFi connect wrapper.
+ * Accepts String (even temporary String("...") is fine).
+ * Ensures internal c_str() points to valid memory.
+ */
+inline void wifi_begin_helper(const String& ssid, const String& password) {
+    // Copy into local stable Strings to extend lifetime during call
+    String ssid_copy = ssid;
+    String pass_copy = password;
+
+    WiFi.begin(ssid_copy.c_str(), pass_copy.c_str());
+}

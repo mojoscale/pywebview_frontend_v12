@@ -22,3 +22,7 @@ to do:
 
 
 - lint that once value defined as a type cannot be changed later.
+
+
+
+- {bad name}.call() not throwing error in lints

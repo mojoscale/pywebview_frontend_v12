@@ -328,10 +328,24 @@ inline PyList<T> py_list(const T (&arr)[N]) {
     return result;
 }
 
-inline PyList<int> py_list(const PyRange& r) {
+/*inline PyList<int> py_list(const PyRange& r) {
     PyList<int> result;
     PyRange temp = r;       // make a copy since next() modifies state
     temp.reset();           // ensure iteration starts at beginning
+    while (temp.has_next()) {
+        result.append(temp.next());
+    }
+    return result;
+}*/
+
+// In PyMethods.h - fix the py_list function for PyRange
+template<typename T>
+PyList<T> py_list(const PyRange& r) {
+    PyList<T> result;
+    
+    // Create a temporary range by moving or constructing new
+    PyRange temp(r.start(), r.stop(), r.step());  // Construct new instead of copy
+    
     while (temp.has_next()) {
         result.append(temp.next());
     }
@@ -592,3 +606,76 @@ String concat_all(std::initializer_list<String> parts) {
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///concat all
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// ========== MEMORY-EFFICIENT STRING FORMATTING ==========
+
+/**
+ * @brief Most efficient: stack-allocated buffer with snprintf
+ * Use for basic types (int, float, bool, str)
+ */
+inline String format_cstr(const char* format, ...) {
+    char buffer[256]; // Stack-allocated, no heap fragmentation
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    return String(buffer); // Single allocation
+}
+
+/**
+ * @brief Optimized concatenation for complex types
+ * Pre-allocates exact memory needed to avoid reallocations
+ */
+inline String optimized_concat(std::initializer_list<const char*> parts) {
+    // Phase 1: Calculate total length
+    size_t total_length = 0;
+    for (const char* part : parts) {
+        if (part) {
+            total_length += strlen(part);
+        }
+    }
+    
+    // Phase 2: Pre-allocate exact memory
+    String result;
+    if (total_length > 0) {
+        result.reserve(total_length); // Critical: prevent reallocations
+        
+        // Phase 3: Single pass concatenation
+        for (const char* part : parts) {
+            if (part) {
+                result += part;
+            }
+        }
+    }
+    
+    return result;
+}
+
+/**
+ * @brief Overload for mixed types (String and const char*)
+ * Even more optimized by avoiding temporary String conversions
+ */
+inline String optimized_concat(std::initializer_list<String> parts) {
+    // Calculate total length
+    size_t total_length = 0;
+    for (const String& part : parts) {
+        total_length += part.length();
+    }
+    
+    // Pre-allocate and concatenate
+    String result;
+    if (total_length > 0) {
+        result.reserve(total_length);
+        for (const String& part : parts) {
+            result += part;
+        }
+    }
+    
+    return result;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

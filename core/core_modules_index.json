@@ -983,6 +983,34 @@
     ],
     "variables": []
   },
+  "computer_vision.pedestrian_detector": {
+    "doc": "No module docstring available",
+    "functions": [],
+    "classes": [
+      {
+        "name": "PedestrianDetector",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "begin",
+            "signature": "(self) -> None",
+            "doc": "No docstring available"
+          },
+          {
+            "name": "detect",
+            "signature": "(self, image: Image) -> bool",
+            "doc": "No docstring available"
+          }
+        ]
+      }
+    ],
+    "variables": []
+  },
   "core.arduino": {
     "doc": "No module docstring available",
     "functions": [

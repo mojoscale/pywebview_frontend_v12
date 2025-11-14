@@ -159,6 +159,10 @@ public:
     int get_width() const { return width; }
     int get_height() const { return height; }
 
+    const uint8_t* get_data() const { return data; }
+
+
+
 private:
     uint8_t* data;
     size_t length;
@@ -312,6 +316,12 @@ public:
         Serial.printf("📤 HTTP POST result: %d\n", code);
         return code == 200;
     }
+
+    bool is_valid() const {
+        sensor_t* s = esp_camera_sensor_get();
+        return s != nullptr;
+    }
+
 
     void stream_http(int port = 8080) {
         WiFiServer server(port);
