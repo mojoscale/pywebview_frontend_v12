@@ -15,10 +15,6 @@ def is_serial_port_connected():
     return {"available": False}
 
 
-import serial
-import serial.tools.list_ports
-
-
 def get_valid_serial_port(port_hint=None):
     """
     Try to find a serial port connected to a *real device*.
@@ -40,6 +36,10 @@ def get_valid_serial_port(port_hint=None):
         ("2341", "0001"),  # Arduino Duemilanove
         ("2E8A", "0005"),  # Raspberry Pi Pico
         ("10C4", "EA61"),  # CP2105
+        # ⭐ ESP32-S3 Native USB (CDC, JTAG, etc)
+        ("303A", "1001"),  # USB Serial/JTAG (Espressif)
+        ("303A", "0002"),  # USB CDC
+        ("303A", "4001"),  # USB JTAG only
     }
 
     # --- Common descriptive keywords to look for in device names ---
@@ -52,6 +52,9 @@ def get_valid_serial_port(port_hint=None):
         "arduino",
         "usb-serial",
         "pico",
+        "cdc",  # ⭐ for native USB
+        "esp32-s3",  # Seeed board IDs
+        "usb cdc",  # different OS variants
     ]
 
     # --- Helper to test if a port is openable ---
@@ -77,18 +80,28 @@ def get_valid_serial_port(port_hint=None):
                 return p.device
         print(f"⚠️ Port hint {port_hint} not available, scanning others...")
 
-    # 2️⃣ Look for known devices
-    for p in ports:
-        vid = f"{p.vid:04X}" if p.vid is not None else None
-        pid = f"{p.pid:04X}" if p.pid is not None else None
-        desc = (p.description or "").lower()
+        # 2️⃣ Look for known devices
+        # 2️⃣ Look for known devices or Espressif native USB
+        for p in ports:
+            desc = (p.description or "").lower()
+            hwid = (p.hwid or "").upper()
 
-        if (vid, pid) in KNOWN_USB_IDS or any(k in desc for k in KEYWORDS):
-            if is_openable(p.device):
-                print(
-                    f"✅ Found likely device: {p.device} ({p.description}, VID={vid}, PID={pid})"
-                )
+            # ⭐ Native ESP32-S3 (Seeed XIAO, ESP32-S3-DevKit, all S3 boards)
+            if "VID_303A" in hwid or "VID:PID=303A" in hwid:
+                print(f"⚡ ESP32-S3 Native USB detected on: {p.device}")
                 return p.device
+
+            # Old method for CP2102/CH340 etc. still works:
+            vid = f"{p.vid:04X}" if p.vid is not None else None
+            pid = f"{p.pid:04X}" if p.pid is not None else None
+
+            if (vid, pid) in KNOWN_USB_IDS or any(k in desc for k in KEYWORDS):
+                if is_openable(p.device):
+                    print(
+                        f"✅ Found likely device: {p.device} ({p.description}, VID={vid}, PID={pid})"
+                    )
+                    return p.device
+
             else:
                 print(f"⚠️ Skipping {p.device}, not openable")
 

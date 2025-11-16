@@ -4,6 +4,9 @@ import sys
 from pathlib import Path
 import importlib.resources as pkg_resources
 
+
+import requests
+
 APP_WINDOW_NAME = "Mojoscale IDE"
 
 APP_FOLDER_NAME = ".mojoscale_main_folder"
@@ -134,3 +137,40 @@ def get_bundled_python_exe():
     else:
         # Development mode - use current Python
         return sys.executable
+
+
+def get_all_platformio_boards(output_folder: str):
+    """
+    Fetches all available PlatformIO boards as JSON
+    and stores them inside available_boards.json in the given folder.
+
+    :param output_folder: Path to the folder where JSON should be saved.
+    """
+
+    # Ensure folder exists
+    os.makedirs(output_folder, exist_ok=True)
+
+    output_file = os.path.join(output_folder, "available_boards.json")
+
+    url = "https://api.platformio.org/v2/boards"
+
+    try:
+        print("📡 Downloading PlatformIO board definitions...")
+        response = requests.get(url, timeout=20)
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"PlatformIO API returned status code {response.status_code}"
+            )
+
+        boards = response.json()
+
+        # Save JSON nicely formatted
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(boards, f, indent=2, ensure_ascii=False)
+
+        print(f"✅ Saved {len(boards)} boards to: {output_file}")
+
+    except Exception as e:
+        print("❌ Failed to retrieve PlatformIO boards:", str(e))
+        raise

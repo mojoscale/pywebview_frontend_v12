@@ -19,7 +19,21 @@ from enum import Enum
 import time
 
 
-CORE_BUILD_FLAGS = ["-std=gnu++17", "-DARDUINO_USB_MODE=1", "-DSPIFFS_USE_LEGACY=1"]
+CORE_BUILD_FLAGS = [
+    "-std=gnu++17",
+    "-DCONFIG_ARDUINO_IS_ESP_IDF=1",
+    "-DARDUINO_USB_MODE=1",
+    "-DSPIFFS_USE_LEGACY=1",
+]
+
+ESPIDF_BUILD_FLAGS = [
+    "-DCONFIG_SCCB_CLK_FREQ=100000",
+    "-DCONFIG_SCCB_HARDWARE_I2C=1",
+    "-DCONFIG_XCLK_FREQ=20000000",
+    "-D CONFIG_SOC_RESERVED_MEMORY_REGION_SIZE=0x100000",
+    "-D CONFIG_ESP32_DPORT_WORKAROUND=y",
+    "-Wno-error",
+]
 
 # hide the terminal wondow from openeing for subprocess.
 
@@ -145,7 +159,9 @@ async def compile_project(
     dependencies=None,
 ):
     """Unified compile + upload flow with event streaming and dependency support."""
+    # print(f"compiling for {board}-{platform}-{framework}")
     session = create_session()
+
     try:
         # ---------------------------------------------------------------------
         # 1. Transpile
@@ -162,6 +178,8 @@ async def compile_project(
         dependencies = (dependencies or []) + transpiler.get("dependencies", [])
         embed_files = transpiler.get("embed_files", [])
 
+        framework = transpiler.get("framework", "arduino")
+
         # ---------------------------------------------------------------------
         # 💡 NEW: Pretty-print the transpiled C++ code to terminal
         # ---------------------------------------------------------------------
@@ -170,7 +188,7 @@ async def compile_project(
         print("\n==================== 🧩 Transpiled Arduino Code ====================\n")
         for name, code in files.items():
             # Determine file type
-            ext = "ino" if name == "main.py" else "h"
+            ext = "cpp" if name == "main.py" else "h"
             file_label = f"{name.replace('.py', f'.{ext}')}"
             print(f"📄 {file_label}:\n")
 
@@ -184,11 +202,12 @@ async def compile_project(
         # ---------------------------------------------------------------------
         # 2. Build Environment Setup
         # ---------------------------------------------------------------------
+        print(f"compiling for {board}-{platform}-{framework}")
         await session.send(SessionPhase.BEGIN_COMPILE, "Setting up build folder...")
-        build_dir = prepare_build_folder()
-        write_transpiled_code(files, build_dir)
+        build_dir = prepare_build_folder(framework)
+        write_transpiled_code(files, build_dir, framework)
         write_platformio_ini(
-            board, platform, build_dir, dependencies, embed_files=embed_files
+            board, platform, build_dir, dependencies, framework, embed_files=embed_files
         )
         await session.send(SessionPhase.BEGIN_COMPILE, "Build folder ready")
 
@@ -348,27 +367,79 @@ async def compile_project(
 # =============================================================================
 
 
-def prepare_build_folder() -> str:
-    """Copy starter template and return a temporary build directory."""
-    if not STARTER_TEMPLATE.exists():
-        raise FileNotFoundError(f"Starter template not found at {STARTER_TEMPLATE}")
+def prepare_build_folder(framework) -> str:
+    """
+    Prepare the build folder by copying the starter template.
+    Inject or remove main.c depending on the framework.
+    """
 
-    build_dir = tempfile.mkdtemp(prefix="build_")
-    shutil.copytree(str(STARTER_TEMPLATE), build_dir, dirs_exist_ok=True)
+    print(f"preparing folder for {framework}")
+
+    template = STARTER_TEMPLATE
+
+    if not template.exists():
+        raise FileNotFoundError(f"Starter template not found at {template}")
+
+    # Create a fresh temp build directory
+    build_dir = Path(tempfile.mkdtemp(prefix="build_"))
+    shutil.copytree(template, build_dir, dirs_exist_ok=True)
+
     print(f"📁 Build folder prepared at {build_dir}")
-    return build_dir
+
+    # Paths
+    src_dir = build_dir / "src"
+    main_c_path = src_dir / "main.c"
+
+    # Ensure src folder exists
+    src_dir.mkdir(parents=True, exist_ok=True)
+
+    if framework == "espidf":
+        # Write main.c (overwrite if exists)
+        main_c_contents = """#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_system.h"
+#include "Arduino.h"   // Provided by Arduino-as-component
+
+void app_main(void) {
+    // Initialize Arduino runtime
+    initArduino();
+
+    // After this, Arduino infrastructure launches your setup() and loop() 
+    // inside its own FreeRTOS tasks. Nothing else required here.
+}
+"""
+        with open(main_c_path, "w", encoding="utf-8") as f:
+            f.write(main_c_contents)
+
+        print("📝 Created src/main.c for ESP-IDF + Arduino-as-component")
+
+    elif framework == "arduino":
+        # Remove main.c if present (to avoid duplicate main.o)
+        if main_c_path.exists():
+            main_c_path.unlink()
+            print("🧹 Removed src/main.c (Arduino mode)")
+
+    else:
+        print(f"⚠ Unknown framework '{framework}', leaving src/ untouched")
+
+    return str(build_dir)
 
 
-def write_transpiled_code(files: dict, build_dir: str):
+def write_transpiled_code(files: dict, build_dir: str, framework):
     """Write .ino and .h files into src/include as per PlatformIO structure."""
+
     src_dir = os.path.join(build_dir, "src")
+
+    if framework == "espidf":
+        src_dir = os.path.join(build_dir, "lib", "ArduinoComponent")
+
     include_dir = os.path.join(build_dir, "include")
     os.makedirs(src_dir, exist_ok=True)
     os.makedirs(include_dir, exist_ok=True)
 
     for name, code in files.items():
         if name == "main.py":
-            out_path = os.path.join(src_dir, "main.ino")
+            out_path = os.path.join(src_dir, "main.cpp")
         else:
             out_path = os.path.join(include_dir, name.replace(".py", ".h"))
         with open(out_path, "w", encoding="utf-8") as f:
@@ -377,28 +448,46 @@ def write_transpiled_code(files: dict, build_dir: str):
 
 
 def write_platformio_ini(
-    board: str, platform: str, build_dir: str, dependencies: list, embed_files=[]
+    board: str,
+    platform: str,
+    build_dir: str,
+    dependencies: list,
+    framework: str,
+    embed_files=[],
 ):
-    """Generate platformio.ini including dependencies and build flags."""
     deps = ["ArduinoJson@6.21.4"] + list(set(dependencies or []))
-    # build_flags = ["-std=gnu++17", "-DARDUINO_USB_MODE=1", "-DSPIFFS_USE_LEGACY=1"]
-
     build_flags = CORE_BUILD_FLAGS
-    unflags = ["-std=gnu++11", "-std=gnu++14"]
-    framework = "arduino"
+    unflags = ["-std=gnu++11", "-std=gnu++14", "-Werror"]
+
+    framework_to_add = framework
+
+    if framework == "espidf":
+        framework_to_add = "espidf, arduino"  # for using espidf, we use arduino as a component in espidf
+
+    source_folder = "src"
+
+    if framework == "espidf":
+        source_folder = "main"
+        build_flags += ESPIDF_BUILD_FLAGS
 
     ini = (
         f"[env:{board}]\n"
         f"platform = {platform}\n"
         f"board = {board}\n"
-        f"framework = {framework}\n"
+        f"framework = {framework_to_add}\n"
         f"upload_speed = 921600\n"
         f"monitor_speed = 115200\n"
         f"build_unflags =\n  " + "\n  ".join(unflags) + "\n\n"
         f"build_flags =\n  " + "\n  ".join(build_flags) + "\n\n"
         f"lib_deps =\n  " + "\n  ".join(deps) + "\n\n"
-        f"board_build.embed_files=\n  " + "\n  ".join(embed_files) + "\n"
     )
+
+    if embed_files:
+        ini += "board_build.embed_files=\n  " + "\n  ".join(embed_files) + "\n"
+
+    if framework == "espidf":
+        ini += "board_build.sdkconfig = sdkconfig.defaults\n"
+        # ini += "platform_packages = framework-espidf @ 5.1.2\n"
 
     ini_path = os.path.join(build_dir, "platformio.ini")
     with open(ini_path, "w", encoding="utf-8") as f:

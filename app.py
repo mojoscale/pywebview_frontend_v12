@@ -21,6 +21,7 @@ from core.utils import (
     get_available_boards,
     get_platform_for_board_id,
     get_app_dir,
+    get_all_platformio_boards,
 )
 from core.updater import start_update_checker, run_updater, APP_VERSION
 from core.serial_manager import is_serial_port_connected
@@ -558,6 +559,7 @@ if __name__ == "__main__":
         window_url = "http://localhost:5173"
         generate_pyi_stubs(CORE_LIBS)
         docs_generator()
+        get_all_platformio_boards(os.path.join(BASE_DIR, "core"))
 
     else:
         frontend_path = Path(__file__).parent / "frontend" / "dist" / "index.html"

@@ -254,17 +254,17 @@ PyList<int> py_divmod(int a, int b) {
 
 // ========== py_hex ==========
 
-inline String py_hex(int num) {
-    bool is_negative = num < 0;
-    unsigned int abs_val = is_negative ? -num : num;
+String py_hex(int value) {
+    char buffer[32];
+    bool is_negative = value < 0;
+    unsigned int abs_val = is_negative ? -value : value;
 
-    char buffer[12];
-    snprintf(buffer, sizeof(buffer), "%s0x%lX", is_negative ? "-" : "", abs_val);
-
-    String result = String(buffer);
-    result.toLowerCase();
-    return result;
+    snprintf(buffer, sizeof(buffer), "%s0x%x",
+             is_negative ? "-" : "",
+             abs_val);
+    return String(buffer);
 }
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

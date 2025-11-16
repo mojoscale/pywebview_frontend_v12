@@ -616,7 +616,8 @@ class DependencyResolver:
             dependencies TEXT, 
             include_internal_modules TEXT,
             available_platforms TEXT, 
-            embed_files TEXT
+            embed_files TEXT,
+            needs_espidf BOOL
 
         )
         """
@@ -1432,6 +1433,23 @@ class DependencyResolver:
         if result:
             return result[0]
 
+    def get_module_needs_espidf(self, module_name):
+        table_name = f"{self.current_id}_modules"
+
+        query = f"""
+        SELECT needs_espidf FROM 
+
+        {table_name} WHERE module_name=?
+        LIMIT 1
+
+        """
+
+        self.cursor.execute(query, (module_name,))
+        result = self.cursor.fetchone()
+
+        if result:
+            return result[0]
+
     def get_module_internal_includes(self, module_name):
         table_name = f"{self.current_id}_modules"
 
@@ -1535,6 +1553,7 @@ class DependencyResolver:
         include_internal_modules,
         available_platforms,
         embed_files="",
+        needs_espidf=False,
     ):
         data = {
             "module_name": module_name,
@@ -1544,6 +1563,7 @@ class DependencyResolver:
             "include_internal_modules": include_internal_modules,
             "available_platforms": available_platforms,
             "embed_files": embed_files,
+            "needs_espidf": needs_espidf,
         }
         table = f"{self.current_id}_modules"
         self._insert_dicts_to_table(table, [data])
@@ -1742,6 +1762,9 @@ class DependencyResolver:
             translated_name = self._get_dunder_value(module_tree, "__include_modules__")
             dependencies = self._get_dunder_value(module_tree, "__dependencies__")
             embed_files = self._get_dunder_value(module_tree, "__embed_files__") or ""
+            needs_espidf = (
+                self._get_dunder_value(module_tree, "__needs_espidf__") or False
+            )
 
             print(f"[EFECS] embed files is {embed_files} for module {module_name}")
             include_internal_modules = self._get_dunder_value(
@@ -1760,6 +1783,7 @@ class DependencyResolver:
                 include_internal_modules,
                 available_platforms,
                 embed_files=embed_files,
+                needs_espidf=needs_espidf,
             )
 
             for node in module_tree.body:
@@ -2294,6 +2318,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
         self.embed_files = []
         self.has_transpiled = False
         self.use_serial = use_serial
+        self.needs_espidf = False
         self.type_analyzer = TypeAnalyzer(
             dependency_resolver=self.dependency_resolver,
             current_module_name=self.current_module_name,
@@ -2809,10 +2834,15 @@ class ArduinoTranspiler(ast.NodeVisitor):
                 self.dependency_resolver.get_module_internal_includes(alias_name)
             )
             embed_files = self.dependency_resolver.get_module_embed_files(alias_name)
+            needs_espidf = self.dependency_resolver.get_module_needs_espidf(alias_name)
+
+            if needs_espidf:
+                self.needs_espidf = True
             print(f"translated modules are {translated_modules}")
             print(f"dependencies are {dependencies}")
             print(f"internal modules are {include_internal_modules}")
             print(f"[EFECS2] embed_files {embed_files} for module {alias_name}")
+            print(f"[EFECS3] needs_espidf is {needs_espidf} for module {alias_name}")
 
             if dependencies:
                 for dependency in dependencies.split(","):
@@ -4380,7 +4410,9 @@ def main(
         output = {}
         transpiled_code = {}
         dependencies = set()
+        embed_files = set()
         modules = []
+        needs_espidf = False
 
         for k, v in input_files.items():
             print(f"\n🧾 Parsing file: {k}")
@@ -4410,10 +4442,16 @@ def main(
                 )
                 transpiled_code[key] = at.transpile()
                 module_dependencies = at.get_dependencies()
-                embed_files = list(set(at.embed_files))
+                module_embed_files = list(set(at.embed_files))
+                needs_espidf = needs_espidf or at.needs_espidf
+
+                print(f"[TRANSPILER]: got {at.needs_espidf}")
 
                 for dependency in module_dependencies:
                     dependencies.add(dependency)
+
+                for file in module_embed_files:
+                    embed_files.add(file)
                 print(f"✅ {key} transpiled successfully")
             except Exception as transpile_err:
                 print(f"❌ Transpilation failed for {key}: {transpile_err}")
@@ -4422,7 +4460,14 @@ def main(
         output["code"] = transpiled_code
         output["dependencies"] = list(dependencies)
         print(f"[EFECS3] embed files are {embed_files}")
-        output["embed_files"] = embed_files
+        output["embed_files"] = list(embed_files)
+
+        framework = "arduino"
+
+        if needs_espidf:
+            framework = "espidf"
+
+        output["framework"] = framework
         print(f"\n✅ Transpilation complete. Files: {list(transpiled_code.keys())}")
         # dr.delete_all_tables()
         return output
