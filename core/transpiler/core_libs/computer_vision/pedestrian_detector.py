@@ -1,6 +1,6 @@
 __include_modules__ = "PedestrianDetectorESP-DL"
 __include_internal_modules__ = ""
-__dependencies__ = "https://github.com/espressif/esp-dl.git"
+__dependencies__ = ""
 __available_platforms__ = "espressif32"
 __embed_files__ = "models/pedestrian_detector.espdl"
 

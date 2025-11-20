@@ -1,24 +1,31 @@
+# ======================================================================
+#   FULL MOJOSCALE COMPILE BACKEND
+#   Ultra-short paths, full PIO bootstrap, all in <user_app_dir>/.cmp/
+# ======================================================================
+
 import shutil
-import tempfile
 import os
 import subprocess
 import asyncio
-import urllib.request
-import re
+import sys
 import uuid
+import sqlite3
 import serial.tools.list_ports
 import webview
-import sys
-import sqlite3
+import time
+import textwrap
 from pathlib import Path
+from enum import Enum
+from typing import Optional, Dict, Any, List
+
 from core.utils import get_bundled_python_exe
 from core.db import db_path as DB_PATH
 from core.transpiler.transpiler import main as transpiler_main
-from typing import Optional, Dict, Any, List
-from enum import Enum
-import time
 
 
+# ============================================================================
+# CONFIG — BUILD FLAGS
+# ============================================================================
 CORE_BUILD_FLAGS = [
     "-std=gnu++17",
     "-DCONFIG_ARDUINO_IS_ESP_IDF=1",
@@ -35,38 +42,94 @@ ESPIDF_BUILD_FLAGS = [
     "-Wno-error",
 ]
 
-# hide the terminal wondow from openeing for subprocess.
+
+# ============================================================================
+# INTERNAL CMP DIR STRUCTURE
+# ============================================================================
+def init_cmp_dirs(user_app_dir: str):
+    """
+    Create and return:
+    cmp_root   = <user_app_dir>/.cmp
+    pio_home   = <user_app_dir>/.cmp/p
+    build_root = <user_app_dir>/.cmp/t
+    temp_root  = <user_app_dir>/.cmp/x
+    """
+
+    CMP_ROOT = Path(user_app_dir) / ".cmp"
+    CMP_ROOT.mkdir(parents=True, exist_ok=True)
+
+    PIO_HOME = CMP_ROOT / "p"
+    BUILD_ROOT = CMP_ROOT / "t"
+    TEMP_ROOT = CMP_ROOT / "x"
+
+    PIO_HOME.mkdir(parents=True, exist_ok=True)
+    BUILD_ROOT.mkdir(parents=True, exist_ok=True)
+    TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+
+    return CMP_ROOT, PIO_HOME, BUILD_ROOT, TEMP_ROOT
 
 
+# ============================================================================
+# PLATFORMIO INSTALLER / BOOTSTRAP
+# ============================================================================
+def ensure_platformio_installed(PIO_HOME: Path):
+    """
+    Ensures PlatformIO Core is installed in:
+        <user_app_dir>/.cmp/p/
+
+    Using virtualenv:
+        <user_app_dir>/.cmp/p/v/
+    """
+    VENV = PIO_HOME / "v"
+
+    # Determine python.exe of the venv
+    if sys.platform == "win32":
+        python_exe = VENV / "Scripts" / "python.exe"
+    else:
+        python_exe = VENV / "bin" / "python"
+
+    # If missing → create venv and install PlatformIO
+    if not python_exe.exists():
+        print("🚀 Creating PlatformIO virtual environment...")
+
+        # Use system python to create the venv
+        subprocess.run([sys.executable, "-m", "venv", str(VENV)], check=True)
+
+        print("🚀 Upgrading pip...")
+        subprocess.run(
+            [str(python_exe), "-m", "pip", "install", "--upgrade", "pip"], check=True
+        )
+
+        print("🚀 Installing PlatformIO Core...")
+        subprocess.run(
+            [str(python_exe), "-m", "pip", "install", "platformio"], check=True
+        )
+
+        print("✔ PlatformIO installed successfully.")
+
+    return python_exe
+
+
+# ============================================================================
+# WINDOWS: Hide subprocess windows
+# ============================================================================
 if os.name == "nt":
     _orig_popen = subprocess.Popen
 
     def _quiet_popen(*args, **kwargs):
         kwargs.setdefault("creationflags", 0)
         kwargs["creationflags"] |= subprocess.CREATE_NO_WINDOW
-        startupinfo = kwargs.get("startupinfo") or subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        kwargs["startupinfo"] = startupinfo
+        si = kwargs.get("startupinfo") or subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        kwargs["startupinfo"] = si
         return _orig_popen(*args, **kwargs)
 
     subprocess.Popen = _quiet_popen
 
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CORE_LIBS_PATH = os.path.join(BASE_DIR, "transpiler", "core_libs")
-STARTER_TEMPLATE = (
-    Path(__file__).resolve().parent.parent
-    / "core"
-    / "transpiler"
-    / "runtime"
-    / "starter_template"
-)
-
-# =============================================================================
-# Compiler Session System
-# =============================================================================
-
-
+# ============================================================================
+# SESSION SYSTEM
+# ============================================================================
 class SessionPhase(str, Enum):
     BEGIN_TRANSPILE = "begin_transpile"
     END_TRANSPILE = "end_transpile"
@@ -102,20 +165,21 @@ class CompilerSession:
         self.cancelled = False
 
     async def send(self, phase: SessionPhase, text: str, level: str = "info"):
-        """Send structured compiler event to frontend."""
         event = CompilerEvent(phase, text, level)
         print(f"[{phase.value}] {text}")
+
         try:
             webview.windows[0].evaluate_js(
                 f"window.__onCompilerEvent({event.to_dict()})"
             )
-        except Exception:
+        except:
             pass
 
     async def cancel(self):
         if self.cancelled:
             return
         self.cancelled = True
+
         if self.process and self.process.returncode is None:
             try:
                 self.process.terminate()
@@ -124,6 +188,7 @@ class CompilerSession:
                     self.process.kill()
             except ProcessLookupError:
                 pass
+
         await self.send(SessionPhase.CANCELLED, "Build cancelled by user", "warn")
 
 
@@ -137,337 +202,83 @@ def create_session() -> CompilerSession:
 
 
 def cancel_session(session_id: str):
-    session = _active_sessions.get(session_id)
-    if session:
-        asyncio.create_task(session.cancel())
+    sess = _active_sessions.get(session_id)
+    if sess:
+        asyncio.create_task(sess.cancel())
         return True
     return False
 
 
-# =============================================================================
-# Main Compile Routine
-# =============================================================================
+# ============================================================================
+# BUILD FOLDER HANDLING
+# ============================================================================
+def prepare_build_folder(framework, BUILD_ROOT: Path, STARTER_TEMPLATE: Path) -> Path:
+    build_id = str(uuid.uuid4())[:6]
+    build_dir = BUILD_ROOT / build_id
 
-
-async def compile_project(
-    py_files: dict,
-    board: str,
-    platform: str,
-    user_app_dir: str,
-    upload: bool = False,
-    port=None,
-    dependencies=None,
-):
-    """Unified compile + upload flow with event streaming and dependency support."""
-    # print(f"compiling for {board}-{platform}-{framework}")
-    session = create_session()
-
-    try:
-        # ---------------------------------------------------------------------
-        # 1. Transpile
-        # ---------------------------------------------------------------------
-        await session.send(SessionPhase.BEGIN_TRANSPILE, "Transpiling Python code...")
-        commit_hash = str(uuid.uuid4()).replace("-", "_")
-        DB_CONN = sqlite3.connect(DB_PATH)
-        transpiler = transpiler_main(
-            commit_hash, DB_CONN, py_files, CORE_LIBS_PATH, platform
-        )
-        await session.send(SessionPhase.END_TRANSPILE, "Transpilation complete")
-
-        files = transpiler["code"]
-        dependencies = (dependencies or []) + transpiler.get("dependencies", [])
-        embed_files = transpiler.get("embed_files", [])
-
-        framework = transpiler.get("framework", "arduino")
-
-        # ---------------------------------------------------------------------
-        # 💡 NEW: Pretty-print the transpiled C++ code to terminal
-        # ---------------------------------------------------------------------
-        import textwrap
-
-        print("\n==================== 🧩 Transpiled Arduino Code ====================\n")
-        for name, code in files.items():
-            # Determine file type
-            ext = "cpp" if name == "main.py" else "h"
-            file_label = f"{name.replace('.py', f'.{ext}')}"
-            print(f"📄 {file_label}:\n")
-
-            # Re-indent for nice visual display
-            formatted = textwrap.indent(code.strip(), "    ")
-            print(formatted)
-            print("\n" + "-" * 70 + "\n")
-
-        print("===================== ✅ End of Transpiled Code =====================\n")
-
-        # ---------------------------------------------------------------------
-        # 2. Build Environment Setup
-        # ---------------------------------------------------------------------
-        print(f"compiling for {board}-{platform}-{framework}")
-        await session.send(SessionPhase.BEGIN_COMPILE, "Setting up build folder...")
-        build_dir = prepare_build_folder(framework)
-        write_transpiled_code(files, build_dir, framework)
-        write_platformio_ini(
-            board, platform, build_dir, dependencies, framework, embed_files=embed_files
-        )
-        await session.send(SessionPhase.BEGIN_COMPILE, "Build folder ready")
-
-        # Get PlatformIO
-        pio_cmd, pio_env = get_platformio_command(user_app_dir)
-        env = os.environ.copy()
-        env.update(pio_env)
-
-        # ---------------------------------------------------------------------
-        # 3. Compilation
-        # ---------------------------------------------------------------------
-        await session.send(SessionPhase.BEGIN_COMPILE, "Starting compilation...")
-        cmd = pio_cmd + ["run"]
-
-        # MODIFIED: Add CREATE_NO_WINDOW flag for Windows
-        if sys.platform == "win32":
-            session.process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=build_dir,
-                env=env,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
-        else:
-            session.process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=build_dir,
-                env=env,
-            )
-
-        stdout, stderr = [], []
-
-        async def stream(pipe, collector):
-            while True:
-                line = await pipe.readline()
-                if not line:
-                    break
-                decoded = line.decode(errors="ignore").rstrip()
-                collector.append(decoded)
-                await session.send(SessionPhase.BEGIN_COMPILE, decoded)
-
-        await asyncio.gather(
-            stream(session.process.stdout, stdout),
-            stream(session.process.stderr, stderr),
-        )
-        code = await session.process.wait()
-        session.process = None
-
-        parsed = parse_platformio_result("\n".join(stdout), "\n".join(stderr))
-        if not parsed["success"] or code != 0:
-            await session.send(SessionPhase.ERROR, "Compilation failed", "error")
-            return parsed
-
-        await session.send(SessionPhase.END_COMPILE, "Compilation successful")
-
-        # ---------------------------------------------------------------------
-        # 4. Upload (fixed event logic)
-        # ---------------------------------------------------------------------
-        upload_success = False
-        if upload:
-            await session.send(SessionPhase.START_UPLOAD, "Starting upload...")
-
-            actual_port = port or find_esp_serial_port()
-            if not actual_port:
-                await session.send(
-                    SessionPhase.ERROR, "❌ No ESP device detected", "error"
-                )
-                return {"success": False, "error": "No ESP device found"}
-
-            cmd = pio_cmd + ["run", "-t", "upload", f"--upload-port={actual_port}"]
-
-            # MODIFIED: Add CREATE_NO_WINDOW flag for Windows
-            if sys.platform == "win32":
-                session.process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=build_dir,
-                    env=env,
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                )
-            else:
-                session.process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=build_dir,
-                    env=env,
-                )
-
-            out_lines = []
-
-            async def monitor_upload(pipe):
-                """Stream upload logs, emit `[uploading]` events, detect failure."""
-                while True:
-                    line = await pipe.readline()
-                    if not line:
-                        break
-                    decoded = line.decode(errors="ignore").rstrip()
-                    out_lines.append(decoded)
-
-                    # Categorize based on message content
-                    lower = decoded.lower()
-                    if "error" in lower or "failed" in lower or "fatal" in lower:
-                        await session.send(SessionPhase.ERROR, decoded, "error")
-                    elif (
-                        "uploading" in lower
-                        or "serial port" in lower
-                        or "hard resetting" in lower
-                    ):
-                        await session.send(SessionPhase.START_UPLOAD, decoded)
-                    else:
-                        await session.send(SessionPhase.START_UPLOAD, decoded)
-
-            await asyncio.gather(
-                monitor_upload(session.process.stdout),
-                monitor_upload(session.process.stderr),
-            )
-
-            code = await session.process.wait()
-            session.process = None
-            combined_out = "\n".join(out_lines)
-
-            if code == 0 and "failed" not in combined_out.lower():
-                upload_success = True
-                await session.send(SessionPhase.END_UPLOAD, "✅ Upload complete")
-            else:
-                await session.send(SessionPhase.ERROR, "❌ Upload failed", "error")
-                await session.send(
-                    SessionPhase.END_UPLOAD, "❌ Upload failed (check logs)", "error"
-                )
-
-        # ---------------------------------------------------------------------
-        # 5. Done
-        # ---------------------------------------------------------------------
-        await session.send(SessionPhase.ALL_DONE, "All done")
-        return {
-            "success": parsed["success"] and (upload_success or not upload),
-            "upload_success": upload_success,
-            "specs": parsed.get("specs", {}),
-            "message": "Process completed",
-            "session_id": session.id,
-        }
-
-    except Exception as e:
-        await session.send(SessionPhase.ERROR, f"Unexpected error: {e}", "error")
-        return {"success": False, "error": str(e)}
-    finally:
-        _active_sessions.pop(session.id, None)
-
-
-# =============================================================================
-# Helpers
-# =============================================================================
-
-
-def prepare_build_folder(framework) -> str:
-    """
-    Prepare the build folder by copying the starter template.
-    Inject or remove main.c depending on the framework.
-    """
-
-    print(f"preparing folder for {framework}")
-
-    template = STARTER_TEMPLATE
-
-    if not template.exists():
-        raise FileNotFoundError(f"Starter template not found at {template}")
-
-    # Create a fresh temp build directory
-    build_dir = Path(tempfile.mkdtemp(prefix="build_"))
-    shutil.copytree(template, build_dir, dirs_exist_ok=True)
-
+    shutil.copytree(STARTER_TEMPLATE, build_dir, dirs_exist_ok=True)
     print(f"📁 Build folder prepared at {build_dir}")
 
-    # Paths
+    # src/main.c handling for espidf
     src_dir = build_dir / "src"
-    main_c_path = src_dir / "main.c"
-
-    # Ensure src folder exists
     src_dir.mkdir(parents=True, exist_ok=True)
 
-    if framework == "espidf":
-        # Write main.c (overwrite if exists)
-        main_c_contents = """#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_system.h"
-#include "Arduino.h"   // Provided by Arduino-as-component
+    return build_dir
 
-void app_main(void) {
-    // Initialize Arduino runtime
-    initArduino();
 
-    // After this, Arduino infrastructure launches your setup() and loop() 
-    // inside its own FreeRTOS tasks. Nothing else required here.
-}
-"""
-        with open(main_c_path, "w", encoding="utf-8") as f:
-            f.write(main_c_contents)
+def cleanup_build_folder(build_dir: Path):
+    try:
+        shutil.rmtree(build_dir, ignore_errors=True)
+        print(f"🧹 Cleaned build folder {build_dir}")
+    except:
+        pass
 
-        print("📝 Created src/main.c for ESP-IDF + Arduino-as-component")
 
-    elif framework == "arduino":
-        # Remove main.c if present (to avoid duplicate main.o)
-        if main_c_path.exists():
-            main_c_path.unlink()
-            print("🧹 Removed src/main.c (Arduino mode)")
-
+# ============================================================================
+# WRITE TRANSPILER OUTPUT
+# ============================================================================
+def write_transpiled_code(files: dict, build_dir: Path, framework: str):
+    """if framework == "espidf":
+        src_dir = build_dir / "lib" / "ArduinoComponent"
     else:
-        print(f"⚠ Unknown framework '{framework}', leaving src/ untouched")
+        src_dir = build_dir / "src"
+    """
 
-    return str(build_dir)
+    src_dir = build_dir / "src"
 
-
-def write_transpiled_code(files: dict, build_dir: str, framework):
-    """Write .ino and .h files into src/include as per PlatformIO structure."""
-
-    src_dir = os.path.join(build_dir, "src")
-
-    if framework == "espidf":
-        src_dir = os.path.join(build_dir, "lib", "ArduinoComponent")
-
-    include_dir = os.path.join(build_dir, "include")
-    os.makedirs(src_dir, exist_ok=True)
-    os.makedirs(include_dir, exist_ok=True)
+    include_dir = build_dir / "include"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    include_dir.mkdir(parents=True, exist_ok=True)
 
     for name, code in files.items():
         if name == "main.py":
-            out_path = os.path.join(src_dir, "main.cpp")
+            out = src_dir / "main.cpp"
         else:
-            out_path = os.path.join(include_dir, name.replace(".py", ".h"))
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(code)
-        print(f"✍️ Wrote {out_path}")
+            out = include_dir / name.replace(".py", ".h")
+        out.write_text(code, encoding="utf-8")
+        print(f"✍️ Wrote {out}")
 
 
+# ============================================================================
+# WRITE platformio.ini
+# ============================================================================
 def write_platformio_ini(
     board: str,
     platform: str,
-    build_dir: str,
+    build_dir: Path,
     dependencies: list,
     framework: str,
-    embed_files=[],
+    embed_files: list,
+    TEMP_ROOT: Path,
 ):
     deps = ["ArduinoJson@6.21.4"] + list(set(dependencies or []))
-    build_flags = CORE_BUILD_FLAGS
+    build_flags = list(CORE_BUILD_FLAGS)
     unflags = ["-std=gnu++11", "-std=gnu++14", "-Werror"]
 
     framework_to_add = framework
-
     if framework == "espidf":
-        framework_to_add = "espidf, arduino"  # for using espidf, we use arduino as a component in espidf
-
-    source_folder = "src"
-
-    if framework == "espidf":
-        source_folder = "main"
+        framework_to_add = "espidf"
+        platform = "espressif32 @ 6.9.0"
         build_flags += ESPIDF_BUILD_FLAGS
 
     ini = (
@@ -480,6 +291,7 @@ def write_platformio_ini(
         f"build_unflags =\n  " + "\n  ".join(unflags) + "\n\n"
         f"build_flags =\n  " + "\n  ".join(build_flags) + "\n\n"
         f"lib_deps =\n  " + "\n  ".join(deps) + "\n\n"
+        f"build_cache_dir = {TEMP_ROOT}\n\n"
     )
 
     if embed_files:
@@ -487,51 +299,253 @@ def write_platformio_ini(
 
     if framework == "espidf":
         ini += "board_build.sdkconfig = sdkconfig.defaults\n"
-        # ini += "platform_packages = framework-espidf @ 5.1.2\n"
+        ini += "board_build.use_espidf = yes\n"
 
-    ini_path = os.path.join(build_dir, "platformio.ini")
-    with open(ini_path, "w", encoding="utf-8") as f:
-        f.write(ini)
-    print(f"📝 platformio.ini written to {ini_path}")
     print(ini)
 
-
-def get_platformio_command(user_app_dir: str):
-    pio_home = os.path.join(user_app_dir, ".platformio")
-    venv = os.path.join(pio_home, "platformio_venv")
-    exe = (
-        os.path.join(venv, "Scripts", "python.exe")
-        if sys.platform == "win32"
-        else os.path.join(venv, "bin", "python")
-    )
-    env = os.environ.copy()
-    env["PLATFORMIO_CORE_DIR"] = pio_home
-    return [exe, "-c", "import platformio.__main__; platformio.__main__.main()"], env
+    (build_dir / "platformio.ini").write_text(ini, encoding="utf-8")
+    print("📝 platformio.ini written")
 
 
-def parse_platformio_result(stdout: str, stderr: str) -> dict:
-    """Basic parser for PlatformIO build output."""
+# ============================================================================
+# GET PLATFORMIO COMMAND
+# ============================================================================
+def get_platformio_command(PIO_HOME: Path):
+    python_exe = ensure_platformio_installed(PIO_HOME)
+
+    env = {
+        "PLATFORMIO_HOME": str(PIO_HOME),
+        "PIO_HOME_DIR": str(PIO_HOME),
+        "PLATFORMIO_CORE_DIR": str(PIO_HOME),
+    }
+
+    cmd = [
+        str(python_exe),
+        "-c",
+        "import platformio.__main__; platformio.__main__.main()",
+    ]
+
+    return cmd, env
+
+
+# ============================================================================
+# UPLOAD PORT DETECTION
+# ============================================================================
+def find_esp_serial_port() -> Optional[str]:
+    ports = list(serial.tools.list_ports.comports())
+    for p in ports:
+        desc = (p.description or "").lower()
+        if any(x in desc for x in ["esp", "ch340", "cp210"]):
+            return p.device
+    return ports[0].device if ports else None
+
+
+# ============================================================================
+# PARSE RESULT
+# ============================================================================
+def parse_platformio_result(stdout: str, stderr: str):
     combined = stdout + "\n" + stderr
     failed = any("error:" in line.lower() for line in combined.splitlines())
-    result = {
+    return {
         "success": not failed,
         "message": "Build success" if not failed else "Build failed",
         "specs": {},
     }
-    # (Memory parse optional here)
-    return result
 
 
-def parse_upload_result(code: int, stdout: str, stderr: str) -> bool:
-    """Check upload success."""
-    return code == 0 or "Hard resetting" in stdout
+# ============================================================================
+# MAIN COMPILE ROUTINE
+# ============================================================================
+async def compile_project(
+    py_files: dict,
+    board: str,
+    platform: str,
+    user_app_dir: str,
+    upload: bool = False,
+    port=None,
+    dependencies=None,
+):
+    # INIT PATH STRUCTURE
+    CMP_ROOT, PIO_HOME, BUILD_ROOT, TEMP_ROOT = init_cmp_dirs(user_app_dir)
 
+    session = create_session()
 
-def find_esp_serial_port() -> Optional[str]:
-    ports = list(serial.tools.list_ports.comports())
-    for p in ports:
-        desc = p.description.lower() if p.description else ""
-        if "esp32" in desc or "espressif" in desc or "cp210" in desc or "ch340" in desc:
-            print(f"✅ ESP device detected at {p.device}")
-            return p.device
-    return ports[0].device if ports else None
+    try:
+        # -----------------------------------------------------------
+        # 1. TRANSPILATION
+        # -----------------------------------------------------------
+        await session.send(SessionPhase.BEGIN_TRANSPILE, "Transpiling Python code...")
+
+        commit_hash = str(uuid.uuid4()).replace("-", "_")
+        DB_CONN = sqlite3.connect(DB_PATH)
+
+        transpiler = transpiler_main(
+            commit_hash,
+            DB_CONN,
+            py_files,
+            os.path.join(os.path.dirname(__file__), "transpiler", "core_libs"),
+            platform,
+        )
+
+        files = transpiler["code"]
+        dependencies = (dependencies or []) + transpiler.get("dependencies", [])
+        embed_files = transpiler.get("embed_files", [])
+        framework = transpiler.get("framework", "arduino")
+
+        await session.send(SessionPhase.END_TRANSPILE, "Transpilation complete")
+
+        # -----------------------------------------------------------
+        # 2. BUILD FOLDER SETUP
+        # -----------------------------------------------------------
+        STARTER_TEMPLATE = (
+            Path(__file__).resolve().parent.parent
+            / "core"
+            / "transpiler"
+            / "runtime"
+            / "starter_template"
+        )
+
+        await session.send(SessionPhase.BEGIN_COMPILE, "Preparing build folder...")
+        build_dir = prepare_build_folder(framework, BUILD_ROOT, STARTER_TEMPLATE)
+
+        write_transpiled_code(files, build_dir, framework)
+        write_platformio_ini(
+            board,
+            platform,
+            build_dir,
+            dependencies,
+            framework,
+            embed_files,
+            TEMP_ROOT,
+        )
+
+        # -----------------------------------------------------------
+        # 3. RUN PLATFORMIO
+        # -----------------------------------------------------------
+        await session.send(SessionPhase.BEGIN_COMPILE, "Starting compilation...")
+
+        pio_cmd, pio_env = get_platformio_command(PIO_HOME)
+
+        env = os.environ.copy()
+        env.update(pio_env)
+        env["TMP"] = str(TEMP_ROOT)
+        env["TEMP"] = str(TEMP_ROOT)
+
+        cmd = pio_cmd + ["run"]
+
+        session.process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=str(build_dir),
+            env=env,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        )
+
+        stdout_lines = []
+        stderr_lines = []
+
+        async def stream(pipe, collector):
+            while True:
+                line = await pipe.readline()
+                if not line:
+                    break
+                txt = line.decode(errors="ignore").rstrip()
+                collector.append(txt)
+                await session.send(SessionPhase.BEGIN_COMPILE, txt)
+
+        await asyncio.gather(
+            stream(session.process.stdout, stdout_lines),
+            stream(session.process.stderr, stderr_lines),
+        )
+
+        code = await session.process.wait()
+        session.process = None
+
+        parsed = parse_platformio_result(
+            "\n".join(stdout_lines), "\n".join(stderr_lines)
+        )
+
+        if code != 0 or not parsed["success"]:
+            await session.send(SessionPhase.ERROR, "Compilation failed", "error")
+            cleanup_build_folder(build_dir)
+            return parsed
+
+        await session.send(SessionPhase.END_COMPILE, "Compilation successful")
+
+        # -----------------------------------------------------------
+        # 4. UPLOAD
+        # -----------------------------------------------------------
+        upload_success = False
+
+        if upload:
+            await session.send(SessionPhase.START_UPLOAD, "Starting upload...")
+
+            actual_port = port or find_esp_serial_port()
+            if not actual_port:
+                await session.send(SessionPhase.ERROR, "No ESP32 device found", "error")
+                cleanup_build_folder(build_dir)
+                return {"success": False}
+
+            cmd = pio_cmd + [
+                "run",
+                "-t",
+                "upload",
+                f"--upload-port={actual_port}",
+            ]
+
+            session.process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(build_dir),
+                env=env,
+                creationflags=subprocess.CREATE_NO_WINDOW
+                if sys.platform == "win32"
+                else 0,
+            )
+
+            out_lines = []
+
+            async def stream_u(pipe):
+                while True:
+                    line = await pipe.readline()
+                    if not line:
+                        break
+                    txt = line.decode(errors="ignore").rstrip()
+                    out_lines.append(txt)
+                    await session.send(SessionPhase.START_UPLOAD, txt)
+
+            await asyncio.gather(
+                stream_u(session.process.stdout),
+                stream_u(session.process.stderr),
+            )
+
+            code = await session.process.wait()
+
+            if code == 0:
+                upload_success = True
+                await session.send(SessionPhase.END_UPLOAD, "Upload complete")
+            else:
+                await session.send(SessionPhase.ERROR, "Upload failed", "error")
+
+        # -----------------------------------------------------------
+        # 5. CLEANUP + DONE
+        # -----------------------------------------------------------
+        cleanup_build_folder(build_dir)
+
+        await session.send(SessionPhase.ALL_DONE, "All done")
+
+        return {
+            "success": True,
+            "upload_success": upload_success,
+            "message": "Process completed successfully",
+            "session_id": session.id,
+        }
+
+    except Exception as e:
+        await session.send(SessionPhase.ERROR, f"Unexpected error: {e}", "error")
+        return {"success": False, "error": str(e)}
+
+    finally:
+        _active_sessions.pop(session.id, None)

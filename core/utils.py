@@ -9,7 +9,7 @@ import requests
 
 APP_WINDOW_NAME = "Mojoscale IDE"
 
-APP_FOLDER_NAME = ".mojoscale_main_folder"
+APP_FOLDER_NAME = ".mojoscale"
 
 
 STARTER_CODE = """
