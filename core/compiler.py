@@ -45,6 +45,7 @@ ESPIDF_BUILD_FLAGS = [
     "-DCONFIG_OV7725_SUPPORT=1",
     "-DCONFIG_SCCB_HARDWARE_I2C=1",
     "-DCONFIG_SCCB_HARDWARE_I2C_PORT=1",
+    "-DCONFIG_ESP_HTTPS_SERVER_ENABLE=0",
 ]
 
 
@@ -409,6 +410,26 @@ def write_transpiled_code(files: dict, build_dir: Path, framework: str):
 # ============================================================================
 # WRITE platformio.ini
 # ============================================================================
+
+
+def find_managed_component_cert_paths(build_dir: Path) -> List[str]:
+    """
+    Auto-detect RainMaker/Insights certificates inside .pio subdirectories.
+    Returns project-relative paths for embed_txtfiles.
+    """
+    crt_files = []
+    root = build_dir
+
+    # Search for *.crt under .pio
+    for p in root.rglob("*.crt"):
+        # Only include known folders
+        if "managed_components" in p.parts:
+            rel = p.relative_to(build_dir)
+            crt_files.append(str(rel).replace("\\", "/"))
+
+    return crt_files
+
+
 def write_platformio_ini(
     board: str,
     platform: str,
@@ -421,12 +442,19 @@ def write_platformio_ini(
     deps = ["ArduinoJson@6.21.4"] + list(set(dependencies or []))
     build_flags = CORE_BUILD_FLAGS
     unflags = ["-std=gnu++11", "-std=gnu++14", "-Werror"]
+    embed_txtfiles = []
 
     framework_to_add = framework
     if framework == "espidf":
-        framework_to_add = "espidf"
-        platform = "espressif32 @ 6.9.0"
+        framework_to_add = "espidf, arduino"
+        platform = "https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip"
         build_flags += ESPIDF_BUILD_FLAGS
+        embed_txtfiles = [
+            "managed_components/espressif__esp_insights/server_certs/https_server.crt",
+            "managed_components/espressif__esp_rainmaker/server_certs/rmaker_mqtt_server.crt",
+            "managed_components/espressif__esp_rainmaker/server_certs/rmaker_claim_service_server.crt",
+            "managed_components/espressif__esp_rainmaker/server_certs/rmaker_ota_server.crt",
+        ]
 
     ini = (
         f"[env:{board}]\n"
@@ -438,6 +466,7 @@ def write_platformio_ini(
         f"build_unflags =\n  " + "\n  ".join(unflags) + "\n\n"
         f"build_flags =\n  " + "\n  ".join(build_flags) + "\n\n"
         f"lib_deps =\n  " + "\n  ".join(deps) + "\n\n"
+        f"board_build.embed_txtfiles =\n  " + "\n  ".join(embed_txtfiles) + "\n\n"
         f"build_cache_dir = {TEMP_ROOT}\n\n"
     )
 
