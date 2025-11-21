@@ -21,6 +21,7 @@ from typing import Optional, Dict, Any, List
 from core.utils import get_bundled_python_exe
 from core.db import db_path as DB_PATH
 from core.transpiler.transpiler import main as transpiler_main
+from core.utils import get_app_dir
 
 
 # ============================================================================
@@ -40,6 +41,10 @@ ESPIDF_BUILD_FLAGS = [
     "-D CONFIG_SOC_RESERVED_MEMORY_REGION_SIZE=0x100000",
     "-D CONFIG_ESP32_DPORT_WORKAROUND=y",
     "-Wno-error",
+    "-DCONFIG_OV7670_SUPPORT=1",
+    "-DCONFIG_OV7725_SUPPORT=1",
+    "-DCONFIG_SCCB_HARDWARE_I2C=1",
+    "-DCONFIG_SCCB_HARDWARE_I2C_PORT=1",
 ]
 
 
@@ -209,19 +214,155 @@ def cancel_session(session_id: str):
     return False
 
 
-# ============================================================================
-# BUILD FOLDER HANDLING
-# ============================================================================
+# ========================================================================
+# BUILD FOLDER HANDLING — Updated for ESP-IDF + Arduino-as-component
+# ========================================================================
+"""def clone_arduino_component(component_dir: Path):
+    
+    arduino_dir = component_dir / "arduino"
+
+    if arduino_dir.exists():
+        print("🔁 Arduino component already exists, skipping clone.")
+        return
+
+    print("⬇️  Downloading Arduino-ESP32 v3.3.4 as ESP-IDF component...")
+
+    subprocess.run(
+        [
+            "git",
+            "clone",
+            "--recursive",
+            "https://github.com/espressif/arduino-esp32.git",
+            str(arduino_dir),
+        ],
+        check=True,
+    )
+
+    # Optional: checkout specific version
+    subprocess.run(["git", "checkout", "3.3.4"], cwd=str(arduino_dir), check=True)
+
+    subprocess.run(
+        ["git", "submodule", "update", "--init", "--recursive"],
+        cwd=str(arduino_dir),
+        check=True,
+    )
+
+    print(f"✔ Arduino ESP32 component installed at: {arduino_dir}")"""
+
+
+def get_arduino_cache_dir(user_app_dir: Path) -> Path:
+    """Get the persistent Arduino component cache directory"""
+    return user_app_dir / ".arduino_component_cache"
+
+
+def clone_arduino_component(component_dir: Path, user_app_dir: str):
+    """
+    Clone Arduino-ESP32 into components/arduino from cache if available
+    """
+    arduino_dir = component_dir / "arduino"
+
+    if arduino_dir.exists():
+        print("🔁 Arduino component already exists in build, skipping.")
+        return
+
+    # Get cache directory
+    cache_dir = get_arduino_cache_dir(Path(user_app_dir))
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    arduino_cache = cache_dir / "arduino-esp32"
+
+    # Check if cache exists and is valid
+    if arduino_cache.exists() and (arduino_cache / ".git").exists():
+        print("📦 Using cached Arduino component...")
+        try:
+            # Verify it's the right version
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(arduino_cache),
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            print(f"🔍 Cache commit: {result.stdout.strip()[:8]}")
+
+            # Copy from cache to build directory
+            shutil.copytree(arduino_cache, arduino_dir, symlinks=False)
+            print("✅ Arduino component copied from cache")
+            return
+
+        except (subprocess.CalledProcessError, Exception) as e:
+            print(f"⚠️  Cache corrupted, re-downloading: {e}")
+            shutil.rmtree(arduino_cache, ignore_errors=True)
+
+    # Download fresh if cache doesn't exist or is corrupted
+    print("⬇️  Downloading Arduino-ESP32 v3.3.4 as ESP-IDF component...")
+
+    try:
+        subprocess.run(
+            [
+                "git",
+                "clone",
+                "--recursive",
+                "https://github.com/espressif/arduino-esp32.git",
+                str(arduino_cache),
+            ],
+            check=True,
+        )
+
+        # Checkout specific version
+        subprocess.run(["git", "checkout", "3.3.4"], cwd=str(arduino_cache), check=True)
+
+        subprocess.run(
+            ["git", "submodule", "update", "--init", "--recursive"],
+            cwd=str(arduino_cache),
+            check=True,
+        )
+
+        # Now copy from cache to build
+        shutil.copytree(arduino_cache, arduino_dir, symlinks=False)
+        print(f"✅ Arduino ESP32 component installed and cached at: {arduino_cache}")
+
+    except Exception as e:
+        print(f"❌ Failed to clone Arduino component: {e}")
+        # Clean up failed cache
+        shutil.rmtree(arduino_cache, ignore_errors=True)
+        raise
+
+
 def prepare_build_folder(framework, BUILD_ROOT: Path, STARTER_TEMPLATE: Path) -> Path:
+    """
+    Prepare a build folder and inject Arduino-as-component when framework == espidf
+    """
+
+    user_app_dir = get_app_dir()
+
     build_id = str(uuid.uuid4())[:6]
     build_dir = BUILD_ROOT / build_id
 
     shutil.copytree(STARTER_TEMPLATE, build_dir, dirs_exist_ok=True)
     print(f"📁 Build folder prepared at {build_dir}")
 
-    # src/main.c handling for espidf
-    src_dir = build_dir / "src"
-    src_dir.mkdir(parents=True, exist_ok=True)
+    # ===========================================
+    # ESP-IDF MODE → INSTALL ARDUINO COMPONENT
+    # ===========================================
+    if framework == "espidf":
+        components_dir = build_dir / "components"
+        components_dir.mkdir(parents=True, exist_ok=True)
+
+        # Clone Arduino-as-component (with caching)
+        try:
+            clone_arduino_component(components_dir, user_app_dir)
+        except Exception as e:
+            print(f"❌ Failed to clone Arduino component: {e}")
+            raise
+
+        # ESP-IDF expects CMakeLists.txt in main/, so move transpilations there
+        main_dir = build_dir / "main"
+        main_dir.mkdir(exist_ok=True)
+
+    else:
+        src_dir = build_dir / "src"
+        src_dir.mkdir(parents=True, exist_ok=True)
 
     return build_dir
 
@@ -244,9 +385,15 @@ def write_transpiled_code(files: dict, build_dir: Path, framework: str):
         src_dir = build_dir / "src"
     """
 
-    src_dir = build_dir / "src"
+    if framework == "espidf":
+        src_dir = build_dir / "main"
 
-    include_dir = build_dir / "include"
+        include_dir = build_dir / "components" / "mojoscale_arduino" / "include"
+
+    else:
+        src_dir = build_dir / "src"
+
+        include_dir = build_dir / "include"
     src_dir.mkdir(parents=True, exist_ok=True)
     include_dir.mkdir(parents=True, exist_ok=True)
 
@@ -272,7 +419,7 @@ def write_platformio_ini(
     TEMP_ROOT: Path,
 ):
     deps = ["ArduinoJson@6.21.4"] + list(set(dependencies or []))
-    build_flags = list(CORE_BUILD_FLAGS)
+    build_flags = CORE_BUILD_FLAGS
     unflags = ["-std=gnu++11", "-std=gnu++14", "-Werror"]
 
     framework_to_add = framework
@@ -299,12 +446,30 @@ def write_platformio_ini(
 
     if framework == "espidf":
         ini += "board_build.sdkconfig = sdkconfig.defaults\n"
-        ini += "board_build.use_espidf = yes\n"
+        ini += f"build_src_filter = +<main/>\n"
+        # ini += "board_build.arduino = enabled\n"
+        # ini += "idf_components = espressif/arduino-esp32@^3.3.4"
 
     print(ini)
 
     (build_dir / "platformio.ini").write_text(ini, encoding="utf-8")
     print("📝 platformio.ini written")
+
+
+def write_sdkconfig_defaults(build_dir: Path):
+    sdk = build_dir / "sdkconfig.defaults"
+    text = """\
+CONFIG_FREERTOS_HZ=1000
+CONFIG_NEWLIB_STDOUT_LINE_ENDING_CRLF=y
+CONFIG_NEWLIB_STDERR_LINE_ENDING_CRLF=y
+CONFIG_BT_ENABLED=n
+CONFIG_SCCB_CLK_FREQ=100000
+CONFIG_SCCB_HARDWARE_I2C=y
+CONFIG_SCCB_HARDWARE_I2C_PORT=1
+
+"""
+    sdk.write_text(text, encoding="utf-8")
+    print(f"📝 sdkconfig.defaults written at {sdk}")
 
 
 # ============================================================================
@@ -397,18 +562,29 @@ async def compile_project(
         # -----------------------------------------------------------
         # 2. BUILD FOLDER SETUP
         # -----------------------------------------------------------
-        STARTER_TEMPLATE = (
-            Path(__file__).resolve().parent.parent
-            / "core"
-            / "transpiler"
-            / "runtime"
-            / "starter_template"
-        )
+        if framework == "espidf":
+            STARTER_TEMPLATE = (
+                Path(__file__).resolve().parent.parent
+                / "core"
+                / "transpiler"
+                / "runtime"
+                / "starter_template_espidf"
+            )
+        else:
+            STARTER_TEMPLATE = (
+                Path(__file__).resolve().parent.parent
+                / "core"
+                / "transpiler"
+                / "runtime"
+                / "starter_template"
+            )
 
         await session.send(SessionPhase.BEGIN_COMPILE, "Preparing build folder...")
         build_dir = prepare_build_folder(framework, BUILD_ROOT, STARTER_TEMPLATE)
 
         write_transpiled_code(files, build_dir, framework)
+        if framework == "espidf":
+            write_sdkconfig_defaults(build_dir)
         write_platformio_ini(
             board,
             platform,
