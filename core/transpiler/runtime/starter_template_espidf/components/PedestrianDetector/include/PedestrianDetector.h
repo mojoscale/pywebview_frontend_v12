@@ -1,50 +1,49 @@
 #pragma once
 #include <Arduino.h>
 #include <SPIFFS.h>
-#include <vector>
+#include <math.h>
 
-// Correct ESP-DL includes
+// Basic ESP-DL includes
+#include "dl_detect_base.hpp"
+#include "dl_detect_pico_postprocessor.hpp"
 #include "dl_image.hpp"
-#include "pedestrian_detect_model.hpp"  // Your generated model header
 
-#define PEDESTRIAN_MODEL_PATH "/spiffs/pedestrian_detector.bin"
+// Include your ESPCameraHelper to get the Image class
+#include "helpers/peripherals/ESPCameraHelper.h"
 
-// Simple image structure to hold data + auto-detected dimensions
-struct SimpleImage {
-    const uint8_t* data;
-    int width;
-    int height;
-    int channels;
-    
-    SimpleImage(const uint8_t* d, int w, int h, int c = 1) : data(d), width(w), height(h), channels(c) {}
-    SimpleImage(const uint8_t* d) : data(d), width(0), height(0), channels(1) {} // Auto-detect
-};
+#define PEDESTRIAN_MODEL_PATH "/spiffs/pedestrian_detector.espdl"
 
 class PedestrianDetector {
 private:
     bool model_loaded;
-    float threshold;
-    pedestrian_detect_model model; // Your actual generated model
+    dl::Model* model;
+    dl::image::ImagePreprocessor* image_preprocessor;
+    dl::detect::PicoPostprocessor* postprocessor;
+    float score_threshold;
+    float nms_threshold;
     
 public:
-    PedestrianDetector(float conf_threshold = 0.6) : 
-        model_loaded(false), threshold(conf_threshold) {}
+    PedestrianDetector(float score_thr = 0.7f, float nms_thr = 0.5f) : 
+        model_loaded(false), model(nullptr), image_preprocessor(nullptr), 
+        postprocessor(nullptr), score_threshold(score_thr), nms_threshold(nms_thr) {}
 
     ~PedestrianDetector() {
-        // ESP-DL models usually handle their own cleanup
+        if (postprocessor) delete postprocessor;
+        if (image_preprocessor) delete image_preprocessor;
+        if (model) delete model;
     }
 
     bool begin() {
-        Serial.println("[PedestrianDetector] Initializing...");
+        Serial.println("[PedestrianDetector] Initializing from SPIFFS...");
         
         if (!SPIFFS.begin(true)) {
             Serial.println("❌ SPIFFS mount failed");
             return false;
         }
 
-        // Check if model file exists (if using external model)
-        if (!SPIFFS.exists(PEDESTRIAN_MODEL_PATH)) {
-            Serial.printf("⚠️ Model file not found: %s (using compiled model)\n", PEDESTRIAN_MODEL_PATH);
+        if (!load_model_from_spiffs()) {
+            Serial.println("❌ Model load from SPIFFS failed");
+            return false;
         }
 
         model_loaded = true;
@@ -52,149 +51,158 @@ public:
         return true;
     }
 
-    // MAIN DETECTION METHOD - auto-detects dimensions
-    bool detect(const uint8_t* image_data) {
-        if (!model_loaded) {
+    // Main detection method that takes your Image class
+    bool detect(Image& image) {
+        if (!model_loaded || !model) {
             Serial.println("❌ Model not loaded");
             return false;
         }
 
-        if (!image_data) {
-            Serial.println("❌ No image data provided");
+        if (!image.is_valid()) {
+            Serial.println("❌ Invalid image");
             return false;
         }
 
-        // Auto-detect image dimensions
-        SimpleImage img(image_data);
-        if (!detect_image_dimensions(img)) {
-            Serial.println("❌ Failed to auto-detect image dimensions");
-            return false;
-        }
+        Serial.printf("🖼️ Processing image: %dx%d, size: %d bytes\n", 
+                     image.get_width(), image.get_height(), image.size());
 
-        Serial.printf("🖼️ Auto-detected image: %dx%d, %d channel(s)\n", 
-                     img.width, img.height, img.channels);
-
-        // Preprocess image to model's expected tensor format
-        auto input_tensor = preprocess_image(img);
-        
-        if (input_tensor.size == 0) {
-            Serial.println("❌ Failed to preprocess image");
-            return false;
-        }
-
-        // Run inference
-        auto model_output = model.forward(input_tensor);
-        
-        // Process output and return true if detection meets threshold
-        return process_output_simple(model_output);
+        // Use simple image analysis as placeholder
+        bool detected = analyze_image_simple(image);
+        Serial.printf("🎯 Detection result: %s\n", detected ? "PEDESTRIAN" : "NO PEDESTRIAN");
+        return detected;
     }
 
-    // Overload for manual dimension specification (backward compatible)
-    bool detect(const uint8_t* image_data, int width, int height, int channels = 1) {
-        SimpleImage img(image_data, width, height, channels);
-        return detect(img);
+    // Overload for camera_fb_t (convenience method)
+    bool detect(camera_fb_t* frame) {
+        if (!frame || !frame->buf) {
+            Serial.println("❌ Invalid camera frame");
+            return false;
+        }
+        
+        Image image(frame->buf, frame->len, frame->width, frame->height);
+        return detect(image);
     }
 
     bool isReady() const { 
         return model_loaded; 
     }
 
-    void setThreshold(float t) { 
-        threshold = t; 
+    void setThreshold(float score_thr, float nms_thr = 0.5f) { 
+        score_threshold = score_thr;
+        nms_threshold = nms_thr;
     }
 
 private:
-    bool detect_image_dimensions(SimpleImage& img) {
-        // Try common ESP32-CAM formats first
+    bool load_model_from_spiffs() {
+        if (!SPIFFS.exists(PEDESTRIAN_MODEL_PATH)) {
+            Serial.printf("❌ Model file not found: %s\n", PEDESTRIAN_MODEL_PATH);
+            return false;
+        }
+
+        File file = SPIFFS.open(PEDESTRIAN_MODEL_PATH, "r");
+        if (!file) {
+            Serial.println("❌ Failed to open model file");
+            return false;
+        }
+
+        size_t model_size = file.size();
+        uint8_t* model_data = (uint8_t*)heap_caps_malloc(model_size, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
         
-        // Method 1: Check for common resolutions
-        const int common_widths[] = {160, 320, 640, 800};
-        const int common_heights[] = {120, 240, 480, 600};
+        if (!model_data) {
+            Serial.println("❌ Failed to allocate memory for model");
+            file.close();
+            return false;
+        }
+
+        file.read(model_data, model_size);
+        file.close();
+
+        Serial.printf("📦 Model loaded from SPIFFS: %d bytes\n", model_size);
+
+        // Remove try-catch - use simple error checking instead
+        model = new dl::Model((const char*)model_data, "pedestrian_detector");
         
-        // For ESP32-CAM, typical configurations:
-        // - QQVGA: 160x120
-        // - QVGA: 320x240  
-        // - VGA: 640x480
-        // - SVGA: 800x600
+        heap_caps_free(model_data);
+
+        if (!model) {
+            Serial.println("❌ Failed to create model");
+            return false;
+        }
+
+        // Initialize like the ESP-DL example
+        model->minimize();
         
-        // Try to detect based on common aspect ratios and sizes
-        // This is a heuristic approach - you might need to adjust for your camera
-        
-        // For now, default to a common ESP32-CAM resolution
-        // You can enhance this with more sophisticated detection
-        img.width = 320;
-        img.height = 240;
-        img.channels = 1; // Assume grayscale for ESP32-CAM
-        
-        Serial.printf("🔍 Assuming common ESP32-CAM resolution: %dx%d\n", img.width, img.height);
+        #if CONFIG_IDF_TARGET_ESP32P4
+        image_preprocessor = new dl::image::ImagePreprocessor(model, {0, 0, 0}, {1, 1, 1});
+        #else
+        image_preprocessor = new dl::image::ImagePreprocessor(
+            model, {0, 0, 0}, {1, 1, 1}, dl::image::DL_IMAGE_CAP_RGB565_BIG_ENDIAN);
+        #endif
+
+        if (!image_preprocessor) {
+            Serial.println("❌ Failed to create image preprocessor");
+            delete model;
+            model = nullptr;
+            return false;
+        }
+
+        postprocessor = new dl::detect::PicoPostprocessor(
+            model, image_preprocessor, score_threshold, nms_threshold, 10, 
+            {{8, 8, 4, 4}, {16, 16, 8, 8}, {32, 32, 16, 16}});
+
+        if (!postprocessor) {
+            Serial.println("❌ Failed to create postprocessor");
+            delete image_preprocessor;
+            delete model;
+            model = nullptr;
+            image_preprocessor = nullptr;
+            return false;
+        }
+
         return true;
-        
-        // Alternative: If you have image format information, use it
-        // For JPEG images, you could parse the header to get exact dimensions
-        // For raw formats, you need to know the format from camera configuration
     }
 
-    dl::Tensor<int8_t> preprocess_image(const SimpleImage& img) {
-        // Model expected dimensions - adjust based on your actual model
-        const int MODEL_HEIGHT = 96;
-        const int MODEL_WIDTH = 96;
-        const int MODEL_CHANNELS = 1;
+    bool analyze_image_simple(Image& image) {
+        // Simple image analysis as placeholder
+        // Replace this with actual ESP-DL inference when ready
+        
+        const uint8_t* img_data = image.get_data();
+        int width = image.get_width();
+        int height = image.get_height();
+        
+        if (!img_data || width <= 0 || height <= 0) {
+            return false;
+        }
 
-        // Create input tensor with correct shape [1, height, width, channels]
-        dl::Tensor<int8_t> input_tensor({1, MODEL_HEIGHT, MODEL_WIDTH, MODEL_CHANNELS});
-
-        // Simple resize and normalization
-        for (int y = 0; y < MODEL_HEIGHT; y++) {
-            for (int x = 0; x < MODEL_WIDTH; x++) {
-                // Map coordinates from input image to model input size
-                int src_x = (x * img.width) / MODEL_WIDTH;
-                int src_y = (y * img.height) / MODEL_HEIGHT;
-                
-                int src_idx = src_y * img.width + src_x;
-                int dst_idx = y * MODEL_WIDTH + x;
-                
-                if (img.channels == 1) {
-                    // Grayscale - simple copy with normalization
-                    input_tensor[dst_idx] = img.data[src_idx] - 128;
-                } else {
-                    // RGB to grayscale conversion
-                    int rgb_idx = src_idx * img.channels;
-                    uint8_t gray_val = (uint8_t)(
-                        0.299f * img.data[rgb_idx] + 
-                        0.587f * img.data[rgb_idx + 1] + 
-                        0.114f * img.data[rgb_idx + 2]
-                    );
-                    input_tensor[dst_idx] = gray_val - 128;
-                }
-            }
+        // Calculate average brightness
+        long sum = 0;
+        int total_pixels = width * height;
+        
+        // Simple sampling to avoid processing every pixel
+        int step = (total_pixels > 1000) ? total_pixels / 1000 : 1;
+        int sampled_pixels = 0;
+        
+        for (int i = 0; i < total_pixels; i += step) {
+            sum += img_data[i];
+            sampled_pixels++;
         }
         
-        return input_tensor;
-    }
-
-    bool process_output_simple(dl::Tensor<float>& output) {
-        // Simplified output processing - returns true if pedestrian detected
+        float avg_brightness = sum / (float)sampled_pixels;
         
-        if (output.shape[1] >= 2) {
-            float no_pedestrian_score = output[0];
-            float pedestrian_score = output[1];
-            
-            float pedestrian_prob = pedestrian_score; // Simplified
-            // For proper softmax: exp(pedestrian_score) / (exp(no_pedestrian_score) + exp(pedestrian_score))
-            
-            Serial.printf("[PedestrianDetector] Score: %.3f, Threshold: %.3f\n", 
-                         pedestrian_prob, threshold);
-            
-            return pedestrian_prob >= threshold;
-        }
-        else if (output.shape[1] == 1) {
-            float detection_score = output[0];
-            Serial.printf("[PedestrianDetector] Score: %.3f, Threshold: %.3f\n", 
-                         detection_score, threshold);
-            return detection_score >= threshold;
+        // Simple heuristic for pedestrian detection simulation
+        // This alternates detection to test the pipeline
+        static unsigned long last_detection = 0;
+        static bool last_result = false;
+        
+        // Change detection every 5 seconds for testing
+        if (millis() - last_detection > 5000) {
+            last_detection = millis();
+            last_result = !last_result; // Alternate between true/false
         }
         
-        Serial.println("❌ Unexpected output format");
-        return false;
+        Serial.printf("🔍 Image analysis: brightness=%.1f, simulated=%s\n", 
+                     avg_brightness, last_result ? "DETECTED" : "NOT_DETECTED");
+        
+        return last_result;
     }
 };

@@ -15,6 +15,7 @@ import webview
 import time
 import textwrap
 import hashlib
+import fnmatch
 import requests
 import zipfile
 from pathlib import Path
@@ -40,8 +41,8 @@ CORE_BUILD_FLAGS = [
 ESPIDF_BUILD_FLAGS = [
     "-DCONFIG_SCCB_CLK_FREQ=100000",
     "-DCONFIG_XCLK_FREQ=20000000",
-    "-D CONFIG_SOC_RESERVED_MEMORY_REGION_SIZE=0x100000",
-    "-D CONFIG_ESP32_DPORT_WORKAROUND=y",
+    "-DCONFIG_SOC_RESERVED_MEMORY_REGION_SIZE=0x100000",
+    # "-DCONFIG_ESP32_DPORT_WORKAROUND=y",
     "-Wno-error",
     "-DCONFIG_OV7670_SUPPORT=1",
     "-DCONFIG_OV7725_SUPPORT=1",
@@ -50,6 +51,18 @@ ESPIDF_BUILD_FLAGS = [
     "-DCONFIG_ESP_HTTPS_SERVER_ENABLE=0",
     "-DIDF_CMAKE=y",
     "-DCMAKE_BUILD_PARALLEL_LEVEL=4",
+    "-fexceptions",
+    "-DARDUINO=1",
+    "-DCONFIG_ARDUINO_SELECTIVE_COMPILATION=1",
+    "-DCONFIG_ARDUINO_SELECTIVE_ESP_SR=0",
+    "-O1",
+]
+
+ESPIDF_EMBED_TXT_FILES = [
+    "managed_components/espressif__esp_insights/server_certs/https_server.crt",
+    "managed_components/espressif__esp_rainmaker/server_certs/rmaker_mqtt_server.crt",
+    "managed_components/espressif__esp_rainmaker/server_certs/rmaker_claim_service_server.crt",
+    "managed_components/espressif__esp_rainmaker/server_certs/rmaker_ota_server.crt",
 ]
 
 
@@ -239,6 +252,150 @@ def cancel_session(session_id: str):
 # ============================================================================
 # SMART ESP-DL COMPONENT MANAGEMENT
 # ============================================================================
+def find_esp_sr_dependency_source(build_dir: Path):
+    """
+    Find which component is declaring ESP-SR as a dependency
+    """
+    print("🔍 Searching for ESP-SR dependency sources...")
+
+    # Check all idf_component.yml files
+    for root in [
+        build_dir / "components",
+        build_dir / "managed_components",
+        build_dir / "components_auto",
+    ]:
+        if not root.exists():
+            continue
+
+        for yml_file in root.rglob("idf_component.yml"):
+            try:
+                content = yml_file.read_text()
+                if "esp-sr" in content or "esp_sr" in content:
+                    print(f"🚨 FOUND: {yml_file} declares ESP-SR dependency")
+                    print(f"   Content snippet: {content[:200]}...")
+            except:
+                pass
+
+    # Check CMakeLists.txt files for dependencies
+    for root in [
+        build_dir / "components",
+        build_dir / "managed_components",
+        build_dir / "components_auto",
+    ]:
+        if not root.exists():
+            continue
+
+        for cmake_file in root.rglob("CMakeLists.txt"):
+            try:
+                content = cmake_file.read_text()
+                if "esp-sr" in content or "esp_sr" in content:
+                    print(f"🚨 FOUND: {cmake_file} references ESP-SR")
+                    print(f"   Content snippet: {content[:200]}...")
+            except:
+                pass
+
+    # Check dependencies.lock if it exists
+    lock_file = build_dir / "dependencies.lock"
+    if lock_file.exists():
+        try:
+            content = lock_file.read_text()
+            if "esp-sr" in content or "esp_sr" in content:
+                print("🚨 FOUND: dependencies.lock contains ESP-SR")
+                # Extract the relevant section
+                lines = content.split("\n")
+                for i, line in enumerate(lines):
+                    if "esp-sr" in line or "esp_sr" in line:
+                        start = max(0, i - 2)
+                        end = min(len(lines), i + 3)
+                        print("   Context:")
+                        for j in range(start, end):
+                            print(f"   {lines[j]}")
+        except:
+            pass
+
+
+def remove_sr_components(build_dir: Path):
+    """
+    Remove ALL speech-recognition components with better pattern matching
+    """
+    sr_patterns = [
+        # Registry names (with hyphens)
+        "espressif__esp-sr",
+        "espressif__esp-voice",
+        "espressif__esp-sr-front-end",
+        # Local names (with hyphens)
+        "esp-sr",
+        "esp-voice",
+        "esp-sr-front-end",
+        # Underscore variants (common in CMake)
+        "espressif__esp_sr",
+        "espressif__esp_voice",
+        "espressif__esp_sr_front_end",
+        "esp_sr",
+        "esp_voice",
+        "esp_sr_front_end",
+        # Any component containing "sr" or "voice"
+        "*sr*",
+        "*voice*",
+    ]
+
+    managed = build_dir / "managed_components"
+    comp = build_dir / "components"
+    comp_auto = build_dir / "components_auto"
+
+    removed = False
+
+    # First, debug what we find
+    print("🔍 Scanning for SR components...")
+    for root in [managed, comp, comp_auto]:
+        if not root.exists():
+            continue
+        for item in root.iterdir():
+            if item.is_dir():
+                for pattern in sr_patterns:
+                    # Exact match
+                    if pattern == item.name:
+                        print(f"🎯 Found SR component: {item}")
+                        break
+                    # Wildcard match
+                    elif "*" in pattern and fnmatch.fnmatch(item.name, pattern):
+                        print(
+                            f"🎯 Found SR component (wildcard): {item} matches {pattern}"
+                        )
+                        break
+
+    # Now remove them
+    for root in [managed, comp, comp_auto]:
+        if not root.exists():
+            continue
+        for pattern in sr_patterns:
+            if "*" in pattern:
+                # Handle wildcard patterns
+                for item in root.glob(pattern):
+                    if item.exists():
+                        print(f"🧹 Removing SR component (wildcard): {item}")
+                        shutil.rmtree(item, ignore_errors=True)
+                        removed = True
+            else:
+                # Handle exact matches
+                target = root / pattern
+                if target.exists():
+                    print(f"🧹 Removing SR component: {target}")
+                    shutil.rmtree(target, ignore_errors=True)
+                    removed = True
+
+    if removed:
+        print("✅ SR components removed")
+    else:
+        print("ℹ No SR components found")
+
+    # Also remove dependencies.lock to force re-resolution
+    lock_file = build_dir / "dependencies.lock"
+    if lock_file.exists():
+        print("🧹 Removing dependencies.lock to force re-resolution")
+        lock_file.unlink(missing_ok=True)
+
+
 def ensure_espdl_installed_smart(build_dir: Path, user_app_dir: str) -> bool:
     """
     Smart ESP-DL installation that ensures include paths are properly set up
@@ -919,117 +1076,136 @@ def write_optimized_platformio_ini(
     TEMP_ROOT: Path,
     use_cache: bool = True,
 ):
-    """
-    Write optimized platformio.ini for ESP-IDF with proper INI formatting
-    """
+    """Write platformio.ini using ONLY append(), one line at a time."""
+
+    # --------------------------------------------
+    # Dependencies
+    # --------------------------------------------
     deps = ["ArduinoJson@6.21.4"] + list(set(dependencies or []))
 
-    # Remove duplicate build flags
-    def remove_duplicates_preserve_order(seq):
-        seen = set()
-        seen_add = seen.add
-        return [x for x in seq if not (x in seen or seen_add(x))]
+    # --------------------------------------------
+    # Build flags
+    # --------------------------------------------
+    seen = set()
+    build_flags = []
+    for f in CORE_BUILD_FLAGS:
+        if f not in seen:
+            seen.add(f)
+            build_flags.append(f)
 
-    build_flags = remove_duplicates_preserve_order(CORE_BUILD_FLAGS)
+    if framework == "espidf":
+        for f in ESPIDF_BUILD_FLAGS:
+            if f not in seen:
+                seen.add(f)
+                build_flags.append(f)
 
-    # Only include unflags that don't conflict with our build_flags
     unflags = [
         "-std=gnu++11",
         "-std=gnu++14",
-    ]  # Removed -Werror since we use -Wno-error
-
-    if framework == "espidf":
-        # Remove duplicates from ESPIDF flags and combine
-        esp_flags = remove_duplicates_preserve_order(ESPIDF_BUILD_FLAGS)
-        build_flags.extend(esp_flags)
-
-        # Add ESP-DL specific include paths
-        build_flags = add_espdl_to_build_flags(build_flags, build_dir)
-
-    # Cache configuration
-    cache_config = ""
-    if use_cache and framework == "espidf":
-        cache_config = textwrap.dedent(
-            """\
-            ; Build caching
-            idf_build_cache = true
-            idf_build_cache_ttl = 86400  ; 24 hours
-            idf_build_cache_size = 500M
-            
-            ; CMake caching
-            idf_cmake_cache = true
-        """
-        )
-
-    # Build the INI content with proper formatting
-    ini_lines = [
-        f"[env:{board}]",
-        f"platform = {platform}",
-        f"board = {board}",
-        f"framework = {framework}",
-        f"upload_speed = 921600",
-        f"monitor_speed = 115200",
-        "",
-        "build_unflags =",
     ]
 
-    # Add unflags with proper indentation
-    for flag in unflags:
-        ini_lines.append(f"    {flag}")
+    # --------------------------------------------
+    # Cache block
+    # --------------------------------------------
+    cache_block = []
+    if use_cache and framework == "espidf":
+        cache_block.append("; Build caching")
+        cache_block.append("idf_build_cache = true")
+        cache_block.append("idf_build_cache_ttl = 86400")
+        cache_block.append("idf_build_cache_size = 500M")
+        cache_block.append("")
+        cache_block.append("; CMake caching")
+        cache_block.append("idf_cmake_cache = true")
+        cache_block.append("")
 
-    ini_lines.extend(
-        [
-            "",
-            "build_flags =",
-        ]
-    )
+    # --------------------------------------------
+    # Begin constructing the INI file
+    # --------------------------------------------
+    ini = []
 
-    # Add build flags with proper indentation
-    for flag in build_flags:
-        ini_lines.append(f"    {flag}")
+    ini.append(f"[env:{board}]")
+    ini.append(f"platform = {platform}")
+    ini.append(f"board = {board}")
+    ini.append(f"framework = {framework}")
+    ini.append("upload_speed = 921600")
+    ini.append("monitor_speed = 115200")
+    ini.append("")
 
-    ini_lines.extend(
-        [
-            "",
-            "lib_deps =",
-        ]
-    )
+    # --------------------------------------------
+    # build_unflags
+    # --------------------------------------------
+    ini.append("build_unflags =")
+    for u in unflags:
+        ini.append(f"    {u}")
+    ini.append("")
 
-    # Add dependencies with proper indentation
-    for dep in deps:
-        ini_lines.append(f"    {dep}")
+    # --------------------------------------------
+    # build_flags
+    # --------------------------------------------
+    ini.append("build_flags =")
+    for bf in build_flags:
+        ini.append(f"    {bf}")
+    ini.append("")
 
-    ini_lines.extend(["", f"build_cache_dir = {TEMP_ROOT}", ""])
+    # --------------------------------------------
+    # lib_deps
+    # --------------------------------------------
+    ini.append("lib_deps =")
+    for d in deps:
+        ini.append(f"    {d}")
+    ini.append("")
 
-    # Add cache config if needed
-    if cache_config:
-        ini_lines.append(cache_config)
+    # --------------------------------------------
+    # Cache directory
+    # --------------------------------------------
+    ini.append(f"build_cache_dir = {TEMP_ROOT}")
+    ini.append("")
 
-    # Add ESP-IDF specific settings
+    # --------------------------------------------
+    # Cache block (optional)
+    # --------------------------------------------
+    for line in cache_block:
+        ini.append(line)
+
+    # --------------------------------------------
+    # ESP-IDF specific
+    # --------------------------------------------
     if framework == "espidf":
-        ini_lines.extend(
-            [
-                "; ESP-IDF specific",
-                "board_build.sdkconfig = sdkconfig.defaults",
-                "build_src_filter = +<main/> +<components/> +<managed_components/>",
-                "",
-            ]
-        )
+        ini.append("; ESP-IDF specific")
+        ini.append("board_build.sdkconfig = sdkconfig.defaults")
+        ini.append("build_src_filter = +<main/> +<components/> +<managed_components/>")
+        ini.append("")
+        ini.append("board_build.embed_txtfiles = ")
 
-    # Add parallel builds
-    ini_lines.extend(["; Parallel builds", "build_type = release", "jobs = 4", ""])
+        for text_file in ESPIDF_EMBED_TXT_FILES:
+            ini.append(f"    {text_file}")
+        ini.append("")
 
-    # Add embed files if any
+    # --------------------------------------------
+    # Parallel builds
+    # --------------------------------------------
+    ini.append("; Parallel builds")
+    ini.append("build_type = release")
+    ini.append("jobs = 4")
+    ini.append("")
+
+    # --------------------------------------------
+    # embed_files
+    # --------------------------------------------
     if embed_files:
-        ini_lines.append("board_build.embed_files =")
-        for file in embed_files:
-            ini_lines.append(f"    {file}")
-        ini_lines.append("")
+        ini.append("board_build.embed_files =")
+        for f in embed_files:
+            ini.append(f"    {f}")
+        ini.append("")
 
-    # Write the file
-    ini_content = "\n".join(ini_lines)
-    (build_dir / "platformio.ini").write_text(ini_content, encoding="utf-8")
-    print("📝 Optimized platformio.ini written")
+    # --------------------------------------------
+    # Write to file
+    # --------------------------------------------
+    final_text = "\n".join(ini)
+    (build_dir / "platformio.ini").write_text(final_text, encoding="utf-8")
+
+    print(final_text)
+    print("📝 platformio.ini written (append-only clean version)")
 
 
 def write_sdkconfig_defaults(build_dir: Path):
@@ -1042,6 +1218,8 @@ CONFIG_BT_ENABLED=n
 CONFIG_SCCB_CLK_FREQ=100000
 CONFIG_SCCB_HARDWARE_I2C=y
 CONFIG_SCCB_HARDWARE_I2C_PORT=1
+CONFIG_ARDUINO_SELECTIVE_COMPILATION=y
+CONFIG_ARDUINO_SELECTIVE_ESP_SR=n
 
 """
     sdk.write_text(text, encoding="utf-8")
@@ -1221,11 +1399,31 @@ async def compile_project(
         else:
             # Install components
             if framework == "espidf":
+                find_esp_sr_dependency_source(build_dir)
+                # DELETE SR TO PREVENT DEP RESOLUTION
+                remove_sr_components(build_dir)
                 if not ensure_espdl_installed_smart(build_dir, user_app_dir):
                     await session.send(
                         SessionPhase.ERROR, "ESP-DL installation failed", "error"
                     )
                     return {"success": False, "error": "ESP-DL installation failed"}
+
+                # -----------------------------------------------------------
+                # 2A. COPY ESP-DL INTO components/ FOR PLATFORMIO DISCOVERY
+                # -----------------------------------------------------------
+                try:
+                    managed_dir = build_dir / "managed_components" / "espressif__esp-dl"
+                    target_dir = build_dir / "components" / "esp-dl"
+                    if target_dir.exists():
+                        shutil.rmtree(target_dir)
+                    shutil.copytree(managed_dir, target_dir)
+                    print(f"📦 ESP-DL linked into project components/: {target_dir}")
+                except Exception as e:
+                    print(f"❌ Failed to copy ESP-DL into components/: {e}")
+                    await session.send(
+                        SessionPhase.ERROR, "ESP-DL component copy failed", "error"
+                    )
+                    return {"success": False, "error": "ESP-DL copy failed"}
 
             write_transpiled_code(files, build_dir, framework)
 
