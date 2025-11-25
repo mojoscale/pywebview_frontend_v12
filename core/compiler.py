@@ -49,6 +49,23 @@ ESPIDF_BUILD_FLAGS = [
 ]
 
 
+STARTER_TEMPLATE_ESPIDF = (
+    Path(__file__).resolve().parent.parent
+    / "core"
+    / "transpiler"
+    / "runtime"
+    / "starter_template_espidf"
+)
+
+STARTER_TEMPLATE_ARDUINO = (
+    Path(__file__).resolve().parent.parent
+    / "core"
+    / "transpiler"
+    / "runtime"
+    / "starter_template"
+)
+
+
 # ============================================================================
 # INTERNAL CMP DIR STRUCTURE
 # ============================================================================
@@ -218,37 +235,251 @@ def cancel_session(session_id: str):
 # ========================================================================
 # BUILD FOLDER HANDLING — Updated for ESP-IDF + Arduino-as-component
 # ========================================================================
-"""def clone_arduino_component(component_dir: Path):
-    
-    arduino_dir = component_dir / "arduino"
 
-    if arduino_dir.exists():
-        print("🔁 Arduino component already exists, skipping clone.")
+
+def find_real_pio_package_dir() -> Path:
+    """
+    Locate the real PIO global packages dir regardless of venv location.
+    """
+    # 1. PIO_HOME environment variable (if set)
+    if "PLATFORMIO_CORE_DIR" in os.environ:
+        p = Path(os.environ["PLATFORMIO_CORE_DIR"]) / "packages"
+        if p.exists():
+            return p
+
+    # 2. Default user-level PIO install path
+    # Windows
+    win = Path.home() / ".platformio" / "packages"
+    if win.exists():
+        return win
+
+    # Unix/Linux/macOS
+    unix = Path(os.path.expanduser("~/.platformio/packages"))
+    if unix.exists():
+        return unix
+
+    raise RuntimeError("Cannot locate global PlatformIO package directory")
+
+
+def find_system_python() -> str:
+    """
+    Returns a real system-wide Python interpreter (not venv).
+    Required for ESP-IDF tool bootstrap.
+    """
+    # 1. User PATH
+    try:
+        out = subprocess.check_output(
+            ["python", "-c", "import sys; print(sys.executable)"], text=True
+        ).strip()
+        if "python.exe" in out.lower() and ".venv" not in out.lower():
+            return out
+    except:
+        pass
+
+    # 2. Windows Store Python
+    candidates = [
+        Path("C:/Users")
+        / os.getlogin()
+        / "AppData/Local/Microsoft/WindowsApps/python.exe",
+    ]
+
+    # 3. Standard installs
+    for base in [
+        Path("C:/Program Files/Python"),
+        Path("C:/Program Files (x86)/Python"),
+        Path.home() / "AppData/Local/Programs/Python",
+    ]:
+        if base.exists():
+            for child in base.rglob("python.exe"):
+                if "venv" not in str(child).lower():
+                    return str(child)
+
+    raise RuntimeError("No usable system python found on PATH")
+
+
+def bootstrap_esp_idf_tools(pio_pkgs: Path):
+    framework = pio_pkgs / "framework-espidf"
+    tools_dir = framework / "tools"
+    python_env_root = tools_dir / "python_env"
+
+    if python_env_root.exists():
+        print("✔ ESP-IDF python_env already present")
         return
 
-    print("⬇️  Downloading Arduino-ESP32 v3.3.4 as ESP-IDF component...")
+    print("⚠ ESP-IDF python_env missing — bootstrapping tools...")
 
-    subprocess.run(
-        [
-            "git",
-            "clone",
-            "--recursive",
-            "https://github.com/espressif/arduino-esp32.git",
-            str(arduino_dir),
-        ],
-        check=True,
-    )
+    idf_tools = tools_dir / "idf_tools.py"
+    if not idf_tools.exists():
+        raise RuntimeError("idf_tools.py missing — corrupted installation")
 
-    # Optional: checkout specific version
-    subprocess.run(["git", "checkout", "3.3.4"], cwd=str(arduino_dir), check=True)
+    system_python = find_system_python()
+    print(f"🐍 Using SYSTEM Python to bootstrap IDF: {system_python}")
 
-    subprocess.run(
-        ["git", "submodule", "update", "--init", "--recursive"],
-        cwd=str(arduino_dir),
-        check=True,
-    )
+    # Step 1: Install tools (toolchains, cmake, ninja, etc.)
+    cmd1 = [system_python, str(idf_tools), "install"]
+    subprocess.run(cmd1, cwd=str(tools_dir), check=True)
 
-    print(f"✔ Arduino ESP32 component installed at: {arduino_dir}")"""
+    # Step 2: Create python_env
+    cmd2 = [system_python, str(idf_tools), "install-python-env"]
+    subprocess.run(cmd2, cwd=str(tools_dir), check=True)
+
+    if python_env_root.exists():
+        print("✅ ESP-IDF python_env created successfully.")
+    else:
+        raise RuntimeError("ESP-IDF bootstrap failed")
+
+
+def ensure_espdl_installed(build_dir: Path):
+    """
+    Ensures espressif/esp-dl is installed using the ESP-IDF python environment
+    bundled inside PlatformIO's framework-espidf package.
+    This method works even on pioarduino and on new PIO installs.
+    """
+
+    # Skip if already installed
+    managed = build_dir / "managed_components" / "espressif__esp-dl"
+    if managed.exists():
+        print("🔁 ESP-DL already installed.")
+        return
+
+    print("⬇️ ESP-DL not found — installing...")
+
+    # ----------------------------------------------------------------------
+    # 1. Locate real PlatformIO package directory
+    # ----------------------------------------------------------------------
+    pio_pkgs = find_real_pio_package_dir()
+    framework = pio_pkgs / "framework-espidf"
+
+    if not framework.exists():
+        raise RuntimeError(
+            "framework-espidf package is missing — build ESP-IDF once manually."
+        )
+
+    # ----------------------------------------------------------------------
+    # 2. Locate the ESP-IDF Python environment inside framework-espidf
+    # ----------------------------------------------------------------------
+    python_env_root = framework / "tools" / "python_env"
+
+    if not python_env_root.exists():
+        raise RuntimeError(
+            "framework-espidf/tools/python_env missing — build ESP-IDF once manually."
+        )
+
+    idf_python = None
+
+    # Walk all python_env folders
+    for env_dir in python_env_root.iterdir():
+        if not env_dir.is_dir():
+            continue
+
+        # Windows
+        py_win = env_dir / "python.exe"
+        # Unix
+        py_unix = env_dir / "bin" / "python"
+
+        if py_win.exists():
+            idf_python = py_win
+            break
+        if py_unix.exists():
+            idf_python = py_unix
+            break
+
+    if not idf_python:
+        raise RuntimeError("Cannot locate python inside ESP-IDF python_env")
+
+    print(f"🐍 Using ESP-IDF Python from: {idf_python}")
+
+    # ----------------------------------------------------------------------
+    # 3. Locate idf.py
+    # ----------------------------------------------------------------------
+    idf_py = framework / "tools" / "idf.py"
+    if not idf_py.exists():
+        raise RuntimeError("idf.py missing in framework-espidf/tools")
+
+    # ----------------------------------------------------------------------
+    # 4. Run installation
+    # ----------------------------------------------------------------------
+    cmd = [
+        str(idf_python),
+        str(idf_py),
+        "component",
+        "install",
+        "espressif/esp-dl",
+    ]
+
+    print(f"⚙ Running: {' '.join(cmd)}")
+
+    result = subprocess.run(cmd, cwd=str(build_dir), text=True, capture_output=True)
+
+    print(result.stdout)
+    print(result.stderr)
+
+    if result.returncode != 0:
+        raise RuntimeError(f"ESP-DL installation failed: {result.stderr}")
+
+    print("✅ ESP-DL installed successfully.")
+
+
+def get_espdl_cache_dir(user_app_dir: Path) -> Path:
+    return user_app_dir / ".espdl_component_cache"
+
+
+def clone_espdl_component(component_dir: Path, user_app_dir: str):
+    """
+    Clone espressif/esp-dl into components/esp-dl, but only keep the INNER true component:
+        repo/esp-dl/...
+    NOT the repo root.
+    """
+
+    espdl_dir = component_dir / "esp-dl"
+
+    # If already exists inside build folder
+    if espdl_dir.exists():
+        print("🔁 ESP-DL component already exists in build, skipping.")
+        return
+
+    # Persistent cache
+    cache_root = Path(user_app_dir) / ".espdl_component_cache"
+    cache_root.mkdir(parents=True, exist_ok=True)
+
+    cache_repo = cache_root / "esp-dl"
+
+    # If cached repo exists
+    if cache_repo.exists() and (cache_repo / ".git").exists():
+        print("📦 Using cached ESP-DL repository...")
+    else:
+        print("⬇️  Downloading espressif/esp-dl...")
+        # Clone fresh
+        subprocess.run(
+            [
+                "git",
+                "clone",
+                "--recursive",
+                "https://github.com/espressif/esp-dl.git",
+                str(cache_repo),
+            ],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "submodule", "update", "--init", "--recursive"],
+            cwd=str(cache_repo),
+            check=True,
+        )
+
+    # Now assemble the REAL component directory
+    #
+    # The actual component lives inside:
+    #     esp-dl/esp-dl/
+    #
+    inner_component = cache_repo / "esp-dl"
+    if not inner_component.exists():
+        raise RuntimeError(
+            "❌ ESP-DL inner component folder 'esp-dl/' missing inside repo"
+        )
+
+    # Copy ONLY the inner component into build/components/esp-dl
+    shutil.copytree(inner_component, espdl_dir, symlinks=False)
+    print(f"✅ Installed ESP-DL component → {espdl_dir}")
 
 
 def get_arduino_cache_dir(user_app_dir: Path) -> Path:
@@ -330,6 +561,87 @@ def clone_arduino_component(component_dir: Path, user_app_dir: str):
         raise
 
 
+def merge_arduino_includes_into_idf(build_dir: Path, STARTER_TEMPLATE_ARDUINO: Path):
+    """
+    Copies all .h / .hpp files from the Arduino starter template 'include'
+    into the ESP-IDF component: components/mojoscale_arduino/include/
+    """
+
+    src_include = STARTER_TEMPLATE_ARDUINO / "include"
+    dst_include = build_dir / "components" / "mojoscale_arduino" / "include"
+
+    if not src_include.exists():
+        print(f"⚠️ No Arduino include/ folder found at {src_include}")
+        return
+
+    dst_include.mkdir(parents=True, exist_ok=True)
+
+    print("📥 Copying Arduino template headers → ESP-IDF component include/")
+    for file in src_include.rglob("*"):
+        if file.is_file() and file.suffix.lower() in [".h", ".hpp"]:
+            rel = file.relative_to(src_include)
+            target = dst_include / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(file, target)
+            print(f"   → {target}")
+
+
+def convert_arduino_libs_to_idf_components(
+    build_dir: Path, STARTER_TEMPLATE_ARDUINO: Path
+):
+    """
+    Converts all folders inside Arduino template 'lib/' into ESP-IDF components
+    under build_dir/components_auto/<libname>/
+    """
+
+    libs_dir = STARTER_TEMPLATE_ARDUINO / "lib"
+    components_auto = build_dir / "components_auto"
+    components_auto.mkdir(exist_ok=True)
+
+    if not libs_dir.exists():
+        print(f"⚠️ No Arduino lib/ folder found at {libs_dir}")
+        return
+
+    print("📦 Converting Arduino lib/ → ESP-IDF components_auto/")
+
+    for lib in libs_dir.iterdir():
+        if not lib.is_dir():
+            continue
+
+        comp = components_auto / lib.name
+        comp.mkdir(parents=True, exist_ok=True)
+
+        # Copy entire library folder structure
+        shutil.copytree(lib, comp, dirs_exist_ok=True)
+
+        # Collect sources
+        sources = []
+        includes = set()
+
+        for src in comp.rglob("*.c"):
+            sources.append(str(src.relative_to(comp)).replace("\\", "/"))
+        for src in comp.rglob("*.cpp"):
+            sources.append(str(src.relative_to(comp)).replace("\\", "/"))
+        for h in comp.rglob("*.h"):
+            includes.add(str(h.parent.relative_to(comp)))
+        for h in comp.rglob("*.hpp"):
+            includes.add(str(h.parent.relative_to(comp)))
+
+        include_dirs = " ".join(f'"{x}"' for x in includes if x != ".")
+
+        # Write CMakeLists.txt
+        cmk = comp / "CMakeLists.txt"
+        cmk.write_text(
+            f"""
+idf_component_register(
+    SRCS {" ".join(f'"{s}"' for s in sources)}
+    INCLUDE_DIRS {include_dirs if include_dirs else "."}
+)
+"""
+        )
+        print(f"   ✔ Created component: {comp}")
+
+
 def prepare_build_folder(framework, BUILD_ROOT: Path, STARTER_TEMPLATE: Path) -> Path:
     """
     Prepare a build folder and inject Arduino-as-component when framework == espidf
@@ -353,6 +665,7 @@ def prepare_build_folder(framework, BUILD_ROOT: Path, STARTER_TEMPLATE: Path) ->
         # Clone Arduino-as-component (with caching)
         try:
             clone_arduino_component(components_dir, user_app_dir)
+            clone_espdl_component(components_dir, user_app_dir)
         except Exception as e:
             print(f"❌ Failed to clone Arduino component: {e}")
             raise
@@ -360,6 +673,14 @@ def prepare_build_folder(framework, BUILD_ROOT: Path, STARTER_TEMPLATE: Path) ->
         # ESP-IDF expects CMakeLists.txt in main/, so move transpilations there
         main_dir = build_dir / "main"
         main_dir.mkdir(exist_ok=True)
+
+        # ---------------------------------------------
+        # Inject Arduino template → ESP-IDF environment
+        # ---------------------------------------------
+        merge_arduino_includes_into_idf(build_dir, STARTER_TEMPLATE_ARDUINO)
+        convert_arduino_libs_to_idf_components(build_dir, STARTER_TEMPLATE_ARDUINO)
+
+        print("✔ Arduino template integrated into ESP-IDF environment")
 
     else:
         src_dir = build_dir / "src"
@@ -387,7 +708,7 @@ def write_transpiled_code(files: dict, build_dir: Path, framework: str):
     """
 
     if framework == "espidf":
-        src_dir = build_dir / "main"
+        src_dir = build_dir / "src"
 
         include_dir = build_dir / "components" / "mojoscale_arduino" / "include"
 
@@ -443,10 +764,12 @@ def write_platformio_ini(
     build_flags = CORE_BUILD_FLAGS
     unflags = ["-std=gnu++11", "-std=gnu++14", "-Werror"]
     embed_txtfiles = []
+    extra_scripts = []
 
     framework_to_add = framework
     if framework == "espidf":
-        framework_to_add = "espidf, arduino"
+        framework_to_add = "espidf"
+        # platform = "https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip"
         platform = "https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip"
         build_flags += ESPIDF_BUILD_FLAGS
         embed_txtfiles = [
@@ -455,6 +778,10 @@ def write_platformio_ini(
             "managed_components/espressif__esp_rainmaker/server_certs/rmaker_claim_service_server.crt",
             "managed_components/espressif__esp_rainmaker/server_certs/rmaker_ota_server.crt",
         ]
+
+        """if os.name == "nt":
+            extra_scripts.append("pre:win_linker_workaround.py")
+            extra_scripts.append("post:win_linker_workaround.py")"""
 
     ini = (
         f"[env:{board}]\n"
@@ -468,6 +795,7 @@ def write_platformio_ini(
         f"lib_deps =\n  " + "\n  ".join(deps) + "\n\n"
         f"board_build.embed_txtfiles =\n  " + "\n  ".join(embed_txtfiles) + "\n\n"
         f"build_cache_dir = {TEMP_ROOT}\n\n"
+        f"extra_scripts =\n  " + "\n  ".join(extra_scripts) + "\n\n"
     )
 
     if embed_files:
@@ -582,34 +910,86 @@ async def compile_project(
         )
 
         files = transpiler["code"]
+
         dependencies = (dependencies or []) + transpiler.get("dependencies", [])
         embed_files = transpiler.get("embed_files", [])
         framework = transpiler.get("framework", "arduino")
 
         await session.send(SessionPhase.END_TRANSPILE, "Transpilation complete")
 
+        # ---------------------------------------------------------------------
+        # 💡 NEW: Pretty-print the transpiled C++ code to terminal
+        # ---------------------------------------------------------------------
+        import textwrap
+
+        print("\n==================== 🧩 Transpiled Arduino Code ====================\n")
+        for name, code in files.items():
+            # Determine file type
+            ext = "ino" if name == "main.py" else "h"
+            file_label = f"{name.replace('.py', f'.{ext}')}"
+            print(f"📄 {file_label}:\n")
+
+            # Re-indent for nice visual display
+            formatted = textwrap.indent(code.strip(), "    ")
+            print(formatted)
+            print("\n" + "-" * 70 + "\n")
+
+        print("===================== ✅ End of Transpiled Code =====================\n")
+
+        # -----------------------------------------------------------
+        # 1A: AUTO UPGRADE PLATFORMIO CORE FOR ESP-IDF BUILDS
+        # -----------------------------------------------------------
+        if framework == "espidf":
+            await session.send(
+                SessionPhase.BEGIN_COMPILE, "Upgrading PlatformIO Core to dev branch..."
+            )
+
+            upgrade_marker = PIO_HOME / "pio_dev_upgraded.txt"
+            python_exe = ensure_platformio_installed(PIO_HOME)
+
+            if not upgrade_marker.exists():
+                try:
+                    subprocess.run(
+                        [
+                            str(python_exe),
+                            "-m",
+                            "pip",
+                            "install",
+                            "--upgrade",
+                            "https://github.com/platformio/platformio-core/archive/develop.zip",
+                        ],
+                        check=True,
+                    )
+                    upgrade_marker.write_text("upgraded", encoding="utf-8")
+                    await session.send(
+                        SessionPhase.BEGIN_COMPILE,
+                        "PlatformIO Core upgraded (pip method)",
+                    )
+                except Exception as e:
+                    await session.send(
+                        SessionPhase.ERROR, f"PIO upgrade failed via pip: {e}", "error"
+                    )
+            else:
+                await session.send(
+                    SessionPhase.BEGIN_COMPILE,
+                    "PlatformIO dev already installed, skipping",
+                )
+
         # -----------------------------------------------------------
         # 2. BUILD FOLDER SETUP
         # -----------------------------------------------------------
         if framework == "espidf":
-            STARTER_TEMPLATE = (
-                Path(__file__).resolve().parent.parent
-                / "core"
-                / "transpiler"
-                / "runtime"
-                / "starter_template_espidf"
-            )
+            STARTER_TEMPLATE = STARTER_TEMPLATE_ESPIDF
         else:
-            STARTER_TEMPLATE = (
-                Path(__file__).resolve().parent.parent
-                / "core"
-                / "transpiler"
-                / "runtime"
-                / "starter_template"
-            )
+            STARTER_TEMPLATE = STARTER_TEMPLATE_ARDUINO
 
         await session.send(SessionPhase.BEGIN_COMPILE, "Preparing build folder...")
         build_dir = prepare_build_folder(framework, BUILD_ROOT, STARTER_TEMPLATE)
+
+        if framework == "espidf":
+            real_pkgs = find_real_pio_package_dir()
+            bootstrap_esp_idf_tools(real_pkgs)
+            ensure_espdl_installed(build_dir)
 
         write_transpiled_code(files, build_dir, framework)
         if framework == "espidf":
@@ -623,6 +1003,20 @@ async def compile_project(
             embed_files,
             TEMP_ROOT,
         )
+
+        try:
+            workaround_src = (
+                Path(__file__).resolve().parent / "win_linker_workaround.py"
+            )
+            workaround_dst = build_dir / "win_linker_workaround.py"
+
+            if workaround_src.exists():
+                shutil.copyfile(workaround_src, workaround_dst)
+                print(f"📝 Copied win_linker_workaround.py → {workaround_dst}")
+            else:
+                print(f"⚠️ win_linker_workaround.py not found at {workaround_src}")
+        except Exception as copy_err:
+            print(f"⚠️ Failed to copy win_linker_workaround.py: {copy_err}")
 
         # -----------------------------------------------------------
         # 3. RUN PLATFORMIO
