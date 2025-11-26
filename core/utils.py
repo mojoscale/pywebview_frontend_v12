@@ -11,6 +11,8 @@ APP_WINDOW_NAME = "Mojoscale IDE"
 
 APP_FOLDER_NAME = ".mojoscale"
 
+AVAILABLE_BOARDS_PATH = os.path.join(os.path.dirname(__file__), "available_boards.json")
+
 
 STARTER_CODE = """
 
@@ -46,7 +48,7 @@ def check_or_create_app_dir():
 
 def get_available_platforms():
     """Return list of unique platform values from available_boards.json."""
-    file_path = os.path.join(os.path.dirname(__file__), "available_boards.json")
+    file_path = AVAILABLE_BOARDS_PATH
 
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"{file_path} not found")
@@ -60,7 +62,7 @@ def get_available_platforms():
 
 
 def get_available_boards():
-    file_path = os.path.join(os.path.dirname(__file__), "available_boards.json")
+    file_path = AVAILABLE_BOARDS_PATH
     with open(file_path, "r", encoding="utf-8-sig") as f:
         boards = json.load(f)
 
@@ -92,7 +94,7 @@ def get_platform_for_board_id(board_id: str) -> str:
     Returns:
         str: The platform name (e.g., "espressif32"), or None if not found.
     """
-    json_path = os.path.join(os.path.dirname(__file__), "available_boards.json")
+    json_path = AVAILABLE_BOARDS_PATH
     with open(json_path, "r", encoding="utf-8-sig") as f:
         boards = json.load(f)
 
@@ -150,7 +152,7 @@ def get_all_platformio_boards(output_folder: str):
     # Ensure folder exists
     os.makedirs(output_folder, exist_ok=True)
 
-    output_file = os.path.join(output_folder, "available_boards.json")
+    output_file = AVAILABLE_BOARDS_PATH
 
     url = "https://api.platformio.org/v2/boards"
 
@@ -174,3 +176,26 @@ def get_all_platformio_boards(output_folder: str):
     except Exception as e:
         print("❌ Failed to retrieve PlatformIO boards:", str(e))
         raise
+
+
+def get_mcu_by_board_name(board_name):
+    """
+    Return the MCU string for a given board name or id.
+    Matches against:
+        - id
+        - name
+    Match is case-insensitive.
+    """
+    boards_json_path = AVAILABLE_BOARDS_PATH
+    board_name = board_name.strip().lower()
+
+    with open(boards_json_path, "r", encoding="utf-8") as f:
+        boards = json.load(f)
+
+    for b in boards:
+        if b.get("id", "").lower() == board_name:
+            return b.get("mcu")
+        if b.get("name", "").lower() == board_name:
+            return b.get("mcu")
+
+    return None  # Not found

@@ -356,6 +356,7 @@ class Api:
 
             try:
                 result = await compile_project(
+                    task["project_id"],
                     task["code_files"],
                     task["board"],
                     task["platform"],

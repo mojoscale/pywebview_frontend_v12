@@ -25,7 +25,7 @@ from typing import Optional, Dict, Any, List
 from core.utils import get_bundled_python_exe
 from core.db import db_path as DB_PATH
 from core.transpiler.transpiler import main as transpiler_main
-from core.utils import get_app_dir
+from core.utils import get_app_dir, get_mcu_by_board_name
 
 
 # ============================================================================
@@ -802,6 +802,20 @@ def should_rebuild(build_dir: Path, cache_dir: Path) -> bool:
 # ============================================================================
 # BUILD FOLDER HANDLING
 # ============================================================================
+def ensure_esptool_deps_installed(python_exe: Path):
+    """Install missing dependencies required by esptool (rich_click)."""
+    try:
+        subprocess.run(
+            [str(python_exe), "-m", "pip", "install", "rich_click"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        print("📦 Installed missing esptool dependency: rich_click")
+    except Exception as e:
+        print(f"⚠️ Failed installing rich_click: {e}")
+
+
 def find_real_pio_package_dir() -> Path:
     """
     Locate the real PIO global packages dir regardless of venv location.
@@ -1276,6 +1290,7 @@ def parse_platformio_result(stdout: str, stderr: str):
 # ENHANCED MAIN COMPILE ROUTINE
 # ============================================================================
 async def compile_project(
+    project_id: str,
     py_files: dict,
     board: str,
     platform: str,
@@ -1538,8 +1553,52 @@ async def compile_project(
                 "run",
                 "-t",
                 "upload",
+                "--disable-auto-clean",
                 f"--upload-port={actual_port}",
             ]
+
+            if framework == "espidf":
+                # use esp tool for upload.
+                mcu = get_mcu_by_board_name(board).lower()
+                ensure_esptool_deps_installed(python_exe)
+
+                # Map MCU → esptool chip id
+                if "s3" in mcu:
+                    chip = "esp32s3"
+                elif "c3" in mcu:
+                    chip = "esp32c3"
+                else:
+                    chip = "esp32"
+
+                # resolve binary paths
+                firmware_bin = build_dir / ".pio" / "build" / board / "firmware.bin"
+                bootloader_bin = build_dir / ".pio" / "build" / board / "bootloader.bin"
+                partitions_bin = build_dir / ".pio" / "build" / board / "partitions.bin"
+
+                # esptool path inside PlatformIO virtualenv
+                esptool_py = (
+                    Path(PIO_HOME) / "packages" / "tool-esptoolpy" / "esptool.py"
+                )
+
+                # build esptool command
+                cmd = [
+                    str(python_exe),
+                    str(esptool_py),
+                    "--chip",
+                    chip,
+                    "--port",
+                    actual_port,
+                    "--baud",
+                    "921600",
+                    "write_flash",
+                    "-z",
+                    "0x0",
+                    str(bootloader_bin),
+                    "0x8000",
+                    str(partitions_bin),
+                    "0x10000",
+                    str(firmware_bin),
+                ]
 
             session.process = await asyncio.create_subprocess_exec(
                 *cmd,
