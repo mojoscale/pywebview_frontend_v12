@@ -294,25 +294,6 @@ def find_esp_sr_dependency_source(build_dir: Path):
             except:
                 pass
 
-    # Check dependencies.lock if it exists
-    lock_file = build_dir / "dependencies.lock"
-    if lock_file.exists():
-        try:
-            content = lock_file.read_text()
-            if "esp-sr" in content or "esp_sr" in content:
-                print("🚨 FOUND: dependencies.lock contains ESP-SR")
-                # Extract the relevant section
-                lines = content.split("\n")
-                for i, line in enumerate(lines):
-                    if "esp-sr" in line or "esp_sr" in line:
-                        start = max(0, i - 2)
-                        end = min(len(lines), i + 3)
-                        print("   Context:")
-                        for j in range(start, end):
-                            print(f"   {lines[j]}")
-        except:
-            pass
-
 
 def remove_sr_components(build_dir: Path):
     """
@@ -388,12 +369,6 @@ def remove_sr_components(build_dir: Path):
         print("✅ SR components removed")
     else:
         print("ℹ No SR components found")
-
-    # Also remove dependencies.lock to force re-resolution
-    lock_file = build_dir / "dependencies.lock"
-    if lock_file.exists():
-        print("🧹 Removing dependencies.lock to force re-resolution")
-        lock_file.unlink(missing_ok=True)
 
 
 def ensure_espdl_installed_smart(build_dir: Path, user_app_dir: str) -> bool:
@@ -704,11 +679,15 @@ def setup_persistent_cache(build_dir: Path, user_app_dir: str) -> Dict[str, str]
 
         # Link build directory to cache
         build_subdir = build_dir / name
+
+        # Safe removal - check if it's a symlink first
         if build_subdir.exists():
             if build_subdir.is_symlink():
+                # It's a symlink - just unlink it
                 build_subdir.unlink()
             else:
-                shutil.rmtree(build_subdir)
+                # It's a real directory - remove it
+                shutil.rmtree(build_subdir, ignore_errors=True)
 
         # Create symlink/junction to cache
         try:
@@ -718,33 +697,38 @@ def setup_persistent_cache(build_dir: Path, user_app_dir: str) -> Dict[str, str]
 
                 try:
                     _winapi.CreateJunction(str(cache_path), str(build_subdir))
+                    print(f"🔗 Linked {name} → persistent cache (junction)")
                 except:
                     # Fallback to directory copy if junction fails
                     shutil.copytree(cache_path, build_subdir)
+                    print(f"📦 Copied {name} → build directory (junction fallback)")
             else:
                 # Unix: use symlinks
                 build_subdir.symlink_to(cache_path)
-
-            print(f"🔗 Linked {name} → persistent cache")
+                print(f"🔗 Linked {name} → persistent cache (symlink)")
 
         except Exception as e:
             print(f"⚠️ Cache linking failed for {name}: {e}")
-            # Continue without cache for this directory
+            # Create regular directory as fallback
+            build_subdir.mkdir(parents=True, exist_ok=True)
+            print(f"📁 Created regular directory for {name} (fallback)")
 
     return env_vars
 
 
 def get_component_hash(build_dir: Path) -> str:
     """
-    Generate hash of component state to detect changes
+    Generate hash of component state to detect changes - CONTENT BASED ONLY
     """
     hash_data = []
 
-    # Hash component directories
+    # Hash component directories - CONTENT ONLY, no timestamps
     component_dirs = [
         build_dir / "components",
         build_dir / "managed_components",
         build_dir / "main",
+        build_dir / "src",
+        build_dir / "include",
     ]
 
     for comp_dir in component_dirs:
@@ -756,15 +740,23 @@ def get_component_hash(build_dir: Path) -> str:
                     ".h",
                     ".hpp",
                     ".cmake",
-                    "",
+                    ".txt",
+                    ".yml",
+                    ".yaml",
+                    ".ini",
+                    ".py",
                 ]:
                     try:
-                        stat = file_path.stat()
-                        hash_data.append(f"{file_path}:{stat.st_mtime}:{stat.st_size}")
+                        # Hash file CONTENT only, not timestamps
+                        content = file_path.read_bytes()
+                        content_hash = hashlib.md5(content).hexdigest()
+                        hash_data.append(
+                            f"{file_path.relative_to(build_dir)}:{content_hash}"
+                        )
                     except:
                         pass
 
-    # Hash platformio.ini and CMakeLists.txt files
+    # Hash platformio.ini and CMakeLists.txt files - CONTENT ONLY
     config_files = [
         build_dir / "platformio.ini",
         build_dir / "sdkconfig.defaults",
@@ -773,18 +765,25 @@ def get_component_hash(build_dir: Path) -> str:
 
     for config_file in config_files:
         if config_file.exists():
-            hash_data.append(config_file.read_text())
+            try:
+                content = config_file.read_bytes()
+                content_hash = hashlib.md5(content).hexdigest()
+                hash_data.append(f"{config_file.name}:{content_hash}")
+            except:
+                pass
 
+    # Sort for consistent hashing
+    hash_data.sort()
     content = "|".join(hash_data)
     return hashlib.md5(content.encode()).hexdigest()
 
 
-def should_rebuild(build_dir: Path, cache_dir: Path) -> bool:
+def should_rebuild(build_dir: Path, cache_dir: Path, project_id: str) -> bool:
     """
     Check if rebuild is necessary based on component changes
     """
     current_hash = get_component_hash(build_dir)
-    hash_file = cache_dir / "build_hash.txt"
+    hash_file = cache_dir / f"build_hash_{project_id}.txt"
 
     if hash_file.exists():
         previous_hash = hash_file.read_text().strip()
@@ -803,17 +802,45 @@ def should_rebuild(build_dir: Path, cache_dir: Path) -> bool:
 # BUILD FOLDER HANDLING
 # ============================================================================
 def ensure_esptool_deps_installed(python_exe: Path):
-    """Install missing dependencies required by esptool (rich_click)."""
-    try:
-        subprocess.run(
-            [str(python_exe), "-m", "pip", "install", "rich_click"],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        print("📦 Installed missing esptool dependency: rich_click")
-    except Exception as e:
-        print(f"⚠️ Failed installing rich_click: {e}")
+    """Install all missing dependencies required by esptool."""
+    esptool_deps = [
+        "intelhex",
+        "cryptography",
+        "bitstring",
+        "rich_click",
+        "pyserial",
+        "reedsolo",
+    ]
+
+    for dep in esptool_deps:
+        try:
+            # Check if dependency is already installed
+            subprocess.run(
+                [
+                    str(python_exe),
+                    "-c",
+                    f"import {dep.split('-')[0].replace('.', '_')}",
+                ],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=10,
+            )
+            print(f"✅ {dep} already installed")
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            # Install missing dependency
+            try:
+                print(f"📦 Installing missing esptool dependency: {dep}")
+                subprocess.run(
+                    [str(python_exe), "-m", "pip", "install", dep],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=60,
+                )
+                print(f"✅ Successfully installed {dep}")
+            except Exception as e:
+                print(f"⚠️ Failed installing {dep}: {e}")
 
 
 def find_real_pio_package_dir() -> Path:
@@ -1000,18 +1027,24 @@ idf_component_register(
         print(f"   ✔ Created component: {comp}")
 
 
-def prepare_build_folder(framework, BUILD_ROOT: Path, STARTER_TEMPLATE: Path) -> Path:
+def prepare_build_folder(
+    project_id: str, framework: str, BUILD_ROOT: Path, STARTER_TEMPLATE: Path
+) -> Path:
     """
-    Prepare a build folder and inject Arduino-as-component when framework == espidf
+    Prepare a persistent build folder using project_id and inject Arduino-as-component when framework == espidf
     """
 
     user_app_dir = get_app_dir()
 
-    build_id = str(uuid.uuid4())[:6]
-    build_dir = BUILD_ROOT / build_id
+    # Use persistent build folder based on project_id
+    build_dir = BUILD_ROOT / f"build_{project_id}"
 
-    shutil.copytree(STARTER_TEMPLATE, build_dir, dirs_exist_ok=True)
-    print(f"📁 Build folder prepared at {build_dir}")
+    # Only copy template if build folder doesn't exist
+    if not build_dir.exists():
+        shutil.copytree(STARTER_TEMPLATE, build_dir, dirs_exist_ok=True)
+        print(f"📁 New build folder prepared at {build_dir}")
+    else:
+        print(f"📁 Using existing build folder at {build_dir}")
 
     # ===========================================
     # ESP-IDF MODE → INSTALL ARDUINO COMPONENT
@@ -1020,20 +1053,28 @@ def prepare_build_folder(framework, BUILD_ROOT: Path, STARTER_TEMPLATE: Path) ->
         components_dir = build_dir / "components"
         components_dir.mkdir(parents=True, exist_ok=True)
 
-        # Clone Arduino-as-component (with caching)
-        try:
-            clone_arduino_component(components_dir, user_app_dir)
-        except Exception as e:
-            print(f"❌ Failed to clone Arduino component: {e}")
-            raise
+        # Clone Arduino-as-component (with caching) - only if not exists
+        arduino_dir = components_dir / "arduino"
+        if not arduino_dir.exists():
+            try:
+                clone_arduino_component(components_dir, user_app_dir)
+            except Exception as e:
+                print(f"❌ Failed to clone Arduino component: {e}")
+                raise
+        else:
+            print("🔁 Arduino component already exists, skipping clone")
 
-        # ESP-IDF expects CMakeLists.txt in main/, so move transpilations there
+        # ESP-IDF expects CMakeLists.txt in main/, so ensure it exists
         main_dir = build_dir / "main"
         main_dir.mkdir(exist_ok=True)
 
         # ---------------------------------------------
         # Inject Arduino template → ESP-IDF environment
         # ---------------------------------------------
+        # THESE STEPS SHOULD ALWAYS RUN FOR ESP-IDF BUILDS
+        # They copy headers and convert libs to components every time
+
+        print("📥 Integrating Arduino template into ESP-IDF environment...")
         merge_arduino_includes_into_idf(build_dir, STARTER_TEMPLATE_ARDUINO)
         convert_arduino_libs_to_idf_components(build_dir, STARTER_TEMPLATE_ARDUINO)
 
@@ -1047,11 +1088,11 @@ def prepare_build_folder(framework, BUILD_ROOT: Path, STARTER_TEMPLATE: Path) ->
 
 
 def cleanup_build_folder(build_dir: Path):
-    try:
-        shutil.rmtree(build_dir, ignore_errors=True)
-        print(f"🧹 Cleaned build folder {build_dir}")
-    except:
-        pass
+    """
+    Only clean if explicitly requested - otherwise keep for incremental builds
+    """
+    # This function is kept for compatibility but build folders are now persistent
+    print(f"💡 Build folder preserved for incremental builds: {build_dir}")
 
 
 # ============================================================================
@@ -1303,7 +1344,11 @@ async def compile_project(
     # INIT PATH STRUCTURE
     CMP_ROOT, PIO_HOME, BUILD_ROOT, TEMP_ROOT = init_cmp_dirs(user_app_dir)
 
+    print(f"[COMPILER]: starting with {platform}, on {board}")
+
     session = create_session()
+    upload_success = False
+    build_success = False
 
     try:
         # -----------------------------------------------------------
@@ -1383,7 +1428,7 @@ async def compile_project(
                 )
 
         # -----------------------------------------------------------
-        # 2. BUILD FOLDER SETUP WITH CACHING
+        # 2. BUILD FOLDER SETUP - SIMPLIFIED
         # -----------------------------------------------------------
         if framework == "espidf":
             STARTER_TEMPLATE = STARTER_TEMPLATE_ESPIDF
@@ -1391,159 +1436,149 @@ async def compile_project(
             STARTER_TEMPLATE = STARTER_TEMPLATE_ARDUINO
 
         await session.send(SessionPhase.BEGIN_COMPILE, "Preparing build folder...")
-        build_dir = prepare_build_folder(framework, BUILD_ROOT, STARTER_TEMPLATE)
+        build_dir = prepare_build_folder(
+            project_id, framework, BUILD_ROOT, STARTER_TEMPLATE
+        )
 
-        # Set up persistent cache
+        # Set up basic cache env (let PIO handle the rest)
         cache_env = {}
         if use_cache:
             cache_env = setup_persistent_cache(build_dir, user_app_dir)
 
-        # Check if rebuild is needed
-        cache_root = Path(user_app_dir) / ".build_cache"
-        should_build = True
+        # ALWAYS write transpiled code and config files
+        write_transpiled_code(files, build_dir, framework)
 
-        if use_cache and cache_root.exists():
-            should_build = should_rebuild(build_dir, cache_root)
+        if framework == "espidf":
+            write_sdkconfig_defaults(build_dir)
 
-        if not should_build:
-            await session.send(
-                SessionPhase.BEGIN_COMPILE, "Using cached build artifacts"
+        # ALWAYS write platformio.ini with current settings
+        write_optimized_platformio_ini(
+            board,
+            platform,
+            build_dir,
+            dependencies,
+            framework,
+            embed_files,
+            TEMP_ROOT,
+            use_cache,
+        )
+
+        # Copy win_linker_workaround if needed
+        try:
+            workaround_src = (
+                Path(__file__).resolve().parent / "win_linker_workaround.py"
             )
-            # We'll skip compilation and go straight to upload if needed
-            build_success = True
-        else:
-            # Install components
-            if framework == "espidf":
-                find_esp_sr_dependency_source(build_dir)
-                # DELETE SR TO PREVENT DEP RESOLUTION
-                remove_sr_components(build_dir)
-                if not ensure_espdl_installed_smart(build_dir, user_app_dir):
-                    await session.send(
-                        SessionPhase.ERROR, "ESP-DL installation failed", "error"
-                    )
-                    return {"success": False, "error": "ESP-DL installation failed"}
+            workaround_dst = build_dir / "win_linker_workaround.py"
 
-                # -----------------------------------------------------------
-                # 2A. COPY ESP-DL INTO components/ FOR PLATFORMIO DISCOVERY
-                # -----------------------------------------------------------
-                try:
-                    managed_dir = build_dir / "managed_components" / "espressif__esp-dl"
-                    target_dir = build_dir / "components" / "esp-dl"
-                    if target_dir.exists():
-                        shutil.rmtree(target_dir)
+            if workaround_src.exists() and not workaround_dst.exists():
+                shutil.copyfile(workaround_src, workaround_dst)
+                print(f"📝 Copied win_linker_workaround.py → {workaround_dst}")
+        except Exception as copy_err:
+            print(f"⚠️ Failed to copy win_linker_workaround.py: {copy_err}")
+
+        # Install components only if needed for ESP-IDF
+        if framework == "espidf":
+            find_esp_sr_dependency_source(build_dir)
+            remove_sr_components(build_dir)
+
+            if not ensure_espdl_installed_smart(build_dir, user_app_dir):
+                await session.send(
+                    SessionPhase.ERROR, "ESP-DL installation failed", "error"
+                )
+                return {"success": False, "error": "ESP-DL installation failed"}
+
+            # Copy ESP-DL into components/
+            try:
+                managed_dir = build_dir / "managed_components" / "espressif__esp-dl"
+                target_dir = build_dir / "components" / "esp-dl"
+                if not target_dir.exists():
                     shutil.copytree(managed_dir, target_dir)
                     print(f"📦 ESP-DL linked into project components/: {target_dir}")
-                except Exception as e:
-                    print(f"❌ Failed to copy ESP-DL into components/: {e}")
-                    await session.send(
-                        SessionPhase.ERROR, "ESP-DL component copy failed", "error"
-                    )
-                    return {"success": False, "error": "ESP-DL copy failed"}
-
-            write_transpiled_code(files, build_dir, framework)
-
-            if framework == "espidf":
-                write_sdkconfig_defaults(build_dir)
-
-            write_optimized_platformio_ini(
-                board,
-                platform,
-                build_dir,
-                dependencies,
-                framework,
-                embed_files,
-                TEMP_ROOT,
-                use_cache,
-            )
-
-            # Copy win_linker_workaround if needed
-            try:
-                workaround_src = (
-                    Path(__file__).resolve().parent / "win_linker_workaround.py"
-                )
-                workaround_dst = build_dir / "win_linker_workaround.py"
-
-                if workaround_src.exists():
-                    shutil.copyfile(workaround_src, workaround_dst)
-                    print(f"📝 Copied win_linker_workaround.py → {workaround_dst}")
                 else:
-                    print(f"⚠️ win_linker_workaround.py not found at {workaround_src}")
-            except Exception as copy_err:
-                print(f"⚠️ Failed to copy win_linker_workaround.py: {copy_err}")
+                    print(f"🔁 ESP-DL already in components/: {target_dir}")
+            except Exception as e:
+                print(f"❌ Failed to copy ESP-DL into components/: {e}")
+                await session.send(
+                    SessionPhase.ERROR, "ESP-DL component copy failed", "error"
+                )
+                return {"success": False, "error": "ESP-DL copy failed"}
 
-            # -----------------------------------------------------------
-            # 3. RUN PLATFORMIO BUILD
-            # -----------------------------------------------------------
-            await session.send(SessionPhase.BEGIN_COMPILE, "Starting compilation...")
+        # -----------------------------------------------------------
+        # 3. RUN PLATFORMIO BUILD - ALWAYS
+        # -----------------------------------------------------------
+        await session.send(SessionPhase.BEGIN_COMPILE, "Starting compilation...")
 
-            pio_cmd, pio_env = get_platformio_command(PIO_HOME)
-            env = os.environ.copy()
-            env.update(pio_env)
-            env.update(cache_env)  # Add cache environment variables
-            env["TMP"] = str(TEMP_ROOT)
-            env["TEMP"] = str(TEMP_ROOT)
+        pio_cmd, pio_env = get_platformio_command(PIO_HOME)
+        env = os.environ.copy()
+        env.update(pio_env)
+        env.update(cache_env)
+        env["TMP"] = str(TEMP_ROOT)
+        env["TEMP"] = str(TEMP_ROOT)
 
-            cmd = pio_cmd + ["run"]
+        cmd = pio_cmd + ["run"]
 
-            session.process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=str(build_dir),
-                env=env,
-                creationflags=subprocess.CREATE_NO_WINDOW
-                if sys.platform == "win32"
-                else 0,
-            )
+        session.process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=str(build_dir),
+            env=env,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        )
 
-            stdout_lines = []
-            stderr_lines = []
+        stdout_lines = []
+        stderr_lines = []
 
-            async def stream(pipe, collector):
-                while True:
-                    line = await pipe.readline()
-                    if not line:
-                        break
-                    txt = line.decode(errors="ignore").rstrip()
-                    collector.append(txt)
-                    await session.send(SessionPhase.BEGIN_COMPILE, txt)
+        async def stream(pipe, collector):
+            while True:
+                line = await pipe.readline()
+                if not line:
+                    break
+                txt = line.decode(errors="ignore").rstrip()
+                collector.append(txt)
+                await session.send(SessionPhase.BEGIN_COMPILE, txt)
 
-            await asyncio.gather(
-                stream(session.process.stdout, stdout_lines),
-                stream(session.process.stderr, stderr_lines),
-            )
+        await asyncio.gather(
+            stream(session.process.stdout, stdout_lines),
+            stream(session.process.stderr, stderr_lines),
+        )
 
-            code = await session.process.wait()
-            session.process = None
+        code = await session.process.wait()
+        session.process = None
 
-            parsed = parse_platformio_result(
-                "\n".join(stdout_lines), "\n".join(stderr_lines)
-            )
+        parsed = parse_platformio_result(
+            "\n".join(stdout_lines), "\n".join(stderr_lines)
+        )
 
-            if code != 0 or not parsed["success"]:
-                await session.send(SessionPhase.ERROR, "Compilation failed", "error")
-                cleanup_build_folder(build_dir)
-                return parsed
+        if code != 0 or not parsed["success"]:
+            await session.send(SessionPhase.ERROR, "Compilation failed", "error")
+            return parsed
 
-            build_success = True
-            await session.send(SessionPhase.END_COMPILE, "Compilation successful")
+        build_success = True
+        await session.send(SessionPhase.END_COMPILE, "Compilation successful")
 
         # -----------------------------------------------------------
         # 4. UPLOAD (if build was successful and upload requested)
         # -----------------------------------------------------------
-        upload_success = False
-
         if upload and build_success:
             await session.send(SessionPhase.START_UPLOAD, "Starting upload...")
 
             actual_port = port or find_esp_serial_port()
             if not actual_port:
                 await session.send(SessionPhase.ERROR, "No ESP32 device found", "error")
-                cleanup_build_folder(build_dir)
                 return {"success": False}
 
             pio_cmd, pio_env = get_platformio_command(PIO_HOME)
+
             env = os.environ.copy()
+            if sys.platform == "win32":
+                env["PYTHONIOENCODING"] = "utf-8"
+                env["PYTHONUTF8"] = "1"
+                try:
+                    subprocess.run(["chcp", "65001"], shell=True, capture_output=True)
+                except:
+                    pass
+
             env.update(pio_env)
             env.update(cache_env)
             env["TMP"] = str(TEMP_ROOT)
@@ -1556,49 +1591,6 @@ async def compile_project(
                 "--disable-auto-clean",
                 f"--upload-port={actual_port}",
             ]
-
-            if framework == "espidf":
-                # use esp tool for upload.
-                mcu = get_mcu_by_board_name(board).lower()
-                ensure_esptool_deps_installed(python_exe)
-
-                # Map MCU → esptool chip id
-                if "s3" in mcu:
-                    chip = "esp32s3"
-                elif "c3" in mcu:
-                    chip = "esp32c3"
-                else:
-                    chip = "esp32"
-
-                # resolve binary paths
-                firmware_bin = build_dir / ".pio" / "build" / board / "firmware.bin"
-                bootloader_bin = build_dir / ".pio" / "build" / board / "bootloader.bin"
-                partitions_bin = build_dir / ".pio" / "build" / board / "partitions.bin"
-
-                # esptool path inside PlatformIO virtualenv
-                esptool_py = (
-                    Path(PIO_HOME) / "packages" / "tool-esptoolpy" / "esptool.py"
-                )
-
-                # build esptool command
-                cmd = [
-                    str(python_exe),
-                    str(esptool_py),
-                    "--chip",
-                    chip,
-                    "--port",
-                    actual_port,
-                    "--baud",
-                    "921600",
-                    "write_flash",
-                    "-z",
-                    "0x0",
-                    str(bootloader_bin),
-                    "0x8000",
-                    str(partitions_bin),
-                    "0x10000",
-                    str(firmware_bin),
-                ]
 
             session.process = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -1618,9 +1610,23 @@ async def compile_project(
                     line = await pipe.readline()
                     if not line:
                         break
-                    txt = line.decode(errors="ignore").rstrip()
+                    try:
+                        txt = line.decode("utf-8", errors="replace").rstrip()
+                    except:
+                        txt = line.decode("latin-1", errors="replace").rstrip()
+
+                    txt = "".join(char for char in txt if ord(char) < 65536)
                     out_lines.append(txt)
-                    await session.send(SessionPhase.START_UPLOAD, txt)
+
+                    if all(ord(char) < 128 for char in txt):
+                        await session.send(SessionPhase.START_UPLOAD, txt)
+                    elif (
+                        "error" in txt.lower()
+                        or "fail" in txt.lower()
+                        or "upload" in txt.lower()
+                    ):
+                        safe_txt = txt.encode("ascii", errors="replace").decode("ascii")
+                        await session.send(SessionPhase.START_UPLOAD, safe_txt)
 
             await asyncio.gather(
                 stream_u(session.process.stdout),
@@ -1630,25 +1636,49 @@ async def compile_project(
             code = await session.process.wait()
             session.process = None
 
-            if code == 0:
+            output_text = "\n".join(out_lines)
+            success_indicators = [
+                "Hash of data verified",
+                "Leaving...",
+                "Hard resetting via RTS pin",
+                "Successfully uploaded",
+                "flash complete",
+                "Hash of data verified",
+                "Leaving...",
+                "Hard resetting",
+            ]
+
+            failure_indicators = [
+                "error:",
+                "failed",
+                "timed out",
+                "connection failed",
+            ]
+
+            has_success = any(
+                indicator in output_text.lower() for indicator in success_indicators
+            )
+            has_failure = any(
+                indicator in output_text.lower() for indicator in failure_indicators
+            )
+
+            if code == 0 or has_success:
                 upload_success = True
                 await session.send(SessionPhase.END_UPLOAD, "Upload complete")
             else:
                 await session.send(SessionPhase.ERROR, "Upload failed", "error")
 
         # -----------------------------------------------------------
-        # 5. CLEANUP + DONE
+        # 5. DONE
         # -----------------------------------------------------------
-        cleanup_build_folder(build_dir)
-
-        await session.send(SessionPhase.ALL_DONE, "All done")
+        await session.send(SessionPhase.ALL_DONE, "Process completed successfully")
 
         return {
             "success": True,
             "upload_success": upload_success,
             "message": "Process completed successfully",
             "session_id": session.id,
-            "used_cache": not should_build if use_cache else False,
+            "build_folder": str(build_dir),
         }
 
     except Exception as e:
