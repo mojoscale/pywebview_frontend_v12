@@ -1504,7 +1504,32 @@ async def compile_project(
                 return {"success": False, "error": "ESP-DL copy failed"}
 
         # -----------------------------------------------------------
-        # 3. RUN PLATFORMIO BUILD - ALWAYS
+        # 3A: ESP-IDF CUSTOM PIPELINE (no PIO)
+        # -----------------------------------------------------------
+        if framework == "espidf":
+            from core.compiler_espidf import run_espidf_custom_pipeline
+
+            transpiler_metadata = {
+                "dependencies": dependencies,
+                "embed_files": embed_files,
+                "framework": framework,
+            }
+
+            result = await run_espidf_custom_pipeline(
+                session=session,
+                project_id=project_id,
+                build_dir=build_dir,
+                transpiled_files=files,
+                transpiler_metadata=transpiler_metadata,
+                board=board,
+                platform=platform,
+                upload_requested=upload,
+            )
+
+            return result  # STOP the main path — new module took over
+
+        # -----------------------------------------------------------
+        # 3. RUN PLATFORMIO BUILD
         # -----------------------------------------------------------
         await session.send(SessionPhase.BEGIN_COMPILE, "Starting compilation...")
 

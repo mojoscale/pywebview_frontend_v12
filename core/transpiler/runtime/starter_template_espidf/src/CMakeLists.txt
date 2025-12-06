@@ -1,7 +1,5 @@
 idf_component_register(
-    SRCS
-        "app_main.cpp"
-        "main.cpp"                  # <-- Your transpiled Arduino entrypoint
+    SRCS "arduino_code.cpp" "app_main.cpp"
     INCLUDE_DIRS "."
     REQUIRES arduino
 )
