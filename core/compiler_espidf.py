@@ -7,6 +7,7 @@ import subprocess
 import sys
 import shutil
 import os
+import json
 import re
 import shutil
 import zipfile
@@ -40,6 +41,124 @@ class SessionPhase(str, Enum):
 #############################################################################################################################
 
 
+import os
+import json
+import subprocess
+
+
+def idf_is_installed(env):
+    """
+    Check whether ESP-IDF is fully installed in the given environment.
+    """
+    # Basic folder checks
+    if not os.path.isdir(env["idf_path"]):
+        return False
+    if not os.path.isdir(env["idf_tools_path"]):
+        return False
+    if not os.path.isdir(env["python_env"]):
+        return False
+
+    # Check key files
+    if not os.path.isfile(env["export_script"]):
+        return False
+    if not os.path.isfile(env["idf_py"]):
+        return False
+
+    # Check python executable
+    python_exe = (
+        os.path.join(env["python_env"], "python.exe")
+        if os.name == "nt"
+        else os.path.join(env["python_env"], "bin", "python")
+    )
+    if not os.path.isfile(python_exe):
+        return False
+
+    return True
+
+
+def setup_idf_env(app_dir):
+    """
+    Prepare and return the ESP-IDF environment paths.
+    Installs ESP-IDF if not already present.
+    """
+    # Setup folder structure
+    idf_root = os.path.join(app_dir, ".mojoscale_idf")
+    os.makedirs(idf_root, exist_ok=True)
+
+    metadata_file = os.path.join(idf_root, "idf-env.json")
+
+    # Load existing installation if valid
+    if os.path.exists(metadata_file):
+        with open(metadata_file, "r") as f:
+            data = json.load(f)
+            data["idf_root"] = idf_root
+            data["metadata_file"] = metadata_file
+            if idf_is_installed(data):
+                return data
+
+    # Define paths
+    idf_path = os.path.join(idf_root, "esp-idf")
+    idf_tools_path = os.path.join(idf_root, "tools")
+    python_env = os.path.join(idf_root, "python_env")
+    export_script = os.path.join(
+        idf_path, "export.bat" if os.name == "nt" else "export.sh"
+    )
+    idf_py = os.path.join(idf_path, "tools", "idf.py")
+
+    data = {
+        "idf_root": idf_root,
+        "idf_path": idf_path,
+        "idf_tools_path": idf_tools_path,
+        "python_env": python_env,
+        "export_script": export_script,
+        "idf_py": idf_py,
+        "metadata_file": metadata_file,
+    }
+
+    # Install ESP-IDF if missing
+    if not idf_is_installed(data):
+        # Clone repository
+        if not os.path.exists(idf_path):
+            subprocess.run(
+                [
+                    "git",
+                    "clone",
+                    "--recursive",
+                    "https://github.com/espressif/esp-idf.git",
+                    idf_path,
+                ],
+                check=False,
+                capture_output=True,
+            )
+
+        # Run installation
+        env_vars = os.environ.copy()
+        env_vars["IDF_TOOLS_PATH"] = idf_tools_path
+
+        install_script = os.path.join(
+            idf_path, "install.bat" if os.name == "nt" else "install.sh"
+        )
+        if os.path.exists(install_script):
+            subprocess.run(
+                [install_script],
+                env=env_vars,
+                cwd=idf_path,
+                check=False,
+                capture_output=True,
+            )
+
+    # Save metadata
+    with open(metadata_file, "w") as f:
+        json.dump(data, f, indent=4)
+
+    return data
+
+
+import subprocess
+import shutil
+from pathlib import Path
+
+
 def create_espidf_project(path, project_id):
     """
     Create an ESP-IDF project with arduino-esp32 and esp-dl components.
@@ -61,45 +180,29 @@ def create_espidf_project(path, project_id):
         # Create projects directory if it doesn't exist
         projects_dir.mkdir(parents=True, exist_ok=True)
 
-        # Check if project already exists
-        if project_dir.exists() and project_dir.is_dir():
+        # Check if project directory exists
+        project_exists = project_dir.exists() and project_dir.is_dir()
+
+        if project_exists:
             print(f"Project '{project_id}' already exists at {project_dir}")
             print("Checking components...")
-
-            # Check for required components
-            components_dir = project_dir / "components"
-            arduino_esp32_dir = components_dir / "arduino-esp32"
-            esp_dl_dir = components_dir / "esp-dl"
-
-            components_status = {
-                "arduino-esp32": arduino_esp32_dir.exists()
-                and arduino_esp32_dir.is_dir(),
-                "esp-dl": esp_dl_dir.exists() and esp_dl_dir.is_dir(),
-            }
-
-            if all(components_status.values()):
-                print("All components are already installed.")
-                return {
-                    "success": True,
-                    "message": f"Project '{project_id}' already exists with all components",
-                    "project_path": str(project_dir),
-                    "components_installed": components_status,
-                }
-            else:
-                print("Some components are missing. Installing missing components...")
-                # Continue to installation
         else:
             print(f"Creating new ESP-IDF project: {project_id}")
             project_dir.mkdir(parents=True, exist_ok=True)
             create_project_structure(project_dir)
 
-        # Install components
-        print("Installing components...")
+        # Always install/check components
         install_components(project_dir)
+
+        # Always try to install IDF tools (if this function exists)
+        try:
+            install_idf_tools(project_dir)
+        except NameError:
+            print("Note: install_idf_tools function not found, skipping...")
 
         return {
             "success": True,
-            "message": f"Project '{project_id}' created successfully",
+            "message": f"Project '{project_id}' created/verified successfully",
             "project_path": str(project_dir),
         }
 
@@ -113,65 +216,18 @@ def create_espidf_project(path, project_id):
 
 def create_project_structure(project_dir):
     """Create basic ESP-IDF project structure"""
+    print(f"Creating project structure in {project_dir}")
 
-    # Create main directory with main.cpp
-    main_dir = project_dir / "main"
-    main_dir.mkdir(exist_ok=True)
+    # Create main directories
+    (project_dir / "main").mkdir(exist_ok=True)
+    (project_dir / "components").mkdir(exist_ok=True)
 
-    # Create main.cpp with basic template
-    main_cpp_content = """
-
-#include "Arduino.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-void setup();
-void loop();
-
-void arduinoTask(void *pvParameters) {
-    setup();
-    while(1) {
-        loop();
-        taskYIELD(); // Yield to other tasks
-    }
-}
-
-extern "C" void app_main()
-{
-    initArduino();
-    
-    // Create task for Arduino code
-    xTaskCreatePinnedToCore(
-        arduinoTask,    // Task function
-        "ArduinoTask",  // Task name
-        8192,           // Stack size
-        NULL,           // Parameters
-        1,              // Priority
-        NULL,           // Task handle
-        0               // Core (0 or 1)
-    );
-    
-    // Your ESP-IDF code can continue here
-    while(true) {
-        // ESP-IDF specific code
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-}
-
-
-"""
-
-    (main_dir / "main.cpp").write_text(main_cpp_content)
-
-    # Create CMakeLists.txt for main
-    main_cmake_content = """idf_component_register(SRCS "main.cpp" "arduino_code.cpp"
-                    INCLUDE_DIRS ".")
-"""
-    (main_dir / "CMakeLists.txt").write_text(main_cmake_content)
-
-    # Create project root CMakeLists.txt
-    root_cmake_content = (
-        """cmake_minimum_required(VERSION 3.16)
+    # Create main CMakeLists.txt
+    main_cmake = project_dir / "CMakeLists.txt"
+    if not main_cmake.exists():
+        main_cmake.write_text(
+            f"""
+cmake_minimum_required(VERSION 3.16)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 set(EXTRA_COMPONENT_DIRS
@@ -179,19 +235,109 @@ set(EXTRA_COMPONENT_DIRS
     "${CMAKE_SOURCE_DIR}/components_auto"
     ${MANAGED_COMPS}
 )
-project(%s)
+project({project_id})
 """
-        % project_dir.name
-    )
+        )
 
-    (project_dir / "CMakeLists.txt").write_text(root_cmake_content)
+    # Create main CMakeLists.txt
+    main_dir_cmake = project_dir / "main" / "CMakeLists.txt"
+    if not main_dir_cmake.exists():
+        main_dir_cmake.write_text(
+            """
+#
+# AUTO-DISCOVER AND REQUIRE *ALL* COMPONENTS
+#
 
-    # Create components directory
-    components_dir = project_dir / "components"
-    components_dir.mkdir(exist_ok=True)
+# FOLDERS YOU WANT TO INCLUDE
+set(COMP_DIRS
+    "${CMAKE_SOURCE_DIR}/components"
+    "${CMAKE_SOURCE_DIR}/components_auto"
+    "${CMAKE_SOURCE_DIR}/managed_components"
+)
 
-    # Create sdkconfig.defaults with common settings
-    sdkconfig_content = """# Enable Arduino as a component
+set(ALL_COMPONENT_NAMES "")
+
+foreach(dir ${COMP_DIRS})
+    if(EXISTS "${dir}")
+        file(GLOB children "${dir}/*")
+
+        foreach(path ${children})
+            if(IS_DIRECTORY "${path}")
+                get_filename_component(comp "${path}" NAME)
+                list(APPEND ALL_COMPONENT_NAMES "${comp}")
+            endif()
+        endforeach()
+    endif()
+endforeach()
+
+# Remove the "main" component from the list (cannot depend on itself)
+list(REMOVE_ITEM ALL_COMPONENT_NAMES "main")
+
+
+
+idf_component_register(SRCS "main.cpp" "arduino_code.cpp"
+                    INCLUDE_DIRS "."
+                    REQUIRES ${ALL_COMPONENT_NAMES})
+
+"""
+        )
+
+    # Create main.cpp
+    main_cpp = project_dir / "main" / "main.cpp"
+    if not main_cpp.exists():
+        main_cpp.write_text(
+            """
+#include "Arduino.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_task_wdt.h"
+
+void setup();
+void loop();
+
+void arduinoTask(void *pvParameters) {
+    // WDT is already initialized by the system
+    // Just add this task to the WDT if you want supervision
+    esp_task_wdt_add(NULL);
+    
+    setup();
+
+    for (;;) {
+        loop();
+        vTaskDelay(1); // Yield
+        
+        // Reset WDT now that task is registered
+        esp_task_wdt_reset();
+    }
+}
+
+extern "C" void app_main()
+{
+    initArduino();
+
+    xTaskCreatePinnedToCore(
+        arduinoTask,
+        "ArduinoTask",
+        32768,  // 32KB stack for WiFi
+        NULL,
+        1,
+        NULL,
+        0
+    );
+
+    while (true) {
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+"""
+        )
+
+    # Create sdkconfig.defaults
+    sdkconfig_defaults = project_dir / "sdkconfig.defaults"
+    if not sdkconfig_defaults.exists():
+        sdkconfig_defaults.write_text(
+            """
+# Enable Arduino as a component
 CONFIG_ARDUINO_ENABLED=y
 
 # Enable C++ exceptions
@@ -208,61 +354,167 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=3584
 CONFIG_SPIRAM_SUPPORT=y
 CONFIG_SPIRAM_USE_CAPS_ALLOC=y
 CONFIG_FREERTOS_HZ=1000
+
 """
+        )
 
-    (project_dir / "sdkconfig.defaults").write_text(sdkconfig_content)
+    print("✓ Project structure created")
 
-    print(f"Created basic project structure at {project_dir}")
+
+import subprocess
+import shutil
+from pathlib import Path
 
 
 def install_components(project_dir):
     """Install arduino-esp32 and esp-dl components"""
 
     components_dir = project_dir / "components"
+    components_dir.mkdir(exist_ok=True)  # Ensure components directory exists
 
-    # Clone arduino-esp32 component
+    print(f"Installing components to: {components_dir}")
+
+    # Install arduino-esp32 component (clone directly as-is)
     arduino_url = "https://github.com/espressif/arduino-esp32.git"
     arduino_dir = components_dir / "arduino-esp32"
 
-    if not arduino_dir.exists():
-        print("Cloning arduino-esp32...")
-        subprocess.run(
-            ["git", "clone", "--recursive", arduino_url, str(arduino_dir)],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        print("✓ arduino-esp32 installed")
-    else:
+    if arduino_dir.exists():
         print("✓ arduino-esp32 already exists")
+    else:
+        print("Cloning arduino-esp32...")
+        try:
+            subprocess.run(
+                ["git", "clone", "--recursive", arduino_url, str(arduino_dir)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            print("✓ arduino-esp32 installed successfully")
+        except subprocess.CalledProcessError as e:
+            print(f"✗ Failed to clone arduino-esp32: {e}")
+            if e.stderr:
+                print(f"Error details: {e.stderr}")
+            raise
 
-    # Clone esp-dl component
+    # Install esp-dl component - extract inner esp-dl folder from repo
     esp_dl_url = "https://github.com/espressif/esp-dl.git"
-    esp_dl_dir = components_dir / "esp-dl"
+    esp_dl_target_dir = (
+        components_dir / "esp-dl"
+    )  # This will contain the inner esp-dl folder contents
 
-    if not esp_dl_dir.exists():
-        print("Cloning esp-dl...")
+    # Check if esp-dl already exists with correct structure
+    # We want: components/esp-dl/ (with inner folder contents)
+    if esp_dl_target_dir.exists() and any(esp_dl_target_dir.iterdir()):
+        # Check if it has component.mk or CMakeLists.txt to verify it's valid
+        has_valid_files = any(
+            esp_dl_target_dir.glob("CMakeLists.txt")
+            or esp_dl_target_dir.glob("component.mk")
+            or esp_dl_target_dir.glob("include/")
+        )
+        if has_valid_files:
+            print("✓ esp-dl already exists with correct structure")
+            return
+        else:
+            print("⚠ esp-dl exists but appears empty/corrupt, reinstalling...")
+            shutil.rmtree(esp_dl_target_dir)
+
+    print("Installing esp-dl with correct structure...")
+
+    # Create temp directory for cloning
+    temp_dir = project_dir / "temp_esp_dl"
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir)
+
+    try:
+        print(f"Cloning esp-dl repository...")
         subprocess.run(
-            ["git", "clone", "--recursive", esp_dl_url, str(esp_dl_dir)],
+            ["git", "clone", "--depth", "1", esp_dl_url, str(temp_dir)],
             check=True,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
         )
-        print("✓ esp-dl installed")
-    else:
-        print("✓ esp-dl already exists")
 
-    # Create component CMakeLists.txt if needed
-    for component in ["arduino-esp32", "esp-dl"]:
-        component_dir = components_dir / component
-        cmake_file = component_dir / "CMakeLists.txt"
+        # Create the target directory
+        esp_dl_target_dir.mkdir(parents=True, exist_ok=True)
 
+        # Look for the inner esp-dl folder in the cloned repo
+        # The structure in the repo is: esp-dl/esp-dl/
+        source_inner_esp_dl = temp_dir / "esp-dl"
+
+        if source_inner_esp_dl.exists() and source_inner_esp_dl.is_dir():
+            print("Found esp-dl folder in repository...")
+
+            # Check if there's another esp-dl folder inside (nested structure)
+            nested_inner = source_inner_esp_dl / "esp-dl"
+            if nested_inner.exists() and nested_inner.is_dir():
+                # Use the deeply nested folder contents
+                print(f"Copying contents from deeply nested esp-dl folder...")
+                # Copy all contents from the nested folder
+                for item in nested_inner.iterdir():
+                    if item.name != ".git":
+                        dest = esp_dl_target_dir / item.name
+                        if item.is_dir():
+                            shutil.copytree(item, dest, dirs_exist_ok=True)
+                        else:
+                            shutil.copy2(item, dest)
+            else:
+                # Use the folder directly (copy all contents)
+                print(f"Copying contents from esp-dl folder...")
+                for item in source_inner_esp_dl.iterdir():
+                    if item.name != ".git":
+                        dest = esp_dl_target_dir / item.name
+                        if item.is_dir():
+                            shutil.copytree(item, dest, dirs_exist_ok=True)
+                        else:
+                            shutil.copy2(item, dest)
+        else:
+            # If the expected structure isn't found, copy everything from root
+            print(
+                "Expected folder structure not found, copying all repository contents..."
+            )
+            for item in temp_dir.iterdir():
+                if item.name != ".git":
+                    dest = esp_dl_target_dir / item.name
+                    if item.is_dir():
+                        shutil.copytree(item, dest, dirs_exist_ok=True)
+                    else:
+                        shutil.copy2(item, dest)
+
+        # Create/update CMakeLists.txt if needed
+        cmake_file = esp_dl_target_dir / "CMakeLists.txt"
         if not cmake_file.exists():
-            # Create a simple CMakeLists.txt to register the component
-            cmake_content = """# Register component
+            cmake_file.write_text(
+                """# ESP-DL component
 idf_component_register()
 """
-            cmake_file.write_text(cmake_content)
+            )
+
+        print(
+            "✓ esp-dl installed with correct structure (contents directly in components/esp-dl/)"
+        )
+
+    except Exception as e:
+        print(f"✗ Failed to install esp-dl: {e}")
+        # Clean up on error
+        if esp_dl_target_dir.exists():
+            shutil.rmtree(esp_dl_target_dir)
+        raise
+    finally:
+        # Clean up temp directory
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
+
+    print("✓ All components installed successfully")
+
+
+# If you have an install_idf_tools function, include it here
+def install_idf_tools(project_dir):
+    """Placeholder for IDF tools installation if needed"""
+    print("Note: IDF tools installation would happen here")
+    # Your existing install_idf_tools implementation would go here
+    pass
 
 
 ##############################################################################################################################
@@ -303,7 +555,7 @@ def merge_arduino_includes_into_idf(build_dir: Path, STARTER_TEMPLATE_ARDUINO: P
 idf_component_register(
     SRCS "dummy.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES arduino-esp32
+    REQUIRES arduino-esp32 ArduinoJson
 )
 """.strip()
     )
@@ -394,7 +646,7 @@ def convert_arduino_libs_to_idf_components(
 idf_component_register(
     SRCS {" ".join(f'"{s}"' for s in sources)}
     INCLUDE_DIRS {include_dirs}
-    REQUIRES arduino-esp32
+    REQUIRES arduino-esp32 esp-dl
 )
 """
         )
@@ -491,214 +743,77 @@ def download_and_extract_zip(url: str, dest: Path) -> Path:
         raise
 
 
-def install_dependencies(
-    dependencies: list[str], build_dir: Path, already_installed=None, depth=0
-):
-    """Install dependencies with nested dependency resolution."""
+def install_dependencies(dependencies: list[str], build_dir: Path):
+    """Install dependencies - SIMPLE VERSION"""
     import json
-    import re
 
     components_auto = build_dir / "components_auto"
     components_auto.mkdir(exist_ok=True)
 
-    # Track installed dependencies to avoid cycles
-    if already_installed is None:
-        already_installed = set()
-
-    indent = "   " * depth
-
-    # Process each dependency
     for dep in dependencies:
-        print(f"{indent}📦 Processing: {dep}")
+        print(f"📦 Processing: {dep}")
 
-        # Parse dependency spec
+        # 1. Download the thing
         if dep.startswith("http"):
+            # GitHub URL
             if "github.com" in dep:
                 repo_name = dep.rstrip("/").split("/")[-1].replace(".git", "")
                 lib_name = repo_name
                 author = dep.rstrip("/").split("/")[-2]
-                version = None
+
+                # Try main then master
+                for branch in ["main", "master"]:
+                    try:
+                        clean_url = dep.replace(".git", "").rstrip("/")
+                        url = f"{clean_url}/archive/refs/heads/{branch}.zip"
+                        root = download_and_extract_zip(url, components_auto / lib_name)
+                        if root:
+                            print(f"   ✓ Downloaded from GitHub ({branch})")
+                            break
+                    except:
+                        continue
             else:
-                raise ValueError(f"Unsupported URL format: {dep}")
+                raise ValueError(f"Unsupported URL: {dep}")
         else:
-            # Parse PlatformIO format: author/library@version or author/library
+            # PlatformIO format: author/library@version
             parts = dep.split("@")
             author_lib = parts[0]
             author, lib_name = author_lib.split("/")
             version = parts[1] if len(parts) > 1 else None
 
-        # Create unique key for tracking
-        dep_key = f"{author}/{lib_name}"
-        if version:
-            dep_key += f"@{version}"
-
-        # Skip if already installed at this exact version
-        if dep_key in already_installed:
-            print(f"{indent}   ⏭️ Already installed: {lib_name}")
-            continue
-
-        already_installed.add(dep_key)
-        target_dir = components_auto / lib_name
-
-        # Clean existing if different version
-        if target_dir.exists():
-            shutil.rmtree(target_dir)
-        target_dir.mkdir(parents=True, exist_ok=True)
-
-        # Download and extract
-        root = None
-        if dep.startswith("http"):
-            # GitHub URL
-            for branch in ["main", "master"]:
-                try:
-                    clean_url = dep.replace(".git", "").rstrip("/")
-                    if "github.com" not in clean_url:
-                        clean_url = f"https://github.com/{author}/{lib_name}"
-                    url = f"{clean_url}/archive/refs/heads/{branch}.zip"
-                    root = download_and_extract_zip(url, target_dir)
-                    break
-                except Exception as e:
-                    print(f"{indent}   ⚠️ Branch {branch} failed: {e}")
-                    continue
-            if root is None:
-                raise RuntimeError(f"Failed downloading: {dep}")
-        else:
-            # PlatformIO library
+            # Try PlatformIO registry
             try:
                 pio_url = f"https://api.registry.platformio.org/v3/lib/download/{author}/{lib_name}"
                 if version:
                     pio_url += f"?version={version}"
-                root = download_and_extract_zip(pio_url, target_dir)
-            except Exception as e:
-                print(f"{indent}   ⚠️ PlatformIO failed ({e}), using GitHub...")
+                root = download_and_extract_zip(pio_url, components_auto / lib_name)
+                print(f"   ✓ Downloaded from PlatformIO")
+            except:
+                # Fallback to GitHub
                 for branch in ["main", "master"]:
                     try:
                         url = f"https://github.com/{author}/{lib_name}/archive/refs/heads/{branch}.zip"
-                        root = download_and_extract_zip(url, target_dir)
-                        break
-                    except Exception as e2:
-                        print(f"{indent}   ⚠️ GitHub branch {branch} failed: {e2}")
+                        root = download_and_extract_zip(url, components_auto / lib_name)
+                        if root:
+                            print(f"   ✓ Downloaded from GitHub ({branch})")
+                            break
+                    except:
                         continue
-                if root is None:
-                    raise RuntimeError(f"Download failed for {dep}")
 
-        # -------- CHECK FOR NESTED DEPENDENCIES --------
-        nested_deps = []
+        if not root:
+            print(f"   ❌ Failed to download: {dep}")
+            continue
 
-        # Check for PlatformIO library.json
-        lib_json = root / "library.json"
-        if lib_json.exists():
-            try:
-                with open(lib_json, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-                # Extract dependencies from library.json
-                if "dependencies" in data:
-                    for dep_info in data["dependencies"]:
-                        if isinstance(dep_info, dict):
-                            dep_name = dep_info.get("name", "")
-                            dep_version = dep_info.get("version", "")
-                            # Convert to our format: author/library
-                            # PlatformIO sometimes uses just library name, sometimes author/library
-                            if "/" in dep_name:
-                                nested_deps.append(
-                                    dep_name
-                                    + (f"@{dep_version}" if dep_version else "")
-                                )
-                            else:
-                                # Try to guess author - for common Arduino libs
-                                nested_deps.append(
-                                    f"bblanchon/{dep_name}"
-                                    + (f"@{dep_version}" if dep_version else "")
-                                )
-            except Exception as e:
-                print(f"{indent}   ⚠️ Failed to parse library.json: {e}")
-
-        # Check for Arduino library.properties
-        lib_props = root / "library.properties"
-        if lib_props.exists():
-            try:
-                with open(lib_props, "r", encoding="utf-8") as f:
-                    content = f.read()
-                    # Parse depends line
-                    for line in content.split("\n"):
-                        if line.startswith("depends="):
-                            deps_str = line.split("=", 1)[1].strip()
-                            if deps_str:
-                                for dep_name in deps_str.split(","):
-                                    dep_name = dep_name.strip()
-                                    if dep_name:
-                                        # Arduino libraries usually don't have authors in depends
-                                        nested_deps.append(f"bblanchon/{dep_name}")
-            except Exception as e:
-                print(f"{indent}   ⚠️ Failed to parse library.properties: {e}")
-
-        # -------- HANDLE CMAKELISTS.TXT --------
+        # 2. Check for CMakeLists.txt - if not exists, create simple one
         cmake_file = root / "CMakeLists.txt"
+        if not cmake_file.exists():
+            print(f"   📄 Creating minimal CMakeLists.txt")
 
-        if cmake_file.exists():
-            print(f"{indent}   📄 Using library's existing CMakeLists.txt")
-
-            # Add COMPONENT_NAME if missing
-            content = cmake_file.read_text()
-            if "idf_component_register" in content and "COMPONENT_NAME" not in content:
-                new_content = re.sub(
-                    r"(idf_component_register\s*\()",
-                    r"\1\n    COMPONENT_NAME " + lib_name,
-                    content,
-                )
-                cmake_file.write_text(new_content)
-                print(f"{indent}   🔧 Added COMPONENT_NAME {lib_name}")
-        else:
-            print(f"{indent}   📄 Generating minimal CMakeLists.txt")
-
-            # Collect source files
-            sources = []
-            include_dirs = set()
-
-            # Look for source files
-            for pattern in [
-                "src/*.cpp",
-                "src/*.c",
-                "*.cpp",
-                "*.c",
-                "src/**/*.cpp",
-                "src/**/*.c",
-            ]:
-                for f in root.glob(pattern):
-                    if (
-                        f.is_file()
-                        and "test" not in str(f).lower()
-                        and "example" not in str(f).lower()
-                    ):
-                        rel_path = f.relative_to(root)
-                        sources.append(str(rel_path).replace("\\", "/"))
-
-            # Find include directories
-            for pattern in ["**/*.h", "**/*.hpp"]:
-                for f in root.glob(pattern):
-                    if f.is_file():
-                        rel_dir = f.parent.relative_to(root)
-                        if str(rel_dir) != ".":
-                            include_dirs.add(str(rel_dir).replace("\\", "/"))
-
-            # Add common include dirs
-            if (root / "src").exists():
-                include_dirs.add("src")
-            if (root / "include").exists():
-                include_dirs.add("include")
-
-            include_dirs_str = " ".join(f'"{d}"' for d in sorted(include_dirs)) or "."
-
-            # Generate CMakeLists.txt
+            # Simple CMakeLists.txt
             cmake_content = f"""idf_component_register(
     COMPONENT_NAME {lib_name}
+    INCLUDE_DIRS "."
 """
-
-            if sources:
-                cmake_content += f'    SRCS {" ".join(f"{s}" for s in sources[:50])}\n'
-
-            cmake_content += f"    INCLUDE_DIRS {include_dirs_str}\n"
 
             # Add arduino requirement for Arduino libraries
             is_arduino_lib = (
@@ -710,28 +825,309 @@ def install_dependencies(
             if is_arduino_lib:
                 cmake_content += "    REQUIRES arduino\n"
 
+            # Add esp-dl requirement for esp-dl library
+            if "esp-dl" in lib_name.lower():
+                cmake_content += "    REQUIRES esp-dl\n"
+
             cmake_content += ")"
+
             cmake_file.write_text(cmake_content)
+        else:
+            print(f"   📄 Using existing CMakeLists.txt")
 
-        print(f"{indent}   ✔ Installed: {lib_name}")
+        print(f"   ✔ Installed: {lib_name}")
 
-        # -------- RECURSIVELY INSTALL NESTED DEPENDENCIES --------
-        if nested_deps:
-            print(f"{indent}   🔍 Found {len(nested_deps)} nested dependencies:")
-            for nested_dep in nested_deps:
-                print(f"{indent}     - {nested_dep}")
+    print(f"\n✅ All dependencies installed to: {components_auto}")
 
-            # Recursive call
-            install_dependencies(
-                nested_deps,
-                build_dir,
-                already_installed=already_installed,
-                depth=depth + 1,
+
+# ============================================================================
+# WRITE TRANSPILER OUTPUT
+# ============================================================================
+def write_transpiled_code(files: dict, build_dir: Path):
+    src_dir = build_dir / "main"
+    include_dir = build_dir / "components" / "mojoscale_arduino" / "include"
+
+    src_dir.mkdir(parents=True, exist_ok=True)
+    include_dir.mkdir(parents=True, exist_ok=True)
+
+    for name, code in files.items():
+        if name == "main.py":
+            out = src_dir / "arduino_code.cpp"
+        else:
+            out = include_dir / name.replace(".py", ".h")
+        out.write_text(code, encoding="utf-8")
+        print(f"✍️ Wrote {out}")
+
+
+################################################################################################################################
+
+
+import asyncio
+import os
+from pathlib import Path
+
+
+import asyncio
+import os
+from pathlib import Path
+
+
+async def compile_espidf_project(
+    build_path: Path, idf_env: dict, target: str = "esp32"
+):
+    """
+    Strict ESP-IDF compiler that:
+    1. Verifies python environment
+    2. If missing, runs ESP-IDF installer automatically
+    3. Compiles the project using bundled idf.py
+    """
+
+    # ---------------------------
+    # Validate project folder
+    # ---------------------------
+    if not build_path.exists():
+        return {
+            "success": False,
+            "error": f"Project folder does not exist: {build_path}",
+        }
+
+    # Resolve required paths
+    idf_path = idf_env["idf_path"]
+    python_env = idf_env["python_env"]
+    idf_py = idf_env["idf_py"]
+
+    # Determine python executable path
+    if os.name == "nt":
+        python_exe = os.path.join(python_env, "python.exe")
+        install_script = os.path.join(idf_path, "install.bat")
+    else:
+        python_exe = os.path.join(python_env, "bin", "python")
+        install_script = os.path.join(idf_path, "install.sh")
+
+    # ---------------------------
+    # Step 1: Ensure python environment exists
+    # ---------------------------
+    if not os.path.isfile(python_exe):
+        # Run ESP-IDF installer automatically
+        if not os.path.isfile(install_script):
+            return {
+                "success": False,
+                "error": f"ESP-IDF install script not found: {install_script}",
+            }
+
+        try:
+            # Run install.bat or install.sh in blocking mode
+            proc = await asyncio.create_subprocess_exec(
+                install_script,
+                cwd=idf_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
+            out, err = await proc.communicate()
+            out, err = out.decode(), err.decode()
 
-    if depth == 0:
-        print(f"\n✅ All dependencies installed successfully!")
-        print(f"📁 Location: {components_auto.relative_to(build_dir)}")
+            if proc.returncode != 0:
+                return {
+                    "success": False,
+                    "error": (
+                        "ESP-IDF install script failed.\n"
+                        f"Script: {install_script}\n"
+                        f"Return code: {proc.returncode}\n"
+                        f"Output:\n{err or out}"
+                    ),
+                }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to run ESP-IDF installer: {str(e)}",
+            }
+
+        # Re-check python environment after install
+        if not os.path.isfile(python_exe):
+            return {
+                "success": False,
+                "error": (
+                    "ESP-IDF python environment still missing after installer run.\n"
+                    f"Expected python at: {python_exe}"
+                ),
+            }
+
+    # ---------------------------
+    # Step 2: Ensure idf.py exists
+    # ---------------------------
+    if not os.path.isfile(idf_py):
+        return {
+            "success": False,
+            "error": f"idf.py not found at expected location: {idf_py}",
+        }
+
+    # ---------------------------
+    # Step 3: Prepare environment variables
+    # ---------------------------
+    env = os.environ.copy()
+    env["IDF_PATH"] = idf_path
+    env["IDF_TOOLS_PATH"] = idf_env["idf_tools_path"]
+    env["IDF_TARGET"] = target
+
+    # ---------------------------
+    # Step 4: Build command
+    # ---------------------------
+    cmd = [python_exe, idf_py, "build"]
+
+    # ---------------------------
+    # Step 5: Run compilation
+    # ---------------------------
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=str(build_path),
+            env=env,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        stdout, stderr = await process.communicate()
+        stdout = stdout.decode(errors="replace") if stdout else ""
+        stderr = stderr.decode(errors="replace") if stderr else ""
+
+        if process.returncode != 0:
+            return {
+                "success": False,
+                "error": stderr.strip() or "Unknown ESP-IDF compile error",
+                "stdout": stdout,
+                "stderr": stderr,
+                "returncode": process.returncode,
+                "cmd": " ".join(cmd),
+            }
+
+        return {
+            "success": True,
+            "stdout": stdout,
+            "stderr": stderr,
+            "build_path": str(build_path),
+            "returncode": 0,
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Compilation process failed: {str(e)}",
+            "stdout": "",
+            "stderr": "",
+            "returncode": -1,
+        }
+
+
+async def compile_and_upload_espidf_project(
+    build_path: Path,
+    idf_env: dict,
+    port: str,
+    target: str = "esp32",
+    baud: int = 460800,
+):
+    """
+    Compile, then upload firmware using private ESP-IDF env.
+    """
+
+    # Step 1: Compile
+    result = await compile_espidf_project(build_path, idf_env, target)
+    if not result["success"]:
+        return {
+            "success": False,
+            "compile_success": False,
+            "upload_success": False,
+            "error": result["error"],
+        }
+
+    # Resolve paths
+    if os.name == "nt":
+        python_exe = os.path.join(idf_env["python_env"], "python.exe")
+    else:
+        python_exe = os.path.join(idf_env["python_env"], "bin", "python")
+
+    idf_py = idf_env["idf_py"]
+
+    # Prepare env
+    env = os.environ.copy()
+    env["IDF_PATH"] = idf_env["idf_path"]
+    env["IDF_TOOLS_PATH"] = idf_env["idf_tools_path"]
+    env["IDF_TARGET"] = target
+
+    # Upload command
+    cmd = [python_exe, idf_py, "-p", port, "-b", str(baud), "flash"]
+
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        cwd=str(build_path),
+        env=env,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    stdout, stderr = await process.communicate()
+    stdout, stderr = stdout.decode(), stderr.decode()
+
+    if process.returncode != 0:
+        return {
+            "success": False,
+            "compile_success": True,
+            "upload_success": False,
+            "error": stderr.strip() or "Upload failed",
+            "stdout": stdout,
+            "stderr": stderr,
+        }
+
+    return {
+        "success": True,
+        "compile_success": True,
+        "upload_success": True,
+        "stdout": stdout,
+        "stderr": stderr,
+        "port": port,
+    }
+
+
+def find_firmware_binary(build_path: Path, target: str) -> str:
+    """
+    Find the compiled firmware binary
+
+    Args:
+        build_path: Path to the ESP-IDF project directory
+        target: ESP-IDF target
+    """
+    # Common binary locations in ESP-IDF build directories
+    possible_paths = [
+        build_path / "build" / f"{target}.bin",
+        build_path / "build" / f"{target}.bootloader.bin",
+        build_path / "build" / "firmware.bin",
+        build_path / "build" / f"app-template-{target}.bin",
+    ]
+
+    for path in possible_paths:
+        if path.exists():
+            return str(path)
+
+    # Fallback: look for any .bin file in build directory
+    build_dir = build_path / "build"
+    if build_dir.exists():
+        bin_files = list(build_dir.glob("*.bin"))
+        if bin_files:
+            return str(bin_files[0])
+
+    return None
+
+
+# ============================================================================
+# UPLOAD PORT DETECTION
+# ============================================================================
+def find_esp_serial_port():
+    ports = list(serial.tools.list_ports.comports())
+    for p in ports:
+        desc = (p.description or "").lower()
+        if any(x in desc for x in ["esp", "ch340", "cp210"]):
+            return p.device
+    return ports[0].device if ports else None
 
 
 ##############################################################################################################################
@@ -765,6 +1161,10 @@ async def run_espidf_custom_pipeline(
 
     app_dir = get_app_dir()
 
+    # check if idf exists
+
+    idf_env = setup_idf_env(app_dir)
+
     build_path = Path(f"{app_dir}/espidf_projects/{project_id}")
 
     create_espidf_project(app_dir, project_id)
@@ -776,25 +1176,67 @@ async def run_espidf_custom_pipeline(
     dependencies.append("adafruit/Adafruit_BusIO")
     install_dependencies(dependencies, build_path)
 
+    write_transpiled_code(transpiled_files, build_path)
+
     # --------------------------------------------------------------------
-    # TODO: Insert your future ESP-IDF custom build system here.
-    #       Examples: calling idf.py, or direct Ninja build, or esptool.
+    # ESP-IDF build system integration
     # --------------------------------------------------------------------
 
-    # Placeholder message for later extension
-    await session.send(
-        SessionPhase.BEGIN_COMPILE, "ESP-IDF custom pipeline placeholder executing..."
-    )
+    # Determine chip type from board (you might want to add mapping logic)
+    # chip = "esp32"  # Default, adjust based on board parameter
+    chip = get_mcu_by_board_name(board)
 
-    # Pretend build/upload succeeded
-    upload_success = upload_requested  # simply echo for now
+    if upload_requested:
+        # Get port from metadata or environment
+        port = find_esp_serial_port()
 
-    # Finish
-    await session.send(SessionPhase.ALL_DONE, "ESP-IDF custom pipeline finished")
+        # Compile and upload
+        result = await compile_and_upload_espidf_project(
+            build_path,
+            idf_env,
+            port,
+            target=chip,  # Can be different from chip in some cases
+            baud_rate=921600,
+        )
+
+        upload_success = result.get("upload_success", False)
+
+        if result["success"]:
+            await session.send(
+                SessionPhase.ALL_DONE,
+                f"ESP-IDF pipeline completed: Compiled and uploaded to {port}",
+            )
+        else:
+            await session.send(
+                SessionPhase.BEGIN_COMPILE, f"ESP-IDF pipeline completed with errors"
+            )
+    else:
+        # Just compile
+        result = await compile_espidf_project(build_path, idf_env, target=chip)
+
+        upload_success = False
+
+        if result["success"]:
+            await session.send(
+                SessionPhase.ALL_DONE,
+                "ESP-IDF pipeline completed: Compiled successfully",
+            )
+        else:
+            err = result.get("error", "Compilation failed")
+
+            msg = result
+
+            # stderr_lines = result.get("stderr", "").strip().split("\n")
+            # last_lines = "\n".join(stderr_lines[-20:]) if stderr_lines else err
+
+            # msg += last_lines
+
+            await session.send(SessionPhase.BEGIN_COMPILE, msg)
 
     return {
-        "success": True,
+        "success": result.get("success", True),
         "upload_success": upload_success,
         "session_id": session.id,
         "build_dir": str(build_dir),
+        "details": result,  # Include detailed results from compile/upload
     }
