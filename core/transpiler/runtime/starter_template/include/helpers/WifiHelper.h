@@ -88,8 +88,9 @@ String custom_wifi_helper_local_ip_to_string() {
  */
 inline void wifi_begin_helper(const String& ssid, const String& password) {
     // Copy into local stable Strings to extend lifetime during call
-    String ssid_copy = ssid;
-    String pass_copy = password;
+    //String ssid_copy = ssid;
+    //String pass_copy = password;
 
-    WiFi.begin(ssid_copy.c_str(), pass_copy.c_str());
+    //WiFi.begin(ssid_copy.c_str(), pass_copy.c_str());
+    WiFi.begin(ssid.c_str(), password.c_str(), 11);
 }

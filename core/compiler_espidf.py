@@ -288,45 +288,22 @@ idf_component_register(SRCS "main.cpp" "arduino_code.cpp"
         main_cpp.write_text(
             """
 #include "Arduino.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_task_wdt.h"
 
-void setup();
-void loop();
+// Forward declarations if they're in another file
+extern void setup();
+extern void loop();
 
-void arduinoTask(void *pvParameters) {
-    // WDT is already initialized by the system
-    // Just add this task to the WDT if you want supervision
-    esp_task_wdt_add(NULL);
-    
-    setup();
-
-    for (;;) {
-        loop();
-        vTaskDelay(1); // Yield
-        
-        // Reset WDT now that task is registered
-        esp_task_wdt_reset();
-    }
-}
-
-extern "C" void app_main()
-{
+extern "C" void app_main() {
     initArduino();
-
-    xTaskCreatePinnedToCore(
-        arduinoTask,
-        "ArduinoTask",
-        32768,  // 32KB stack for WiFi
-        NULL,
-        1,
-        NULL,
-        0
-    );
-
+    
+    // Call Arduino setup()
+    setup();
+    
+    // Call Arduino loop() forever
     while (true) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        loop();
+        // Optional: Add small delay or yield
+        delay(1);  // or vTaskDelay(1 / portTICK_PERIOD_MS)
     }
 }
 """
@@ -564,7 +541,7 @@ def merge_arduino_includes_into_idf(build_dir: Path, STARTER_TEMPLATE_ARDUINO: P
 idf_component_register(
     SRCS "dummy.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES arduino-esp32 ArduinoJson
+    REQUIRES arduino-esp32 ArduinoJson esp-dl
 )
 """.strip()
     )
@@ -832,7 +809,7 @@ def install_dependencies(dependencies: list[str], build_dir: Path):
             )
 
             if is_arduino_lib:
-                cmake_content += "    REQUIRES arduino\n"
+                cmake_content += "    REQUIRES arduino-esp32\n"
 
             # Add esp-dl requirement for esp-dl library
             if "esp-dl" in lib_name.lower():

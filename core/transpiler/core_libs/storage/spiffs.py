@@ -8,15 +8,6 @@ __include_internal_modules__ = {
 __dependencies__ = ""
 
 
-# __include_modules__ = {"espressif8266": "FS,SPIFFS", "espressif32": "FS"}
-__include_internal_modules__ = {
-    "espressif8266": "helpers/SPIFFSHelper",
-    "espressif32": "helpers/SPIFFSHelper,SPIFFS",
-}
-
-__dependencies__ = ""
-
-
 class File:
     """
     Represents a handle to an open file in the SPIFFS filesystem.

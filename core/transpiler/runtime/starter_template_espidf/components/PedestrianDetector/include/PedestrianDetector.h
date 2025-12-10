@@ -11,7 +11,7 @@
 // Include your ESPCameraHelper to get the Image class
 #include "helpers/peripherals/ESPCameraHelper.h"
 
-#define PEDESTRIAN_MODEL_PATH "/spiffs/pedestrian_detector.espdl"
+#define PEDESTRIAN_MODEL_PATH "/pedestrian_detector.espdl"
 
 class PedestrianDetector {
 private:
