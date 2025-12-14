@@ -421,6 +421,35 @@ class AsyncWebServer:
         __translation__ = "async_server_on({self}, {path}, {method}, {handler})"
         pass
 
+    def on_upload(
+        self,
+        path: str,
+        method: str,
+        upload_handler: callable[
+            [AsyncWebServerRequest, str, int, int, int, bool], None
+        ],
+        final_handler: callable[[AsyncWebServerRequest], None] = None,
+    ) -> None:
+        """
+        Registers a file-upload handler for the given path and HTTP method.
+
+        Args:
+            path (str): URL path for handling multipart/form uploads.
+            method (str): HTTP method string ("HTTP_POST" recommended).
+            upload_handler (callable): Called repeatedly for upload chunks.
+            final_handler (callable, optional):
+                Called once at end of upload (optional).
+
+        Example:
+            server.on_upload("/upload", "HTTP_POST", upload_cb)
+
+            or
+
+            server.on_upload("/upload", "HTTP_POST", upload_cb, done_cb)
+        """
+        __use_as_is__ = False
+        __translation__ = "async_server_on_upload({self}, {path}, {method}, {upload_handler}, {final_handler})"
+
     def begin(self) -> None:
         """
         Starts the server. Must be called after all routes are registered.

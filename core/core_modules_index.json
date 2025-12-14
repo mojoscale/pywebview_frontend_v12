@@ -480,6 +480,11 @@
             "doc": "Registers a request handler for a specific path and method.\n\nArgs:\n    path (str): The URL path to handle.\n    method (str): HTTP method as string (e.g., \"GET\", \"POST\").\n    handler (function): Function to call when the request is received.\n\nReturns:\n    None"
           },
           {
+            "name": "on_upload",
+            "signature": "(self, path: str, method: str, upload_handler: callable[[AsyncWebServerRequest, str, int, int, int, bool], None], final_handler: callable[[AsyncWebServerRequest], None] = None) -> None",
+            "doc": "Registers a file-upload handler for the given path and HTTP method.\n\nArgs:\n    path (str): URL path for handling multipart/form uploads.\n    method (str): HTTP method string (\"HTTP_POST\" recommended).\n    upload_handler (callable): Called repeatedly for upload chunks.\n    final_handler (callable, optional):\n        Called once at end of upload (optional).\n\nExample:\n    server.on_upload(\"/upload\", \"HTTP_POST\", upload_cb)\n\n    or\n\n    server.on_upload(\"/upload\", \"HTTP_POST\", upload_cb, done_cb)"
+          },
+          {
             "name": "begin",
             "signature": "(self) -> None",
             "doc": "Starts the server. Must be called after all routes are registered.\n\nReturns:\n    None"
@@ -1346,6 +1351,17 @@
         ]
       },
       {
+        "name": "camera_fb_t",
+        "doc": "No docstring available",
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self)",
+            "doc": "No docstring available"
+          }
+        ]
+      },
+      {
         "name": "Camera",
         "doc": "Provides a Pythonic interface to initialize, capture, stream, and upload\nframes from the ESP32 camera module.",
         "methods": [
@@ -1377,6 +1393,11 @@
           {
             "name": "capture",
             "signature": "(self) -> Image",
+            "doc": "Capture a still image frame.\n\nReturns:\n    Image: Captured image object"
+          },
+          {
+            "name": "capture_raw_frame",
+            "signature": "(self) -> camera_fb_t",
             "doc": "Capture a still image frame.\n\nReturns:\n    Image: Captured image object"
           },
           {

@@ -369,34 +369,54 @@ def install_components(project_dir):
     else:
         print("Cloning arduino-esp32...")
         try:
-            subprocess.run(
+            # Use Popen with real-time output to avoid hanging
+            process = subprocess.Popen(
                 ["git", "clone", "--recursive", arduino_url, str(arduino_dir)],
-                check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                bufsize=1,
+                universal_newlines=True,
             )
+
+            # Read output in real-time
+            while True:
+                output = process.stdout.readline()
+                if output == "" and process.poll() is not None:
+                    break
+                if output:
+                    print(f"  {output.strip()}")
+
+            # Get any remaining output
+            stdout, stderr = process.communicate()
+
+            if process.returncode != 0:
+                print(
+                    f"✗ Failed to clone arduino-esp32, return code: {process.returncode}"
+                )
+                if stderr:
+                    print(f"Error details: {stderr}")
+                raise subprocess.CalledProcessError(process.returncode, process.args)
+
             print("✓ arduino-esp32 installed successfully")
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             print(f"✗ Failed to clone arduino-esp32: {e}")
-            if e.stderr:
-                print(f"Error details: {e.stderr}")
             raise
 
-    # Install esp-dl component - extract inner esp-dl folder from repo
+    # Install esp-dl component - extract INNER esp-dl folder from repo
     esp_dl_url = "https://github.com/espressif/esp-dl.git"
     esp_dl_target_dir = (
         components_dir / "esp-dl"
-    )  # This will contain the inner esp-dl folder contents
+    )  # Final location for INNER esp-dl folder contents
 
     # Check if esp-dl already exists with correct structure
-    # We want: components/esp-dl/ (with inner folder contents)
     if esp_dl_target_dir.exists() and any(esp_dl_target_dir.iterdir()):
-        # Check if it has component.mk or CMakeLists.txt to verify it's valid
-        has_valid_files = any(
-            esp_dl_target_dir.glob("CMakeLists.txt")
-            or esp_dl_target_dir.glob("component.mk")
-            or esp_dl_target_dir.glob("include/")
+        # Check for key files that should be in the inner esp-dl folder
+        has_valid_files = (
+            (esp_dl_target_dir / "include").exists()
+            or (esp_dl_target_dir / "lib").exists()
+            or (esp_dl_target_dir / "CMakeLists.txt").exists()
+            or (esp_dl_target_dir / "component.mk").exists()
         )
         if has_valid_files:
             print("✓ esp-dl already exists with correct structure")
@@ -405,84 +425,145 @@ def install_components(project_dir):
             print("⚠ esp-dl exists but appears empty/corrupt, reinstalling...")
             shutil.rmtree(esp_dl_target_dir)
 
-    print("Installing esp-dl with correct structure...")
+    print(
+        "Installing esp-dl with correct structure..."
+    )  # THIS IS THE LAST PRINT YOU SEE
+    print(f"DEBUG: Current directory: {Path.cwd()}")
+    print(f"DEBUG: Project directory: {project_dir}")
 
-    # Create temp directory for cloning
+    # Create temp directory for cloning the FULL repository
     temp_dir = project_dir / "temp_esp_dl"
+    print(f"DEBUG: Temp directory will be: {temp_dir}")
+
     if temp_dir.exists():
-        shutil.rmtree(temp_dir)
+        print(f"DEBUG: Temp directory exists, removing...")
+        try:
+            shutil.rmtree(temp_dir)
+            print(f"DEBUG: Successfully removed temp directory")
+        except Exception as e:
+            print(f"DEBUG: Failed to remove temp directory: {e}")
+            # Try force removal on Windows
+            import os
+
+            if os.name == "nt":  # Windows
+                try:
+                    subprocess.run(
+                        ["rmdir", "/s", "/q", str(temp_dir)], shell=True, check=False
+                    )
+                    print(f"DEBUG: Used Windows force remove")
+                except:
+                    pass
+
+    print(f"DEBUG: Creating fresh temp directory...")
+    try:
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        print(f"DEBUG: Successfully created temp directory")
+    except Exception as e:
+        print(f"DEBUG: Failed to create temp directory: {e}")
+        raise
 
     try:
-        print(f"Cloning esp-dl repository...")
-        subprocess.run(
+        print("DEBUG: Starting git clone...")
+        print(f"DEBUG: Command: git clone --depth 1 {esp_dl_url} {temp_dir}")
+
+        # Try a simpler git clone approach
+        print("DEBUG: Attempting git clone (this may take a moment)...")
+
+        # Use run with output to console so we can see progress
+        result = subprocess.run(
             ["git", "clone", "--depth", "1", esp_dl_url, str(temp_dir)],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=False,  # Let output go to console
             text=True,
+            timeout=300,  # 5 minute timeout
+            check=False,  # Don't raise exception automatically
         )
 
-        # Create the target directory
-        esp_dl_target_dir.mkdir(parents=True, exist_ok=True)
+        print(f"DEBUG: Git clone completed, return code: {result.returncode}")
 
-        # Look for the inner esp-dl folder in the cloned repo
-        # The structure in the repo is: esp-dl/esp-dl/
-        source_inner_esp_dl = temp_dir / "esp-dl"
+        if result.returncode != 0:
+            print(f"✗ Git clone failed with return code: {result.returncode}")
+            if result.stderr:
+                print(f"Error: {result.stderr}")
+            raise subprocess.CalledProcessError(result.returncode, ["git", "clone"])
 
-        if source_inner_esp_dl.exists() and source_inner_esp_dl.is_dir():
-            print("Found esp-dl folder in repository...")
+        print(f"DEBUG: Git clone successful!")
+        print(f"DEBUG: Checking if temp directory was created...")
+        print(f"DEBUG: Temp directory exists: {temp_dir.exists()}")
 
-            # Check if there's another esp-dl folder inside (nested structure)
-            nested_inner = source_inner_esp_dl / "esp-dl"
-            if nested_inner.exists() and nested_inner.is_dir():
-                # Use the deeply nested folder contents
-                print(f"Copying contents from deeply nested esp-dl folder...")
-                # Copy all contents from the nested folder
-                for item in nested_inner.iterdir():
-                    if item.name != ".git":
-                        dest = esp_dl_target_dir / item.name
-                        if item.is_dir():
-                            shutil.copytree(item, dest, dirs_exist_ok=True)
-                        else:
-                            shutil.copy2(item, dest)
-            else:
-                # Use the folder directly (copy all contents)
-                print(f"Copying contents from esp-dl folder...")
-                for item in source_inner_esp_dl.iterdir():
-                    if item.name != ".git":
-                        dest = esp_dl_target_dir / item.name
-                        if item.is_dir():
-                            shutil.copytree(item, dest, dirs_exist_ok=True)
-                        else:
-                            shutil.copy2(item, dest)
+        if temp_dir.exists():
+            print(f"DEBUG: Temp directory contents: {list(temp_dir.iterdir())}")
         else:
-            # If the expected structure isn't found, copy everything from root
-            print(
-                "Expected folder structure not found, copying all repository contents..."
+            print(f"DEBUG: Temp directory was not created!")
+            raise FileNotFoundError(
+                f"Temp directory not found after git clone: {temp_dir}"
             )
-            for item in temp_dir.iterdir():
-                if item.name != ".git":
-                    dest = esp_dl_target_dir / item.name
-                    if item.is_dir():
-                        shutil.copytree(item, dest, dirs_exist_ok=True)
-                    else:
-                        shutil.copy2(item, dest)
 
-        # Create/update CMakeLists.txt if needed
-        cmake_file = esp_dl_target_dir / "CMakeLists.txt"
-        if not cmake_file.exists():
-            cmake_file.write_text(
-                """# ESP-DL component
-idf_component_register()
-"""
+        # Look for the INNER esp-dl folder
+        inner_esp_dl_dir = temp_dir / "esp-dl"
+
+        print(f"DEBUG: Looking for inner esp-dl folder at: {inner_esp_dl_dir}")
+        print(f"DEBUG: Inner folder exists: {inner_esp_dl_dir.exists()}")
+
+        if inner_esp_dl_dir.exists() and inner_esp_dl_dir.is_dir():
+            print(f"✓ Found inner esp-dl folder at: {inner_esp_dl_dir}")
+
+            # Create target directory
+            esp_dl_target_dir.mkdir(parents=True, exist_ok=True)
+
+            # Copy ALL contents from the inner esp-dl folder
+            items_copied = 0
+            print(
+                f"DEBUG: Contents of inner folder: {list(inner_esp_dl_dir.iterdir())}"
             )
+
+            for item in inner_esp_dl_dir.iterdir():
+                if item.name == ".git":
+                    continue
+
+                dest_path = esp_dl_target_dir / item.name
+                print(f"DEBUG: Copying {item} to {dest_path}")
+
+                try:
+                    if item.is_dir():
+                        shutil.copytree(item, dest_path, dirs_exist_ok=True)
+                        items_copied += 1
+                        print(f"  Copied directory: {item.name}")
+                    else:
+                        shutil.copy2(item, dest_path)
+                        items_copied += 1
+                        print(f"  Copied file: {item.name}")
+                except Exception as copy_error:
+                    print(f"  Warning: Failed to copy {item}: {copy_error}")
+
+            print(f"✓ Copied {items_copied} items from inner esp-dl folder")
+
+            # Verify the result
+            if items_copied == 0:
+                print("⚠ Warning: No items were copied from inner esp-dl folder")
+            else:
+                print(
+                    f"DEBUG: Final esp-dl target contents: {list(esp_dl_target_dir.iterdir())}"
+                )
+
+        else:
+            print("✗ Could not find inner esp-dl folder in the repository")
+            print(f"DEBUG: Full temp directory listing:")
+            for item in temp_dir.iterdir():
+                print(f"  - {item.name} (dir: {item.is_dir()})")
+            raise FileNotFoundError("Inner esp-dl folder not found in repository")
 
         print(
-            "✓ esp-dl installed with correct structure (contents directly in components/esp-dl/)"
+            "✓ esp-dl installed with correct structure (inner folder contents in components/esp-dl/)"
         )
 
+    except subprocess.TimeoutExpired:
+        print("✗ Git clone timed out after 5 minutes")
+        raise
     except Exception as e:
-        print(f"✗ Failed to install esp-dl: {e}")
+        print(f"✗ Failed to install esp-dl: {type(e).__name__}: {e}")
+        import traceback
+
+        traceback.print_exc()  # This will print the full traceback
         # Clean up on error
         if esp_dl_target_dir.exists():
             shutil.rmtree(esp_dl_target_dir)
@@ -490,7 +571,12 @@ idf_component_register()
     finally:
         # Clean up temp directory
         if temp_dir.exists():
-            shutil.rmtree(temp_dir)
+            print(f"DEBUG: Cleaning up temp directory: {temp_dir}")
+            try:
+                shutil.rmtree(temp_dir)
+                print(f"DEBUG: Successfully cleaned up temp directory")
+            except Exception as e:
+                print(f"DEBUG: Failed to clean up temp directory: {e}")
 
     print("✓ All components installed successfully")
 
@@ -601,7 +687,7 @@ def convert_arduino_libs_to_idf_components(
     print("📦 Rebuilding Arduino libs → ESP-IDF components/auto_libs/")
 
     for lib in libs_dir.iterdir():
-        allowed_libs = ["BLESimple", "NimBLESimple", "PedestrianDetector"]
+        allowed_libs = ["BLESimple", "NimBLESimple", "pedestrian_detect"]
         if not lib.is_dir() or lib.name not in allowed_libs:
             continue
 

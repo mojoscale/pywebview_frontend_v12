@@ -1,8 +1,8 @@
-__include_modules__ = "PedestrianDetector"
-__include_internal_modules__ = ""
+__include_modules__ = ""
+__include_internal_modules__ = "helpers/PedestrianDetectorHelper"
 __dependencies__ = "espressif/esp32-camera"
 __available_platforms__ = "espressif32"
-__embed_files__ = "models/pedestrian_detector.espdl"
+# __embed_files__ = "models/pedestrian_detector.espdl"
 
 __needs_espidf__ = True
 

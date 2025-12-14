@@ -114,6 +114,12 @@ class Image:
         return 0
 
 
+class camera_fb_t:
+    def __init__(self):
+        __is_pointer__ = True
+        __pass_as__ = "pointer"
+
+
 class Camera:
     """
     Provides a Pythonic interface to initialize, capture, stream, and upload
@@ -314,6 +320,16 @@ class Camera:
         __use_as_is__ = False
         __translation__ = "{self}.capture()"
         return Image()
+
+    def capture_raw_frame(self) -> camera_fb_t:
+        """
+        Capture a still image frame.
+
+        Returns:
+            Image: Captured image object
+        """
+        __use_as_is__ = False
+        __translation__ = "{self}.capture_raw_frame()"
 
     def send_http(self, url: str) -> bool:
         """

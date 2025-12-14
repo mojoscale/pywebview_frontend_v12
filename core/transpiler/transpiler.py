@@ -4111,7 +4111,7 @@ class ArduinoTranspiler(ast.NodeVisitor):
         value = node.value
 
         if value is None:
-            return "null"
+            return "nullptr"
         if isinstance(value, bool):
             return "true" if value else "false"
         elif isinstance(value, str):
